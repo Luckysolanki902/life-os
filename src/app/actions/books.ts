@@ -1,0 +1,519 @@
+'use server';
+
+import connectDB from '@/lib/db';
+import BookDomain from '@/models/BookDomain';
+import Book from '@/models/Book';
+import BookLog from '@/models/BookLog';
+import Task from '@/models/Task';
+import DailyLog from '@/models/DailyLog';
+import { revalidatePath } from 'next/cache';
+
+// Helper function to check if a task should appear on a given day
+function shouldShowTaskOnDay(task: any, dayOfWeek: number): boolean {
+  const recurrenceType = task.recurrenceType || 'daily';
+  
+  switch (recurrenceType) {
+    case 'daily':
+      return true;
+    case 'weekdays':
+      return dayOfWeek >= 1 && dayOfWeek <= 5;
+    case 'weekends':
+      return dayOfWeek === 0 || dayOfWeek === 6;
+    case 'custom':
+      return (task.recurrenceDays || []).includes(dayOfWeek);
+    default:
+      return true;
+  }
+}
+
+// Auto-pause logic: if a book hasn't been read for 7 days, mark as paused
+async function autoUpdateBookStatuses() {
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  
+  // Auto-pause books that haven't been read in 7 days and are still "reading"
+  await Book.updateMany(
+    {
+      status: 'reading',
+      lastReadDate: { $lt: sevenDaysAgo }
+    },
+    {
+      status: 'paused'
+    }
+  );
+}
+
+// ============ DASHBOARD DATA ============
+export async function getBooksDashboardData(page: number = 1, limit: number = 20, search?: string) {
+  await connectDB();
+  
+  // Run auto-status update
+  await autoUpdateBookStatuses();
+
+  // Get all domains with book counts
+  const domains = await BookDomain.find().sort({ order: 1, createdAt: 1 }).lean();
+  
+  const domainsWithStats = await Promise.all(domains.map(async (domain: any) => {
+    const bookCount = await Book.countDocuments({ domainId: domain._id });
+    const readingCount = await Book.countDocuments({ domainId: domain._id, status: 'reading' });
+    const completedCount = await Book.countDocuments({ domainId: domain._id, status: 'completed' });
+    
+    return {
+      ...domain,
+      _id: domain._id.toString(),
+      bookCount,
+      readingCount,
+      completedCount
+    };
+  }));
+
+
+  // Get all books with pagination and search
+  let query: any = {};
+  if (search) {
+    query = {
+      $or: [
+        { title: { $regex: search, $options: 'i' } },
+        { author: { $regex: search, $options: 'i' } }
+      ]
+    };
+  }
+  
+  const totalBooks = await Book.countDocuments(query);
+  const totalPages = Math.ceil(totalBooks / limit);
+  
+  const books = await Book.find(query)
+    .sort({ lastReadDate: -1, createdAt: -1 })
+    .skip((page - 1) * limit)
+    .limit(limit)
+    .lean();
+  
+  // Enrich books with domain info
+  const enrichedBooks = await Promise.all(books.map(async (book: any) => {
+    const domain = await BookDomain.findById(book.domainId).lean();
+    return {
+      ...book,
+      _id: book._id.toString(),
+      domainId: book.domainId.toString(),
+      domain: domain ? { 
+        name: (domain as any).name, 
+        color: (domain as any).color,
+        icon: (domain as any).icon
+      } : null
+    };
+  }));
+
+
+  // Recently logged reading sessions (last 10)
+  const recentLogs = await BookLog.find()
+    .sort({ date: -1 })
+    .limit(10)
+    .lean();
+  
+  const enrichedRecentLogs = await Promise.all(recentLogs.map(async (log: any) => {
+    const book = await Book.findById(log.bookId).lean();
+    if (!book) return null;
+    
+    const domain = await BookDomain.findById((book as any).domainId).lean();
+    return {
+      ...log,
+      _id: log._id.toString(),
+      bookId: log.bookId.toString(),
+      book: {
+        _id: (book as any)._id.toString(),
+        title: (book as any).title,
+        author: (book as any).author,
+        subcategory: (book as any).subcategory,
+        status: (book as any).status
+      },
+      domain: domain ? { 
+        name: (domain as any).name, 
+        color: (domain as any).color,
+        icon: (domain as any).icon
+      } : null
+    };
+  }));
+  
+  const enrichedRecent = enrichedRecentLogs.filter(log => log !== null);
+
+  // Get today's learning tasks (since books is part of learning)
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const dayOfWeek = today.getDay();
+  
+  const learningTasks = await Task.find({
+    domainId: 'learning',
+    isActive: true
+  }).lean();
+
+  // Filter by recurrence
+  const todaysTasks = learningTasks.filter((task: any) => shouldShowTaskOnDay(task, dayOfWeek));
+
+  const taskIds = todaysTasks.map((t: any) => t._id);
+  const taskLogs = await DailyLog.find({
+    taskId: { $in: taskIds },
+    date: { $gte: today, $lt: new Date(today.getTime() + 24 * 60 * 60 * 1000) }
+  }).lean();
+
+  const routine = todaysTasks.map((task: any) => {
+    const log = taskLogs.find((l: any) => l.taskId.toString() === task._id.toString());
+    return {
+      ...task,
+      _id: task._id.toString(),
+      log: log ? {
+        ...log,
+        _id: log._id.toString(),
+        taskId: log.taskId.toString(),
+      } : null
+    };
+  });
+
+  // Stats
+  const stats = {
+    totalBooks: await Book.countDocuments(),
+    reading: await Book.countDocuments({ status: 'reading' }),
+    paused: await Book.countDocuments({ status: 'paused' }),
+    completed: await Book.countDocuments({ status: 'completed' })
+  };
+
+  return {
+    domains: domainsWithStats,
+    books: enrichedBooks,
+    recentLogs: enrichedRecent,
+    routine,
+    stats,
+    pagination: {
+      page,
+      limit,
+      totalBooks,
+      totalPages
+    }
+  };
+}
+
+// ============ DOMAIN CRUD ============
+export async function createBookDomain(data: { name: string; description?: string; color?: string; icon?: string }) {
+  await connectDB();
+  const maxOrder = await BookDomain.findOne().sort({ order: -1 }).lean();
+  await BookDomain.create({ ...data, order: ((maxOrder as any)?.order || 0) + 1 });
+  revalidatePath('/books');
+  return { success: true };
+}
+
+export async function updateBookDomain(domainId: string, data: { name?: string; description?: string; color?: string; icon?: string }) {
+  await connectDB();
+  await BookDomain.findByIdAndUpdate(domainId, data);
+  revalidatePath('/books');
+  return { success: true };
+}
+
+export async function deleteBookDomain(domainId: string) {
+  await connectDB();
+  // Also delete all books in this domain
+  await Book.deleteMany({ domainId });
+  await BookDomain.findByIdAndDelete(domainId);
+  revalidatePath('/books');
+  return { success: true };
+}
+
+// ============ BOOK CRUD ============
+export async function createBook(data: { 
+  domainId: string; 
+  title: string; 
+  author?: string;
+  totalPages?: number;
+  startDate?: string;
+  notes?: string;
+}) {
+  await connectDB();
+  const maxOrder = await Book.findOne({ domainId: data.domainId }).sort({ order: -1 }).lean();
+  await Book.create({ 
+    ...data, 
+    startDate: data.startDate ? new Date(data.startDate) : new Date(),
+    status: 'reading',
+    lastReadDate: new Date(),
+    order: ((maxOrder as any)?.order || 0) + 1 
+  });
+  revalidatePath('/books');
+  return { success: true };
+}
+
+export async function updateBook(bookId: string, data: { 
+  domainId?: string;
+  title?: string; 
+  author?: string;
+  status?: string;
+  totalPages?: number;
+  currentPage?: number;
+  startDate?: string;
+  completedDate?: string;
+  notes?: string;
+  rating?: number;
+}) {
+  await connectDB();
+  
+  const updateData: any = { ...data };
+  
+  // Handle date conversions
+  if (data.startDate) updateData.startDate = new Date(data.startDate);
+  if (data.completedDate) updateData.completedDate = new Date(data.completedDate);
+  
+  // If marking as completed, set completedDate
+  if (data.status === 'completed' && !data.completedDate) {
+    updateData.completedDate = new Date();
+  }
+  
+  await Book.findByIdAndUpdate(bookId, updateData);
+  revalidatePath('/books');
+  return { success: true };
+}
+
+export async function deleteBook(bookId: string) {
+  await connectDB();
+  await Book.findByIdAndDelete(bookId);
+  revalidatePath('/books');
+  return { success: true };
+}
+
+// ============ CHECK-IN ============
+
+// Check in - mark book as read today
+export async function checkInBook(bookId: string, currentPage?: number, notes?: string) {
+  await connectDB();
+  
+  const updateData: any = {
+    lastReadDate: new Date(),
+    status: 'reading' // Resume if was paused
+  };
+  
+  if (currentPage !== undefined) {
+    updateData.currentPage = currentPage;
+  }
+  
+  await Book.findByIdAndUpdate(bookId, updateData);
+  
+  // Create a log entry
+  await BookLog.create({
+    bookId,
+    date: new Date(),
+    currentPage: currentPage || 0,
+    notes: notes || ''
+  });
+  
+  revalidatePath('/books');
+  return { success: true };
+}
+
+// Search books
+export async function searchBooks(query: string, limit: number = 10) {
+  await connectDB();
+  
+  const books = await Book.find({
+    $or: [
+      { title: { $regex: query, $options: 'i' } },
+      { author: { $regex: query, $options: 'i' } }
+    ]
+  }).sort({ lastReadDate: -1 }).limit(limit).lean();
+  
+  const enrichedBooks = await Promise.all(books.map(async (book: any) => {
+    const domain = await BookDomain.findById(book.domainId).lean();
+    return {
+      ...book,
+      _id: book._id.toString(),
+      domainId: book.domainId.toString(),
+      domain: domain ? { 
+        name: (domain as any).name, 
+        color: (domain as any).color,
+        icon: (domain as any).icon
+      } : null
+    };
+  }));
+  
+  return enrichedBooks;
+}
+
+// Get books by domain with pagination
+export async function getBooksByDomain(domainId: string, page: number = 1, limit: number = 20) {
+  await connectDB();
+  
+  const totalBooks = await Book.countDocuments({ domainId });
+  const totalPages = Math.ceil(totalBooks / limit);
+  
+  const books = await Book.find({ domainId })
+    .sort({ lastReadDate: -1, createdAt: -1 })
+    .skip((page - 1) * limit)
+    .limit(limit)
+    .lean();
+  
+  const domain = await BookDomain.findById(domainId).lean();
+  
+  return {
+    books: books.map((book: any) => ({
+      ...book,
+      _id: book._id.toString(),
+      domainId: book.domainId.toString(),
+      domain: domain ? { 
+        name: (domain as any).name, 
+        color: (domain as any).color,
+        icon: (domain as any).icon
+      } : null
+    })),
+    pagination: { page, limit, totalBooks, totalPages }
+  };
+}
+
+// ============ TABLE VIEW WITH SORTING ============
+export async function getBooksTableData(
+  page: number = 1, 
+  limit: number = 50,
+  sortField: string = 'lastReadDate',
+  sortOrder: 'asc' | 'desc' = 'desc',
+  filters?: {
+    status?: string;
+    domainId?: string;
+    search?: string;
+  }
+) {
+  await connectDB();
+  
+  // Build query
+  let query: any = {};
+  if (filters?.status) query.status = filters.status;
+  if (filters?.domainId) query.domainId = filters.domainId;
+  if (filters?.search) {
+    query.$or = [
+      { title: { $regex: filters.search, $options: 'i' } },
+      { author: { $regex: filters.search, $options: 'i' } },
+      { subcategory: { $regex: filters.search, $options: 'i' } }
+    ];
+  }
+  
+  const totalBooks = await Book.countDocuments(query);
+  const totalPages = Math.ceil(totalBooks / limit);
+  
+  // Build sort object
+  const sortObj: any = {};
+  sortObj[sortField] = sortOrder === 'asc' ? 1 : -1;
+  
+  const books = await Book.find(query)
+    .sort(sortObj)
+    .skip((page - 1) * limit)
+    .limit(limit)
+    .lean();
+  
+  // Enrich with domain info
+  const enrichedBooks = await Promise.all(books.map(async (book: any) => {
+    const domain = await BookDomain.findById(book.domainId).lean();
+    return {
+      ...book,
+      _id: book._id.toString(),
+      domainId: book.domainId.toString(),
+      domain: domain ? { 
+        _id: (domain as any)._id.toString(),
+        name: (domain as any).name, 
+        color: (domain as any).color,
+        icon: (domain as any).icon
+      } : null
+    };
+  }));
+  
+  // Get all domains for filter dropdown
+  const allDomains = await BookDomain.find().sort({ order: 1 }).lean();
+  
+  return {
+    books: enrichedBooks,
+    pagination: { page, limit, totalBooks, totalPages },
+    domains: allDomains.map((d: any) => ({ ...d, _id: d._id.toString() }))
+  };
+}
+
+// ============ BULK IMPORT ============
+export async function bulkImportBooks(booksData: Array<{
+  title: string;
+  author?: string;
+  domain: string; // Domain name, will auto-create if doesn't exist
+  subcategory: string;
+  totalPages?: number;
+  status?: string;
+  startDate?: string;
+  notes?: string;
+}>) {
+  await connectDB();
+  
+  const results = {
+    success: 0,
+    failed: 0,
+    errors: [] as string[]
+  };
+  
+  // Process each book
+  for (const bookData of booksData) {
+    try {
+      if (!bookData.title || !bookData.domain || !bookData.subcategory) {
+        results.failed++;
+        results.errors.push(`Missing required fields for: ${bookData.title || 'Unknown'}`);
+        continue;
+      }
+      
+      // Find or create domain
+      let domain = await BookDomain.findOne({ name: bookData.domain }).lean();
+      
+      if (!domain) {
+        // Auto-create domain
+        const maxOrder = await BookDomain.findOne().sort({ order: -1 }).lean();
+        const newDomain = await BookDomain.create({
+          name: bookData.domain,
+          description: `Auto-created for ${bookData.domain}`,
+          color: ['blue', 'purple', 'emerald', 'orange', 'cyan', 'amber'][Math.floor(Math.random() * 6)],
+          icon: '📚',
+          order: ((maxOrder as any)?.order || 0) + 1
+        });
+        domain = newDomain.toObject();
+      }
+      
+      // Create book
+      await Book.create({
+        domainId: (domain as any)._id,
+        title: bookData.title,
+        author: bookData.author || '',
+        subcategory: bookData.subcategory,
+        totalPages: bookData.totalPages || 0,
+        status: bookData.status || 'reading',
+        startDate: bookData.startDate ? new Date(bookData.startDate) : new Date(),
+        notes: bookData.notes || '',
+        lastReadDate: new Date()
+      });
+      
+      results.success++;
+    } catch (error: any) {
+      results.failed++;
+      results.errors.push(`Error importing "${bookData.title}": ${error.message}`);
+    }
+  }
+  
+  revalidatePath('/books');
+  return results;
+}
+
+// ============ BOOK LOGS ============
+export async function deleteBookLog(logId: string) {
+  await connectDB();
+  await BookLog.findByIdAndDelete(logId);
+  revalidatePath('/books');
+  return { success: true };
+}
+
+export async function getBookLogs(bookId: string, limit: number = 20) {
+  await connectDB();
+  
+  const logs = await BookLog.find({ bookId })
+    .sort({ date: -1 })
+    .limit(limit)
+    .lean();
+  
+  return logs.map((log: any) => ({
+    ...log,
+    _id: log._id.toString(),
+    bookId: log.bookId.toString()
+  }));
+}
