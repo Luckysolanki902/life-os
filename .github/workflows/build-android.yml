@@ -42,18 +42,22 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x android/gradlew
 
-      - name: Build Debug APK
+      - name: Generate Keystore
+        run: |
+          keytool -genkeypair -v -keystore android/app/release.keystore -alias lifeos -keyalg RSA -keysize 2048 -validity 10000 -storepass lifeos123 -keypass lifeos123 -dname "CN=LifeOS, OU=LifeOS, O=LifeOS, L=Unknown, ST=Unknown, C=IN"
+
+      - name: Build Release APK
         run: |
           cd android
-          ./gradlew assembleDebug
+          ./gradlew assembleRelease -Pandroid.injected.signing.store.file=$PWD/app/release.keystore -Pandroid.injected.signing.store.password=lifeos123 -Pandroid.injected.signing.key.alias=lifeos -Pandroid.injected.signing.key.password=lifeos123
 
       - name: Rename APK
         run: |
-          mv android/app/build/outputs/apk/debug/app-debug.apk android/app/build/outputs/apk/debug/LifeOS.apk
+          mv android/app/build/outputs/apk/release/app-release.apk android/app/build/outputs/apk/release/LifeOS.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: LifeOS-APK
-          path: android/app/build/outputs/apk/debug/LifeOS.apk
+          name: LifeOS-Release-APK
+          path: android/app/build/outputs/apk/release/LifeOS.apk
           retention-days: 90
