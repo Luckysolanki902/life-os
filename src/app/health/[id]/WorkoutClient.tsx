@@ -661,10 +661,10 @@ export default function WorkoutClient({ initialData }: WorkoutClientProps) {
   }
 
   return (
-    <div className="space-y-6 pb-20">
+    <div className="space-y-6 pb-20 overflow-x-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-4 flex-1 min-w-0">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0 w-full sm:w-auto">
           <Link href="/health" className="p-2 rounded-full hover:bg-secondary transition-colors shrink-0">
             <ArrowLeft size={20} />
           </Link>
@@ -799,28 +799,31 @@ export default function WorkoutClient({ initialData }: WorkoutClientProps) {
       {/* Actions */}
       <div className="flex flex-col gap-3">
         <form onSubmit={handleCreateExercise} className="space-y-3">
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2 w-full">
             <input
               value={newExercise.title}
               onChange={e => setNewExercise({ ...newExercise, title: e.target.value })}
               placeholder="Add exercise name"
-              className="flex-1 rounded-xl border border-input bg-background px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/20"
+              className="flex-1 rounded-xl border border-input bg-background px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 min-w-0"
             />
-            <button 
-              type="submit"
-              disabled={isLoading || !newExercise.title.trim()}
-              className="px-4 py-3 rounded-xl bg-primary text-primary-foreground font-medium flex items-center justify-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-50"
-            >
-              <Plus size={18} />
-              {isLoading ? 'Adding...' : 'Add'}
-            </button>
-            <button 
-              type="button"
-              onClick={() => setIsBulkModalOpen(true)}
-              className="px-4 py-3 rounded-xl bg-secondary text-secondary-foreground font-medium flex items-center justify-center gap-2 hover:opacity-80 transition-opacity"
-            >
-              <Upload size={18} />
-            </button>
+            <div className="flex gap-2 shrink-0">
+              <button 
+                type="submit"
+                disabled={isLoading || !newExercise.title.trim()}
+                className="flex-1 sm:flex-none px-4 py-3 rounded-xl bg-primary text-primary-foreground font-medium flex items-center justify-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-50 whitespace-nowrap"
+              >
+                <Plus size={18} />
+                <span className="hidden sm:inline">{isLoading ? 'Adding...' : 'Add'}</span>
+              </button>
+              <button 
+                type="button"
+                onClick={() => setIsBulkModalOpen(true)}
+                className="flex-1 sm:flex-none px-4 py-3 rounded-xl bg-secondary text-secondary-foreground font-medium flex items-center justify-center gap-2 hover:opacity-80 transition-opacity"
+                title="Bulk Import"
+              >
+                <Upload size={18} />
+              </button>
+            </div>
           </div>
           
           {/* Expandable Initial Values */}

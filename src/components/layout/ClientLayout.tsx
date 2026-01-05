@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 import { useSelector } from 'react-redux';
 import { RootState } from '@/lib/store';
@@ -16,6 +16,7 @@ export default function ClientLayout({
   const pathname = usePathname();
   const isLoginPage = pathname === '/login';
   const { isSidebarOpen, theme } = useSelector((state: RootState) => state.ui);
+  const previousPathname = useRef(pathname);
 
   // Theme Sync
   useEffect(() => {
@@ -32,12 +33,30 @@ export default function ClientLayout({
     }
   }, [theme]);
 
+  // Page Transition Animation
+  useEffect(() => {
+    if (previousPathname.current !== pathname) {
+      previousPathname.current = pathname;
+      
+      // Add fade animation on route change
+      const mainContent = document.querySelector('[data-page-content]');
+      if (mainContent) {
+        mainContent.classList.remove('animate-in', 'fade-in', 'slide-in-from-bottom-4');
+        // Trigger reflow
+        void mainContent.getBoundingClientRect();
+        mainContent.classList.add('animate-in', 'fade-in', 'slide-in-from-bottom-4');
+      }
+    }
+  }, [pathname]);
+
   if (isLoginPage) {
     return <main className="min-h-screen bg-background">{children}</main>;
   }
 
   return (
     <div className="min-h-screen bg-background transition-colors duration-300">
+      {/* Safe area spacer for Android status bar */}
+      <div className="h-[env(safe-area-inset-top)] bg-background" />
       <Sidebar />
       
       <main
@@ -47,7 +66,10 @@ export default function ClientLayout({
           isSidebarOpen ? 'md:pl-64' : 'md:pl-0'
         )}
       >
-        <div className="container max-w-5xl mx-auto p-4 md:p-8 animate-in fade-in duration-500">
+        <div 
+          data-page-content
+          className="container max-w-5xl mx-auto p-4 md:p-8 animate-in fade-in slide-in-from-bottom-4 duration-500"
+        >
           {children}
         </div>
       </main>
