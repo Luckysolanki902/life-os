@@ -4,7 +4,7 @@ const TaskSchema = new mongoose.Schema({
   title: { type: String, required: true },
   domainId: { 
     type: String, 
-    enum: ['health', 'career', 'learning', 'social', 'discipline', 'personality'],
+    enum: ['health', 'career', 'learning', 'social', 'discipline', 'personality', 'startups'],
     required: true 
   },
   order: { type: Number, default: 0 },

@@ -309,31 +309,33 @@ export default function LearningClient({ initialData }: LearningClientProps) {
   const selectedMedium = allMediums.find((m) => m._id === quickLogData.mediumId);
 
   return (
-    <div className="space-y-6 pb-20">
+    <div className="space-y-5 sm:space-y-6 pb-20">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="space-y-1">
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-3">
-            <BookOpen className="text-violet-500" size={28} />
-            Learning
-          </h1>
-          <p className="text-muted-foreground text-sm">Track your knowledge journey</p>
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setIsQuickLogOpen(true)}
-            className="px-4 py-2 rounded-xl bg-primary text-primary-foreground font-medium text-sm flex items-center gap-2 hover:opacity-90"
-          >
-            <Play size={16} />
-            Quick Log
-          </button>
-          <button
-            onClick={() => setIsAreaModalOpen(true)}
-            className="px-4 py-2 rounded-xl bg-secondary text-secondary-foreground font-medium text-sm flex items-center gap-2 hover:opacity-80"
-          >
-            <Plus size={16} />
-            Area
-          </button>
+      <div className="flex flex-col gap-3 sm:gap-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="space-y-0.5 sm:space-y-1">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-2 sm:gap-3">
+              <BookOpen className="text-violet-500 shrink-0" size={24} />
+              Learning
+            </h1>
+            <p className="text-muted-foreground text-xs sm:text-sm">Track your knowledge journey</p>
+          </div>
+          <div className="flex gap-1.5 sm:gap-2 shrink-0">
+            <button
+              onClick={() => setIsQuickLogOpen(true)}
+              className="px-2.5 sm:px-4 py-2 rounded-xl bg-primary text-primary-foreground font-medium text-xs sm:text-sm flex items-center gap-1 sm:gap-2 hover:opacity-90 shadow-lg shadow-primary/20"
+            >
+              <Play size={14} />
+              <span className="hidden xs:inline">Quick</span> Log
+            </button>
+            <button
+              onClick={() => setIsAreaModalOpen(true)}
+              className="px-2.5 sm:px-4 py-2 rounded-xl bg-secondary text-secondary-foreground font-medium text-xs sm:text-sm flex items-center gap-1 sm:gap-2 hover:opacity-80"
+            >
+              <Plus size={14} />
+              <span className="hidden sm:inline">Area</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -752,21 +754,21 @@ export default function LearningClient({ initialData }: LearningClientProps) {
               return (
                 <div 
                   key={log._id}
-                  className="flex items-center justify-between p-3 rounded-xl bg-card border border-border/50"
+                  className="flex items-center justify-between p-2.5 sm:p-3 rounded-xl bg-card border border-border/50 gap-2"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className={cn("w-1 h-8 rounded-full", colorClasses.accent)} />
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span>{log.medium.icon || '📚'}</span>
-                        <span className="font-medium text-sm">{log.medium.title}</span>
+                  <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                    <div className={cn("w-1 h-8 rounded-full shrink-0", colorClasses.accent)} />
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 sm:gap-2">
+                        <span className="shrink-0">{log.medium.icon || '📚'}</span>
+                        <span className="font-medium text-xs sm:text-sm truncate">{log.medium.title}</span>
                       </div>
-                      <p className="text-xs text-muted-foreground">{log.skill.title} • {log.area.title}</p>
+                      <p className="text-[10px] sm:text-xs text-muted-foreground truncate">{log.skill.title} • {log.area.title}</p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-medium text-sm">{formatDuration(log.duration)}</p>
-                    <p className="text-xs text-muted-foreground">{formatRelativeDate(log.date.toISOString())}</p>
+                  <div className="text-right shrink-0">
+                    <p className="font-medium text-xs sm:text-sm">{formatDuration(log.duration)}</p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground">{formatRelativeDate(log.date.toISOString())}</p>
                   </div>
                 </div>
               );
@@ -1003,14 +1005,14 @@ export default function LearningClient({ initialData }: LearningClientProps) {
               </div>
               <div>
                 <label className="text-xs font-medium text-muted-foreground ml-1">Difficulty</label>
-                <div className="flex gap-2 mt-1">
+                <div className="grid grid-cols-4 gap-1.5 sm:gap-2 mt-1">
                   {DIFFICULTY_OPTIONS.map((opt) => (
                     <button
                       key={opt.value}
                       type="button"
                       onClick={() => setNewLog({ ...newLog, difficulty: opt.value })}
                       className={cn(
-                        "flex-1 py-2 rounded-lg text-xs font-medium transition-all",
+                        "py-2.5 sm:py-2 rounded-lg text-[10px] sm:text-xs font-medium transition-all",
                         newLog.difficulty === opt.value 
                           ? `${opt.color} bg-current/10 ring-1 ring-current` 
                           : "bg-secondary text-muted-foreground hover:text-foreground"
@@ -1127,14 +1129,14 @@ export default function LearningClient({ initialData }: LearningClientProps) {
               </div>
               <div>
                 <label className="text-xs font-medium text-muted-foreground ml-1">Duration</label>
-                <div className="flex gap-2 mt-1">
+                <div className="grid grid-cols-5 gap-1.5 sm:gap-2 mt-1">
                   {[15, 30, 45, 60, 90].map((mins) => (
                     <button
                       key={mins}
                       type="button"
                       onClick={() => setQuickLogData({ ...quickLogData, duration: mins })}
                       className={cn(
-                        "flex-1 py-2 rounded-lg text-sm font-medium transition-all",
+                        "py-2.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all",
                         quickLogData.duration === mins 
                           ? "bg-primary text-primary-foreground" 
                           : "bg-secondary text-muted-foreground hover:text-foreground"
@@ -1147,14 +1149,14 @@ export default function LearningClient({ initialData }: LearningClientProps) {
               </div>
               <div>
                 <label className="text-xs font-medium text-muted-foreground ml-1">Difficulty</label>
-                <div className="flex gap-2 mt-1">
+                <div className="grid grid-cols-4 gap-1.5 sm:gap-2 mt-1">
                   {DIFFICULTY_OPTIONS.map((opt) => (
                     <button
                       key={opt.value}
                       type="button"
                       onClick={() => setQuickLogData({ ...quickLogData, difficulty: opt.value })}
                       className={cn(
-                        "flex-1 py-2 rounded-lg text-xs font-medium transition-all",
+                        "py-2.5 sm:py-2 rounded-lg text-[10px] sm:text-xs font-medium transition-all",
                         quickLogData.difficulty === opt.value 
                           ? `${opt.color} bg-current/10 ring-1 ring-current` 
                           : "bg-secondary text-muted-foreground hover:text-foreground"
@@ -1218,15 +1220,15 @@ export default function LearningClient({ initialData }: LearningClientProps) {
               </div>
               
               {/* Stats Row */}
-              <div className="flex gap-3">
-                <div className="flex-1 p-3 rounded-xl bg-secondary/50">
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Duration</p>
-                  <p className="text-lg font-bold">{formatDuration(viewingLog.duration)}</p>
+              <div className="grid grid-cols-2 sm:flex gap-2 sm:gap-3">
+                <div className="p-2.5 sm:p-3 rounded-xl bg-secondary/50 sm:flex-1">
+                  <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider">Duration</p>
+                  <p className="text-base sm:text-lg font-bold">{formatDuration(viewingLog.duration)}</p>
                 </div>
-                <div className="flex-1 p-3 rounded-xl bg-secondary/50">
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Difficulty</p>
+                <div className="p-2.5 sm:p-3 rounded-xl bg-secondary/50 sm:flex-1">
+                  <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider">Difficulty</p>
                   <p className={cn(
-                    "text-lg font-bold capitalize",
+                    "text-base sm:text-lg font-bold capitalize",
                     viewingLog.difficulty === 'easy' ? "text-emerald-400" :
                     viewingLog.difficulty === 'moderate' ? "text-yellow-400" :
                     viewingLog.difficulty === 'challenging' ? "text-orange-400" :
@@ -1236,9 +1238,9 @@ export default function LearningClient({ initialData }: LearningClientProps) {
                   </p>
                 </div>
                 {viewingLog.rating && (
-                  <div className="flex-1 p-3 rounded-xl bg-secondary/50">
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Rating</p>
-                    <p className="text-lg font-bold">{viewingLog.rating}/5</p>
+                  <div className="p-2.5 sm:p-3 rounded-xl bg-secondary/50 sm:flex-1 col-span-2 sm:col-span-1">
+                    <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider">Rating</p>
+                    <p className="text-base sm:text-lg font-bold">{viewingLog.rating}/5</p>
                   </div>
                 )}
               </div>

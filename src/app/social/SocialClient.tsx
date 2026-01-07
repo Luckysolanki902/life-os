@@ -196,21 +196,21 @@ export default function SocialClient({ initialData }: SocialClientProps) {
   return (
     <div className="space-y-6 pb-20">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="space-y-1">
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-3">
-            <Users className="text-emerald-500" size={28} />
-            Social
-          </h1>
-          <p className="text-muted-foreground text-sm">Reflect on meaningful interactions</p>
-        </div>
-        <div className="flex gap-2">
+      <div className="flex flex-col gap-4">
+        <div className="flex items-start justify-between">
+          <div className="space-y-1">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-2 sm:gap-3">
+              <Users className="text-emerald-500 shrink-0" size={24} />
+              Social
+            </h1>
+            <p className="text-muted-foreground text-xs sm:text-sm">Reflect on meaningful interactions</p>
+          </div>
           <button
             onClick={() => setIsRelationModalOpen(true)}
-            className="px-4 py-2 rounded-xl bg-secondary text-secondary-foreground font-medium text-sm flex items-center gap-2 hover:opacity-80"
+            className="px-3 sm:px-4 py-2 rounded-xl bg-primary text-primary-foreground font-medium text-xs sm:text-sm flex items-center gap-1.5 sm:gap-2 hover:opacity-90 shrink-0 shadow-lg shadow-primary/20"
           >
-            <Plus size={16} />
-            Relation
+            <Plus size={14} />
+            <span className="hidden xs:inline">Add</span> Relation
           </button>
         </div>
       </div>
@@ -531,31 +531,31 @@ export default function SocialClient({ initialData }: SocialClientProps) {
                 <button 
                   key={log._id}
                   onClick={() => setViewingLog({ ...log, personName: log.person.name })}
-                  className="w-full flex items-center justify-between p-3 rounded-xl bg-card border border-border/50 hover:bg-secondary/30 transition-colors text-left"
+                  className="w-full flex items-center justify-between p-2.5 sm:p-3 rounded-xl bg-card border border-border/50 hover:bg-secondary/30 transition-colors text-left gap-2"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className={cn("w-1 h-8 rounded-full", colorClasses.accent)} />
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg">
+                  <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                    <div className={cn("w-1 h-8 rounded-full shrink-0", colorClasses.accent)} />
+                    <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                      <span className="text-base sm:text-lg shrink-0">
                         {EMOTIONAL_TONE_OPTIONS.find(e => e.value === log.emotionalTone)?.emoji || '😐'}
                       </span>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-sm">{log.person.name}</span>
-                          <span className="text-xs px-1.5 py-0.5 rounded bg-secondary text-muted-foreground">{log.relation.name}</span>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                          <span className="font-medium text-xs sm:text-sm truncate">{log.person.name}</span>
+                          <span className="text-[10px] sm:text-xs px-1 sm:px-1.5 py-0.5 rounded bg-secondary text-muted-foreground shrink-0">{log.relation.name}</span>
                         </div>
-                        <p className="text-xs text-muted-foreground capitalize">{log.context}</p>
+                        <p className="text-[10px] sm:text-xs text-muted-foreground capitalize">{log.context}</p>
                       </div>
                     </div>
                   </div>
-                  <div className="text-right">
+                  <div className="text-right shrink-0">
                     <p className={cn(
-                      "text-xs font-medium capitalize",
+                      "text-[10px] sm:text-xs font-medium capitalize",
                       YOUR_BEHAVIOR_OPTIONS.find(b => b.value === log.yourBehavior)?.color || 'text-gray-400'
                     )}>
                       {log.yourBehavior}
                     </p>
-                    <p className="text-xs text-muted-foreground">{formatRelativeDate(log.date)}</p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground">{formatRelativeDate(log.date)}</p>
                   </div>
                 </button>
               );
@@ -723,7 +723,7 @@ export default function SocialClient({ initialData }: SocialClientProps) {
               </div>
               <div>
                 <label className="text-xs font-medium text-muted-foreground ml-1">Context</label>
-                <div className="flex flex-wrap gap-2 mt-1">
+                <div className="grid grid-cols-3 sm:flex sm:flex-wrap gap-1.5 sm:gap-2 mt-1">
                   {CONTEXT_OPTIONS.map((opt) => {
                     const Icon = opt.icon;
                     return (
@@ -732,14 +732,14 @@ export default function SocialClient({ initialData }: SocialClientProps) {
                         type="button"
                         onClick={() => setNewLog({ ...newLog, context: opt.value })}
                         className={cn(
-                          "px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5",
+                          "px-2 sm:px-3 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all flex items-center justify-center gap-1 sm:gap-1.5",
                           newLog.context === opt.value 
                             ? "bg-primary text-primary-foreground" 
                             : "bg-secondary text-muted-foreground hover:text-foreground"
                         )}
                       >
-                        <Icon size={14} />
-                        {opt.label}
+                        <Icon size={12} className="sm:w-3.5 sm:h-3.5" />
+                        <span className="hidden xs:inline sm:inline">{opt.label}</span>
                       </button>
                     );
                   })}
@@ -747,35 +747,35 @@ export default function SocialClient({ initialData }: SocialClientProps) {
               </div>
               <div>
                 <label className="text-xs font-medium text-muted-foreground ml-1">Emotional Tone</label>
-                <div className="flex flex-wrap gap-2 mt-1">
+                <div className="grid grid-cols-4 sm:flex sm:flex-wrap gap-1.5 sm:gap-2 mt-1">
                   {EMOTIONAL_TONE_OPTIONS.map((opt) => (
                     <button
                       key={opt.value}
                       type="button"
                       onClick={() => setNewLog({ ...newLog, emotionalTone: opt.value })}
                       className={cn(
-                        "px-3 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5",
+                        "px-2 sm:px-3 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all flex items-center justify-center gap-1 sm:gap-1.5",
                         newLog.emotionalTone === opt.value 
                           ? `${opt.color} bg-current/10 ring-1 ring-current` 
                           : "bg-secondary text-muted-foreground hover:text-foreground"
                       )}
                     >
-                      <span>{opt.emoji}</span>
-                      {opt.label}
+                      <span className="text-sm sm:text-base">{opt.emoji}</span>
+                      <span className="hidden sm:inline">{opt.label}</span>
                     </button>
                   ))}
                 </div>
               </div>
               <div>
                 <label className="text-xs font-medium text-muted-foreground ml-1">Your Behavior</label>
-                <div className="flex flex-wrap gap-2 mt-1">
+                <div className="grid grid-cols-3 sm:flex sm:flex-wrap gap-1.5 sm:gap-2 mt-1">
                   {YOUR_BEHAVIOR_OPTIONS.map((opt) => (
                     <button
                       key={opt.value}
                       type="button"
                       onClick={() => setNewLog({ ...newLog, yourBehavior: opt.value })}
                       className={cn(
-                        "px-3 py-2 rounded-lg text-sm font-medium transition-all",
+                        "px-2 sm:px-3 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all text-center",
                         newLog.yourBehavior === opt.value 
                           ? `${opt.color} bg-current/10 ring-1 ring-current` 
                           : "bg-secondary text-muted-foreground hover:text-foreground"
@@ -860,24 +860,24 @@ export default function SocialClient({ initialData }: SocialClientProps) {
               </div>
               
               {/* Stats Row */}
-              <div className="flex gap-3">
-                <div className="flex-1 p-3 rounded-xl bg-secondary/50">
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Context</p>
-                  <p className="text-lg font-bold capitalize">{viewingLog.context}</p>
+              <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                <div className="p-2 sm:p-3 rounded-xl bg-secondary/50">
+                  <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider">Context</p>
+                  <p className="text-sm sm:text-lg font-bold capitalize truncate">{viewingLog.context}</p>
                 </div>
-                <div className="flex-1 p-3 rounded-xl bg-secondary/50">
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Tone</p>
+                <div className="p-2 sm:p-3 rounded-xl bg-secondary/50">
+                  <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider">Tone</p>
                   <p className={cn(
-                    "text-lg font-bold capitalize",
+                    "text-sm sm:text-lg font-bold capitalize truncate",
                     EMOTIONAL_TONE_OPTIONS.find(e => e.value === viewingLog.emotionalTone)?.color || 'text-gray-400'
                   )}>
                     {viewingLog.emotionalTone}
                   </p>
                 </div>
-                <div className="flex-1 p-3 rounded-xl bg-secondary/50">
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider">You were</p>
+                <div className="p-2 sm:p-3 rounded-xl bg-secondary/50">
+                  <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider">You were</p>
                   <p className={cn(
-                    "text-lg font-bold capitalize",
+                    "text-sm sm:text-lg font-bold capitalize truncate",
                     YOUR_BEHAVIOR_OPTIONS.find(b => b.value === viewingLog.yourBehavior)?.color || 'text-gray-400'
                   )}>
                     {viewingLog.yourBehavior}

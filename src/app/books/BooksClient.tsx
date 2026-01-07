@@ -181,51 +181,53 @@ export default function BooksClient({ initialData }: BooksClientProps) {
   });
 
   return (
-    <div className="space-y-6 pb-20">
+    <div className="space-y-5 sm:space-y-6 pb-20">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="space-y-1">
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-3">
-            <BookOpen className="text-amber-500" size={28} />
-            Books
-          </h1>
-          <p className="text-muted-foreground text-sm">Track your reading journey</p>
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setIsScheduleModalOpen(true)}
-            className="px-4 py-2 rounded-xl bg-secondary text-secondary-foreground font-medium text-sm flex items-center gap-2 hover:opacity-80"
-          >
-            <Calendar size={16} />
-            Schedule
-          </button>
-          <button
-            onClick={() => setIsBookModalOpen(true)}
-            className="px-4 py-2 rounded-xl bg-primary text-primary-foreground font-medium text-sm flex items-center gap-2 hover:opacity-90"
-          >
-            <Plus size={16} />
-            Add Book
-          </button>
+      <div className="flex flex-col gap-3 sm:gap-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="space-y-0.5 sm:space-y-1">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-2 sm:gap-3">
+              <BookOpen className="text-amber-500 shrink-0" size={24} />
+              Books
+            </h1>
+            <p className="text-muted-foreground text-xs sm:text-sm">Track your reading journey</p>
+          </div>
+          <div className="flex gap-1.5 sm:gap-2 shrink-0">
+            <button
+              onClick={() => setIsScheduleModalOpen(true)}
+              className="px-2.5 sm:px-4 py-2 rounded-xl bg-secondary text-secondary-foreground font-medium text-xs sm:text-sm flex items-center gap-1 sm:gap-2 hover:opacity-80"
+            >
+              <Calendar size={14} />
+              <span className="hidden sm:inline">Schedule</span>
+            </button>
+            <button
+              onClick={() => setIsBookModalOpen(true)}
+              className="px-2.5 sm:px-4 py-2 rounded-xl bg-primary text-primary-foreground font-medium text-xs sm:text-sm flex items-center gap-1 sm:gap-2 hover:opacity-90 shadow-lg shadow-primary/20"
+            >
+              <Plus size={14} />
+              <span className="hidden xs:inline">Add</span> Book
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="p-4 rounded-xl bg-card border border-border/50">
-          <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Total</p>
-          <p className="text-2xl font-bold">{stats.totalBooks}</p>
+      <div className="grid grid-cols-4 gap-2 sm:gap-3">
+        <div className="p-2.5 sm:p-4 rounded-xl bg-card border border-border/50">
+          <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider">Total</p>
+          <p className="text-lg sm:text-2xl font-bold">{stats.totalBooks}</p>
         </div>
-        <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
-          <p className="text-[10px] text-emerald-400 uppercase tracking-wider">Reading</p>
-          <p className="text-2xl font-bold text-emerald-400">{stats.reading}</p>
+        <div className="p-2.5 sm:p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
+          <p className="text-[9px] sm:text-[10px] text-emerald-400 uppercase tracking-wider">Reading</p>
+          <p className="text-lg sm:text-2xl font-bold text-emerald-400">{stats.reading}</p>
         </div>
-        <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30">
-          <p className="text-[10px] text-amber-400 uppercase tracking-wider">Paused</p>
-          <p className="text-2xl font-bold text-amber-400">{stats.paused}</p>
+        <div className="p-2.5 sm:p-4 rounded-xl bg-amber-500/10 border border-amber-500/30">
+          <p className="text-[9px] sm:text-[10px] text-amber-400 uppercase tracking-wider">Paused</p>
+          <p className="text-lg sm:text-2xl font-bold text-amber-400">{stats.paused}</p>
         </div>
-        <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/30">
-          <p className="text-[10px] text-blue-400 uppercase tracking-wider">Completed</p>
-          <p className="text-2xl font-bold text-blue-400">{stats.completed}</p>
+        <div className="p-2.5 sm:p-4 rounded-xl bg-blue-500/10 border border-blue-500/30">
+          <p className="text-[9px] sm:text-[10px] text-blue-400 uppercase tracking-wider">Done</p>
+          <p className="text-lg sm:text-2xl font-bold text-blue-400">{stats.completed}</p>
         </div>
       </div>
 
@@ -409,8 +411,8 @@ export default function BooksClient({ initialData }: BooksClientProps) {
                         {domain.icon || '📚'}
                       </div>
                       <div>
-                        <h3 className="font-semibold text-lg">{domain.name}</h3>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <h3 className="font-semibold text-base sm:text-lg">{domain.name}</h3>
+                        <div className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs text-muted-foreground flex-wrap">
                           <span>{domain.bookCount} books</span>
                           <span>•</span>
                           <span className="text-emerald-400">{domain.readingCount} reading</span>
@@ -480,34 +482,34 @@ export default function BooksClient({ initialData }: BooksClientProps) {
                           return (
                             <div 
                               key={book._id}
-                              className="flex items-center justify-between p-3 rounded-xl bg-card/50 border border-border/30 group"
+                              className="flex items-center justify-between p-2.5 sm:p-3 rounded-xl bg-card/50 border border-border/30 group gap-2"
                             >
-                              <div className="flex items-center gap-3">
+                              <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
                                 <button
                                   // onClick={() => handleToggleSchedule(book._id)}
                                   className={cn(
-                                    "p-1.5 rounded-full transition-colors",
+                                    "p-1 sm:p-1.5 rounded-full transition-colors shrink-0",
                                     book.scheduledForTomorrow 
                                       ? "bg-primary/20 text-primary" 
                                       : "bg-secondary/50 text-muted-foreground hover:text-foreground"
                                   )}
                                 >
-                                  {book.scheduledForTomorrow ? <CheckCircle2 size={14} /> : <Circle size={14} />}
+                                  {book.scheduledForTomorrow ? <CheckCircle2 size={12} /> : <Circle size={12} />}
                                 </button>
-                                <div>
-                                  <div className="flex items-center gap-2">
-                                    <span className="font-medium text-sm">{book.title}</span>
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                                    <span className="font-medium text-xs sm:text-sm truncate">{book.title}</span>
                                     <span className={cn(
-                                      "px-1.5 py-0.5 rounded text-[10px] font-medium",
+                                      "px-1 sm:px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-medium shrink-0",
                                       statusInfo?.bg,
                                       statusInfo?.color
                                     )}>
-                                      <StatusIcon size={10} className="inline mr-0.5" />
+                                      <StatusIcon size={8} className="inline mr-0.5" />
                                       {statusInfo?.label}
                                     </span>
                                   </div>
-                                  <div className="text-xs text-muted-foreground flex items-center gap-2">
-                                    {book.author && <span>{book.author}</span>}
+                                  <div className="text-[10px] sm:text-xs text-muted-foreground flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                                    {book.author && <span className="truncate">{book.author}</span>}
                                     {book.lastReadDate && (
                                       <>
                                         <span>•</span>
@@ -523,14 +525,14 @@ export default function BooksClient({ initialData }: BooksClientProps) {
                                   </div>
                                 </div>
                               </div>
-                              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <div className="flex items-center gap-0.5 sm:gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shrink-0">
                                 {book.status !== 'reading' && (
                                   <button
                                     onClick={() => handleCheckIn(book._id)}
-                                    className="p-1.5 rounded hover:bg-emerald-500/20 text-muted-foreground hover:text-emerald-400"
+                                    className="p-1.5 sm:p-1.5 rounded hover:bg-emerald-500/20 text-muted-foreground hover:text-emerald-400"
                                     title="Resume reading"
                                   >
-                                    <BookOpen size={14} />
+                                    <BookOpen size={12} />
                                   </button>
                                 )}
                                 <button
@@ -538,15 +540,15 @@ export default function BooksClient({ initialData }: BooksClientProps) {
                                     setEditingBook({ ...book });
                                     setIsEditBookModalOpen(true);
                                   }}
-                                  className="p-1.5 rounded hover:bg-secondary text-muted-foreground hover:text-foreground"
+                                  className="p-1.5 sm:p-1.5 rounded hover:bg-secondary text-muted-foreground hover:text-foreground"
                                 >
-                                  <Edit2 size={14} />
+                                  <Edit2 size={12} />
                                 </button>
                                 <button
                                   onClick={() => handleDelete('book', book._id)}
-                                  className="p-1.5 rounded hover:bg-rose-500/20 text-muted-foreground hover:text-rose-400"
+                                  className="p-1.5 sm:p-1.5 rounded hover:bg-rose-500/20 text-muted-foreground hover:text-rose-400"
                                 >
-                                  <Trash2 size={14} />
+                                  <Trash2 size={12} />
                                 </button>
                               </div>
                             </div>
@@ -576,28 +578,28 @@ export default function BooksClient({ initialData }: BooksClientProps) {
               return (
                 <div 
                   key={book._id}
-                  className="flex items-center justify-between p-3 rounded-xl bg-card border border-border/50"
+                  className="flex items-center justify-between p-2.5 sm:p-3 rounded-xl bg-card border border-border/50 gap-2"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className={cn("w-1 h-8 rounded-full", colorClasses.accent)} />
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-sm">{book.title}</span>
+                  <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                    <div className={cn("w-1 h-8 rounded-full shrink-0", colorClasses.accent)} />
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                        <span className="font-medium text-xs sm:text-sm truncate">{book.title}</span>
                         <span className={cn(
-                          "text-[10px] px-1.5 py-0.5 rounded",
+                          "text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 rounded shrink-0",
                           STATUS_OPTIONS.find(s => s.value === book.status)?.bg,
                           STATUS_OPTIONS.find(s => s.value === book.status)?.color
                         )}>
                           {book.status}
                         </span>
                       </div>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-[10px] sm:text-xs text-muted-foreground truncate">
                         {book.domain?.name}
                       </p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-xs text-muted-foreground">{formatRelativeDate(book.lastReadDate)}</p>
+                  <div className="text-right shrink-0">
+                    <p className="text-[10px] sm:text-xs text-muted-foreground">{formatRelativeDate(book.lastReadDate)}</p>
                   </div>
                 </div>
               );
@@ -808,7 +810,7 @@ export default function BooksClient({ initialData }: BooksClientProps) {
               </div>
               <div>
                 <label className="text-xs font-medium text-muted-foreground ml-1">Status</label>
-                <div className="flex flex-wrap gap-2 mt-1">
+                <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-1.5 sm:gap-2 mt-1">
                   {STATUS_OPTIONS.map((opt) => {
                     const Icon = opt.icon;
                     return (
@@ -817,7 +819,7 @@ export default function BooksClient({ initialData }: BooksClientProps) {
                         type="button"
                         onClick={() => setEditingBook({ ...editingBook, status: opt.value })}
                         className={cn(
-                          "px-3 py-2 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5",
+                          "px-2.5 sm:px-3 py-2 rounded-lg text-[11px] sm:text-xs font-medium transition-all flex items-center justify-center gap-1 sm:gap-1.5",
                           editingBook.status === opt.value 
                             ? `${opt.color} ${opt.bg} ring-1 ring-current` 
                             : "bg-secondary text-muted-foreground hover:text-foreground"

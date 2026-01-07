@@ -2,6 +2,9 @@ import mongoose from 'mongoose';
 
 const UserSchema = new mongoose.Schema({
   username: { type: String, default: 'Admin' },
+  email: { type: String, default: '' }, // For email notifications
+  pushToken: { type: String, default: '' }, // FCM token for push notifications
+  notificationsEnabled: { type: Boolean, default: true },
   profile: {
     height: { type: Number, default: 183 }, // cm (default ~6ft)
     dob: { type: Date, default: new Date('2002-09-14') },
