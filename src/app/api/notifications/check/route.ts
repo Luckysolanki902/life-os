@@ -30,6 +30,59 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+// Get FCM V1 access token using service account
+async function getFCMAccessToken(): Promise<string | null> {
+  const clientEmail = process.env.FCM_CLIENT_EMAIL;
+  const privateKey = process.env.FCM_PRIVATE_KEY?.replace(/\\n/g, '\n');
+  
+  if (!clientEmail || !privateKey) {
+    console.log('FCM credentials not configured');
+    return null;
+  }
+  
+  try {
+    // Create JWT for Google OAuth2
+    const { SignJWT } = await import('jose');
+    
+    const now = Math.floor(Date.now() / 1000);
+    const privateKeyObj = await import('jose').then(jose => 
+      jose.importPKCS8(privateKey, 'RS256')
+    );
+    
+    const jwt = await new SignJWT({
+      iss: clientEmail,
+      sub: clientEmail,
+      aud: 'https://oauth2.googleapis.com/token',
+      iat: now,
+      exp: now + 3600,
+      scope: 'https://www.googleapis.com/auth/firebase.messaging'
+    })
+      .setProtectedHeader({ alg: 'RS256', typ: 'JWT' })
+      .sign(privateKeyObj);
+    
+    // Exchange JWT for access token
+    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+        assertion: jwt
+      })
+    });
+    
+    if (!tokenResponse.ok) {
+      console.error('Failed to get FCM token:', await tokenResponse.text());
+      return null;
+    }
+    
+    const { access_token } = await tokenResponse.json();
+    return access_token;
+  } catch (error) {
+    console.error('Error getting FCM access token:', error);
+    return null;
+  }
+}
+
 // Send email notification
 async function sendEmailNotification(email: string, task: ScheduledTask) {
   if (!email || !process.env.SMTP_EMAIL) return;
@@ -65,37 +118,56 @@ async function sendEmailNotification(email: string, task: ScheduledTask) {
   }
 }
 
-// Send FCM push notification
+// Send FCM push notification using V1 API
 async function sendPushNotification(pushToken: string, task: ScheduledTask) {
-  if (!pushToken || !process.env.FCM_SERVER_KEY) return;
+  if (!pushToken) return;
+  
+  const projectId = process.env.FCM_PROJECT_ID || 'lifeos-5e2b2';
+  const accessToken = await getFCMAccessToken();
+  
+  if (!accessToken) {
+    console.log('No FCM access token, skipping push notification');
+    return;
+  }
   
   try {
-    const response = await fetch('https://fcm.googleapis.com/fcm/send', {
-      method: 'POST',
-      headers: {
-        'Authorization': `key=${process.env.FCM_SERVER_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        to: pushToken,
-        notification: {
-          title: `⏰ ${task.title}`,
-          body: `Time for your ${task.domainId} routine!`,
-          icon: '/favicon.ico',
-          click_action: 'https://lifeosm.vercel.app/routine',
+    const response = await fetch(
+      `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
         },
-        data: {
-          taskId: task._id.toString(),
-          domain: task.domainId,
-          url: '/routine',
-        },
-      }),
-    });
+        body: JSON.stringify({
+          message: {
+            token: pushToken,
+            notification: {
+              title: `⏰ ${task.title}`,
+              body: `Time for your ${task.domainId} routine!`,
+            },
+            android: {
+              notification: {
+                icon: 'ic_launcher',
+                color: '#f59e0b',
+                click_action: 'OPEN_ACTIVITY',
+              },
+            },
+            data: {
+              taskId: task._id.toString(),
+              domain: task.domainId,
+              url: '/routine',
+            },
+          },
+        }),
+      }
+    );
     
     if (response.ok) {
       console.log(`Push notification sent for task: ${task.title}`);
     } else {
-      console.error('FCM error:', await response.text());
+      const errorText = await response.text();
+      console.error('FCM V1 error:', errorText);
     }
   } catch (error) {
     console.error('Failed to send push notification:', error);

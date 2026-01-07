@@ -9,8 +9,10 @@ Add these to your Vercel project settings:
 SMTP_EMAIL=your-email@gmail.com
 SMTP_PASSWORD=your-app-password  # Use Gmail App Password, not regular password
 
-# Firebase Cloud Messaging (for Android push)
-FCM_SERVER_KEY=your-fcm-server-key
+# Firebase Cloud Messaging V1 API (from service account JSON)
+FCM_PROJECT_ID=lifeos-5e2b2
+FCM_CLIENT_EMAIL=firebase-adminsdk-fbsvc@lifeos-5e2b2.iam.gserviceaccount.com
+FCM_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYOUR_PRIVATE_KEY_HERE\n-----END PRIVATE KEY-----\n"
 
 # Cron Job Security (optional but recommended)
 CRON_SECRET=your-random-secret-string
@@ -24,15 +26,17 @@ CRON_SECRET=your-random-secret-string
 3. App passwords → Create new app password for "Mail"
 4. Use this password as `SMTP_PASSWORD`
 
-### 2. Firebase Cloud Messaging (FCM)
+### 2. Firebase Cloud Messaging (FCM V1 API)
 1. Go to [Firebase Console](https://console.firebase.google.com)
-2. Create a new project or select existing
-3. Project Settings → Cloud Messaging
-4. Copy the Server Key (or generate one)
-5. Use this as `FCM_SERVER_KEY`
+2. Project Settings → Service Accounts
+3. Click "Generate new private key" → Download JSON
+4. From the JSON file, copy these values to Vercel env vars:
+   - `project_id` → `FCM_PROJECT_ID`
+   - `client_email` → `FCM_CLIENT_EMAIL`
+   - `private_key` → `FCM_PRIVATE_KEY` (keep the quotes and \n characters)
 
 ### 3. Android Setup
-1. Download `google-services.json` from Firebase
+1. Download `google-services.json` from Firebase (Project Settings → Your Apps)
 2. Place it in `android/app/`
 3. Run `npx cap sync android`
 
