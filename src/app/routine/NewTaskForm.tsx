@@ -181,6 +181,8 @@ export default function NewTaskForm() {
               <option value="learning">Learning</option>
               <option value="startups">Startups</option>
               <option value="social">Social</option>
+              <option value="discipline">Discipline</option>
+              <option value="personality">Personality</option>
             </select>
           </div>
 

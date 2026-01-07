@@ -165,6 +165,8 @@ export default function TaskItem({ task, onOptimisticToggle }: TaskItemProps) {
             <option value="learning">Learning</option>
             <option value="startups">Startups</option>
             <option value="social">Social</option>
+            <option value="discipline">Discipline</option>
+            <option value="personality">Personality</option>
           </select>
         </div>
 
