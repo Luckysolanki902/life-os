@@ -11,7 +11,6 @@ import {
   Settings,
   LogOut,
   BookOpen,
-  Users,
   Library,
 } from 'lucide-react';
 import { useSelector } from 'react-redux';

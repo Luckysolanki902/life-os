@@ -14,9 +14,6 @@ import LearningArea from '@/models/LearningArea';
 import LearningSkill from '@/models/LearningSkill';
 import PracticeMedium from '@/models/PracticeMedium';
 import LearningLog from '@/models/LearningLog';
-import Relation from '@/models/Relation';
-import Person from '@/models/Person';
-import InteractionLog from '@/models/InteractionLog';
 
 // Helper functions for date ranges
 function getDateRange(period: string): { start: Date; end: Date } {
@@ -183,16 +180,8 @@ export async function getOverallReport(period: string = 'thisWeek') {
   ]);
   const prevLearningMinutes = prevLearningResult[0]?.total || 0;
   
-  // SOCIAL: Interactions count
-  const interactions = await InteractionLog.countDocuments({
-    date: { $gte: start, $lt: end }
-  });
-  const prevInteractions = await InteractionLog.countDocuments({
-    date: { $gte: prev.start, $lt: prev.end }
-  });
-  
   // Domain breakdown for the period
-  const domainBreakdown = await Promise.all(['health', 'learning', 'social'].map(async (domainId) => {
+  const domainBreakdown = await Promise.all(['health', 'learning'].map(async (domainId) => {
     const domainTasks = await Task.find({ domainId, isActive: true }).lean();
     const domainTaskIds = domainTasks.map((t: any) => t._id);
     
@@ -262,8 +251,8 @@ export async function getOverallReport(period: string = 'thisWeek') {
       booksChange: booksCompleted - prevBooksCompleted,
       learningMinutes,
       learningChange: learningMinutes - prevLearningMinutes,
-      interactions,
-      interactionsChange: interactions - prevInteractions
+      interactions: 0,
+      interactionsChange: 0
     },
     domainBreakdown,
     dailyBreakdown
@@ -911,229 +900,5 @@ export async function getLearningReport(period: string = 'thisWeek', skillId?: s
     dailyLearning,
     weeklyTrend,
     recentSessions: recentSessionsFormatted
-  };
-}
-
-// ============ SOCIAL REPORT ============
-export async function getSocialReport(period: string = 'thisWeek', relationId?: string, personId?: string) {
-  await connectDB();
-  
-  const { start, end } = getDateRange(period);
-  const prev = getPreviousPeriodRange(period);
-  const daysInPeriod = getDaysBetween(start, end);
-  
-  // Get filter options
-  const allRelations = await Relation.find().sort({ order: 1 }).lean();
-  const allPeople = await Person.find().populate('relationId').sort({ order: 1 }).lean();
-  
-  // Build filter based on selection
-  let personFilter: any = {};
-  if (personId) {
-    personFilter = { personId };
-  } else if (relationId) {
-    const people = await Person.find({ relationId }).lean();
-    personFilter = { personId: { $in: people.map((p: any) => p._id) } };
-  }
-  
-  // Get all interaction logs for period with filter
-  const logs = await InteractionLog.find({ 
-    date: { $gte: start, $lt: end },
-    ...personFilter
-  })
-    .populate('personId')
-    .sort({ date: -1 })
-    .lean();
-  
-  const prevLogs = await InteractionLog.find({ 
-    date: { $gte: prev.start, $lt: prev.end },
-    ...personFilter
-  }).lean();
-  
-  // Total stats
-  const totalInteractions = logs.length;
-  
-  // By relation type
-  const relations = await Relation.find().lean();
-  const byRelation = await Promise.all(relations.map(async (relation: any) => {
-    const people = await Person.find({ relationId: relation._id }).lean();
-    const personIds = people.map((p: any) => p._id);
-    
-    const relationLogs = await InteractionLog.find({
-      personId: { $in: personIds },
-      date: { $gte: start, $lt: end }
-    }).lean();
-    
-    // Emotional tone breakdown for this relation
-    const toneBreakdown: Record<string, number> = {};
-    relationLogs.forEach((log: any) => {
-      if (log.emotionalTone) {
-        toneBreakdown[log.emotionalTone] = (toneBreakdown[log.emotionalTone] || 0) + 1;
-      }
-    });
-    
-    return {
-      _id: relation._id.toString(),
-      name: relation.name,
-      color: relation.color,
-      icon: relation.icon,
-      peopleCount: people.length,
-      interactions: relationLogs.length,
-      toneBreakdown
-    };
-  }));
-  
-  // Detailed people stats
-  const peopleWithStats = await Promise.all(allPeople.map(async (person: any) => {
-    const personLogs = await InteractionLog.find({
-      personId: person._id,
-      date: { $gte: start, $lt: end }
-    }).sort({ date: -1 }).lean();
-    
-    const lastInteraction = personLogs[0];
-    const daysSinceContact = lastInteraction 
-      ? Math.floor((Date.now() - new Date(lastInteraction.date).getTime()) / (1000 * 60 * 60 * 24))
-      : null;
-    
-    // Calculate emotional quality score
-    const toneScores: Record<string, number> = {
-      happy: 5, excited: 5, calm: 4, neutral: 3, sad: 2, tense: 2, frustrated: 1
-    };
-    const avgTone = personLogs.length > 0 
-      ? personLogs.reduce((acc, l: any) => acc + (toneScores[l.emotionalTone] || 3), 0) / personLogs.length
-      : 0;
-    
-    return {
-      _id: person._id.toString(),
-      name: person.name,
-      nickname: person.nickname,
-      relationId: person.relationId?._id?.toString() || person.relationId?.toString(),
-      relationName: (person.relationId as any)?.name || 'Unknown',
-      relationColor: (person.relationId as any)?.color || '#888',
-      interactions: personLogs.length,
-      daysSinceContact,
-      avgEmotionalScore: Math.round(avgTone * 10) / 10,
-      lastContext: lastInteraction?.context,
-      lastTone: lastInteraction?.emotionalTone
-    };
-  }));
-  
-  // Context distribution (call, chat, meet, video, other)
-  const contextDist: Record<string, number> = { call: 0, chat: 0, meet: 0, video: 0, other: 0 };
-  logs.forEach((log: any) => {
-    if (log.context) {
-      contextDist[log.context] = (contextDist[log.context] || 0) + 1;
-    }
-  });
-  
-  // Emotional tone distribution
-  const emotionalDist: Record<string, number> = {};
-  logs.forEach((log: any) => {
-    if (log.emotionalTone) {
-      emotionalDist[log.emotionalTone] = (emotionalDist[log.emotionalTone] || 0) + 1;
-    }
-  });
-  
-  // Your behavior distribution
-  const behaviorDist: Record<string, number> = {};
-  logs.forEach((log: any) => {
-    if (log.yourBehavior) {
-      behaviorDist[log.yourBehavior] = (behaviorDist[log.yourBehavior] || 0) + 1;
-    }
-  });
-  
-  // Calculate behavior quality score
-  const behaviorScores: Record<string, number> = {
-    present: 5, supportive: 5, patient: 4, distracted: 2, reactive: 2, defensive: 1
-  };
-  const avgBehavior = logs.length > 0 
-    ? logs.reduce((acc, l: any) => acc + (behaviorScores[l.yourBehavior] || 3), 0) / logs.length
-    : 0;
-  
-  // Top people by interactions
-  const topPeople = [...peopleWithStats]
-    .filter(p => p.interactions > 0)
-    .sort((a, b) => b.interactions - a.interactions)
-    .slice(0, 10);
-  
-  // People who need attention (not contacted or low score)
-  const neglectedPeople = [...peopleWithStats]
-    .filter(p => p.interactions === 0 || (p.daysSinceContact && p.daysSinceContact > 14))
-    .sort((a, b) => (b.daysSinceContact || 999) - (a.daysSinceContact || 999))
-    .slice(0, 10);
-  
-  // Daily interactions chart
-  const dailyInteractions = [];
-  for (let i = 0; i < Math.min(daysInPeriod, 31); i++) {
-    const dayStart = new Date(start.getTime() + i * 24 * 60 * 60 * 1000);
-    const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
-    
-    const dayLogs = await InteractionLog.find({ 
-      date: { $gte: dayStart, $lt: dayEnd },
-      ...personFilter
-    }).lean();
-    
-    // Context breakdown for the day
-    const dayContexts: Record<string, number> = {};
-    dayLogs.forEach((l: any) => {
-      if (l.context) dayContexts[l.context] = (dayContexts[l.context] || 0) + 1;
-    });
-    
-    dailyInteractions.push({
-      date: dayStart.toISOString().split('T')[0],
-      dayName: dayStart.toLocaleDateString('en-US', { weekday: 'short' }),
-      interactions: dayLogs.length,
-      call: dayContexts.call || 0,
-      chat: dayContexts.chat || 0,
-      meet: dayContexts.meet || 0,
-      video: dayContexts.video || 0,
-      other: dayContexts.other || 0
-    });
-  }
-  
-  // Recent interactions log
-  const recentInteractions = logs.slice(0, 20).map((log: any) => ({
-    _id: log._id.toString(),
-    date: log.date,
-    personName: log.personId?.name || 'Unknown',
-    context: log.context,
-    emotionalTone: log.emotionalTone,
-    yourBehavior: log.yourBehavior,
-    insight: log.insight,
-    nextIntention: log.nextIntention
-  }));
-  
-  // Unique people contacted
-  const contactedPersonIds = new Set(logs.map((l: any) => l.personId?._id?.toString() || l.personId?.toString()));
-  
-  return {
-    period,
-    filters: {
-      relations: allRelations.map((r: any) => ({ _id: r._id.toString(), name: r.name, color: r.color })),
-      people: allPeople.map((p: any) => ({ 
-        _id: p._id.toString(), 
-        name: p.name,
-        relationId: p.relationId?._id?.toString() || p.relationId?.toString()
-      })),
-      selectedRelation: relationId || null,
-      selectedPerson: personId || null
-    },
-    summary: {
-      totalInteractions,
-      prevInteractions: prevLogs.length,
-      interactionsChange: totalInteractions - prevLogs.length,
-      uniquePeopleContacted: contactedPersonIds.size,
-      totalPeople: allPeople.length,
-      neglectedCount: neglectedPeople.length,
-      avgBehaviorScore: Math.round(avgBehavior * 10) / 10
-    },
-    byRelation: byRelation.filter(r => r.peopleCount > 0),
-    peopleWithStats: peopleWithStats.sort((a, b) => b.interactions - a.interactions),
-    contextDist,
-    emotionalDist,
-    behaviorDist,
-    topPeople,
-    neglectedPeople,
-    dailyInteractions,
-    recentInteractions
   };
 }

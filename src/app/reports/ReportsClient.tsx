@@ -10,7 +10,6 @@ import {
   Activity,
   BookOpen,
   Brain,
-  Users,
   CheckCircle,
   Trophy,
   Scale,
@@ -126,7 +125,6 @@ function DomainCard({
   const colorClasses: Record<string, { bg: string; text: string; bar: string }> = {
     health: { bg: 'bg-rose-500/10', text: 'text-rose-500', bar: 'bg-rose-500' },
     learning: { bg: 'bg-amber-500/10', text: 'text-amber-500', bar: 'bg-amber-500' },
-    social: { bg: 'bg-emerald-500/10', text: 'text-emerald-500', bar: 'bg-emerald-500' },
   };
 
   const colors = colorClasses[domain] || colorClasses.health;
@@ -213,7 +211,6 @@ export default function ReportsClient({ initialData, initialPeriod }: ReportsCli
   const domainIcons: Record<string, any> = {
     health: Activity,
     learning: Brain,
-    social: Users,
   };
 
   const moodLabels: Record<number, string> = {
@@ -324,13 +321,6 @@ export default function ReportsClient({ initialData, initialPeriod }: ReportsCli
           icon={BookOpen}
           color="cyan"
         />
-        <StatCard
-          title="Social Interactions"
-          value={summary.interactions}
-          change={summary.interactionsChange}
-          icon={Users}
-          color="emerald"
-        />
       </div>
 
       {/* Daily Chart */}
@@ -359,13 +349,12 @@ export default function ReportsClient({ initialData, initialPeriod }: ReportsCli
       {/* Quick Links */}
       <div>
         <h2 className="text-lg font-semibold mb-4">Detailed Reports</h2>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
             { name: 'Routine', href: '/reports/routine', icon: Calendar, color: 'primary' },
             { name: 'Health', href: '/reports/health', icon: Activity, color: 'rose' },
             { name: 'Books', href: '/reports/books', icon: BookOpen, color: 'cyan' },
             { name: 'Learning', href: '/reports/learning', icon: Brain, color: 'amber' },
-            { name: 'Social', href: '/reports/social', icon: Users, color: 'emerald' },
           ].map((item) => {
             const colorClasses: Record<string, string> = {
               primary: 'hover:border-primary/50 hover:bg-primary/5',

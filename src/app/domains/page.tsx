@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Heart, BookOpen, Rocket, Users, Library } from 'lucide-react';
+import { Heart, BookOpen, Library } from 'lucide-react';
 
 export default function DomainsPage() {
   const domains = [
@@ -26,14 +26,6 @@ export default function DomainsPage() {
       icon: Library, 
       color: 'text-cyan-500', 
       bg: 'bg-cyan-500/10' 
-    },
-    { 
-      id: 'social', 
-      name: 'Social', 
-      description: 'Cultivate meaningful connections.',
-      icon: Users, 
-      color: 'text-emerald-500', 
-      bg: 'bg-emerald-500/10' 
     },
   ];
 

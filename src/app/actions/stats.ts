@@ -26,12 +26,14 @@ export async function getIdentityMetric() {
         health: { $sum: { $cond: [{ $eq: ["$task.domainId", "health"] }, "$pointsEarned", 0] } },
         career: { $sum: { $cond: [{ $eq: ["$task.domainId", "career"] }, "$pointsEarned", 0] } },
         learning: { $sum: { $cond: [{ $eq: ["$task.domainId", "learning"] }, "$pointsEarned", 0] } },
-        social: { $sum: { $cond: [{ $eq: ["$task.domainId", "social"] }, "$pointsEarned", 0] } }
+        discipline: { $sum: { $cond: [{ $eq: ["$task.domainId", "discipline"] }, "$pointsEarned", 0] } },
+        personality: { $sum: { $cond: [{ $eq: ["$task.domainId", "personality"] }, "$pointsEarned", 0] } },
+        startups: { $sum: { $cond: [{ $eq: ["$task.domainId", "startups"] }, "$pointsEarned", 0] } }
       } 
     }
   ]);
 
-  const stats = result[0] || { totalPoints: 0, health: 0, career: 0, learning: 0, social: 0 };
+  const stats = result[0] || { totalPoints: 0, health: 0, career: 0, learning: 0, discipline: 0, personality: 0, startups: 0 };
 
   // Calculate percentage (e.g., 1% per 100 points, or just a level)
   // Let's say 100 points = 1% better version.
@@ -44,7 +46,9 @@ export async function getIdentityMetric() {
       health: stats.health,
       career: stats.career,
       learning: stats.learning,
-      social: stats.social,
+      discipline: stats.discipline,
+      personality: stats.personality,
+      startups: stats.startups,
     }
   };
 }
