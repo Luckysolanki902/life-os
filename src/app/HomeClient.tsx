@@ -309,7 +309,7 @@ export default function HomeClient({ incompleteTasks, allMediums, domains }: Pro
             <div className="flex gap-2">
               <input
                 type="number"
-                step="0.1"
+                step="0.01"
                 placeholder="Weight in kg"
                 value={weight}
                 onChange={(e) => setWeight(e.target.value)}

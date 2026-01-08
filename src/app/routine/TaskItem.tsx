@@ -26,12 +26,22 @@ function getRecurrenceLabel(task: any) {
   return 'Daily';
 }
 
+// Helper to get current date as YYYY-MM-DD string in user's local timezone
+function getLocalDateString(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 interface TaskItemProps {
   task: any;
   onOptimisticToggle?: (taskId: string, newStatus: boolean) => void;
+  dateStr?: string; // Optional date override (for historical views)
 }
 
-export default function TaskItem({ task, onOptimisticToggle }: TaskItemProps) {
+export default function TaskItem({ task, onOptimisticToggle, dateStr }: TaskItemProps) {
   const [isCompleting, setIsCompleting] = useState(false);
   const [isSkipping, setIsSkipping] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -53,6 +63,9 @@ export default function TaskItem({ task, onOptimisticToggle }: TaskItemProps) {
     task.recurrenceType || 'daily'
   );
   const [customDays, setCustomDays] = useState<number[]>(task.recurrenceDays || []);
+
+  // Get the target date for this task (from prop or current date)
+  const targetDate = dateStr || getLocalDateString();
 
   // Use optimistic state if set, otherwise use server state
   const isCompleted = optimisticCompleted !== null 
@@ -76,9 +89,9 @@ export default function TaskItem({ task, onOptimisticToggle }: TaskItemProps) {
     
     try {
       if (!newStatus) {
-        await uncompleteTask(task._id);
+        await uncompleteTask(task._id, targetDate);
       } else {
-        await completeTask(task._id);
+        await completeTask(task._id, targetDate);
       }
       // Reset optimistic state - server state will take over on revalidation
       setOptimisticCompleted(null);
@@ -102,9 +115,9 @@ export default function TaskItem({ task, onOptimisticToggle }: TaskItemProps) {
     
     try {
       if (newSkipStatus) {
-        await skipTask(task._id);
+        await skipTask(task._id, targetDate);
       } else {
-        await unskipTask(task._id);
+        await unskipTask(task._id, targetDate);
       }
       // Reset optimistic state
       setOptimisticSkipped(null);

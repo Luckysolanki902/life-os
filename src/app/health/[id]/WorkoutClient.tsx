@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { ArrowLeft, Plus, Upload, Dumbbell, History, Save, X, Trash2, Edit2, Check, ChevronDown, ChevronUp, MoreVertical, GripVertical, Video, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -111,6 +111,7 @@ function SortableExerciseCard({
   setEditingExerciseId,
   setEditExercise,
   handleDeleteExercise,
+  setTutorialModal,
   editingSetId,
   setEditingSetId,
   logType,
@@ -129,8 +130,9 @@ function SortableExerciseCard({
   showExerciseMenu: string | null;
   setShowExerciseMenu: (id: string | null) => void;
   setEditingExerciseId: (id: string | null) => void;
-  setEditExercise: (ex: { title: string; type: string; targetMuscles: string[]; initialSets: string; initialReps: string; recommendedWeight: string }) => void;
+  setEditExercise: (ex: { title: string; type: string; targetMuscles: string[]; initialSets: string; initialReps: string; recommendedWeight: string; tutorials: Tutorial[] }) => void;
   handleDeleteExercise: (id: string) => void;
+  setTutorialModal: (data: { title: string; tutorials: Tutorial[] } | null) => void;
   editingSetId: string | null;
   setEditingSetId: (id: string | null) => void;
   logType: 'weighted' | 'bodyweight';
@@ -495,7 +497,12 @@ export default function WorkoutClient({ initialData }: WorkoutClientProps) {
   const [exercises, setExercises] = useState<Exercise[]>(() => 
     JSON.parse(JSON.stringify(initialData.exercises))
   );
-  const [date, setDate] = useState(initialData.date.split('T')[0]);
+  
+  // Parse date and format as YYYY-MM-DD in local timezone
+  const parsedDate = new Date(initialData.date);
+  const [date, setDate] = useState(
+    `${parsedDate.getFullYear()}-${String(parsedDate.getMonth() + 1).padStart(2, '0')}-${String(parsedDate.getDate()).padStart(2, '0')}`
+  );
 
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
   const [loggingExerciseId, setLoggingExerciseId] = useState<string | null>(null);
@@ -530,11 +537,6 @@ export default function WorkoutClient({ initialData }: WorkoutClientProps) {
 
   // Tutorial modal state - store only what we need to avoid circular refs
   const [tutorialModal, setTutorialModal] = useState<{ title: string; tutorials: Tutorial[] } | null>(null);
-
-  // Sync exercises when initialData changes (e.g., after router.refresh)
-  useEffect(() => {
-    setExercises(JSON.parse(JSON.stringify(initialData.exercises)));
-  }, [initialData.exercises]);
 
   // Page edit/delete states
   const [isEditingPageName, setIsEditingPageName] = useState(false);
@@ -681,6 +683,10 @@ export default function WorkoutClient({ initialData }: WorkoutClientProps) {
     e.preventDefault();
     if (!loggingExerciseId) return;
     
+    const currentExerciseId = loggingExerciseId;
+    const currentLogType = logType;
+    const currentWeight = logData.weight;
+    
     const newSet = {
       _id: `temp-${Date.now()}`, // Temporary ID for optimistic update
       weight: logType === 'weighted' ? Number(logData.weight) : 0,
@@ -701,12 +707,12 @@ export default function WorkoutClient({ initialData }: WorkoutClientProps) {
       return ex;
     }));
     
-    setLoggingExerciseId(null);
-    setLogData({ weight: '', reps: '' });
-    setLogType('weighted');
+    // Keep focused on same exercise, preserve weight type, clear only reps
+    setLogData({ weight: currentWeight, reps: '' });
+    // Keep logType as is (don't reset to 'weighted')
     
     // Persist to server
-    await logExerciseSet(loggingExerciseId, {
+    await logExerciseSet(currentExerciseId, {
       weight: newSet.weight,
       reps: newSet.reps
     }, date);
@@ -953,6 +959,7 @@ export default function WorkoutClient({ initialData }: WorkoutClientProps) {
                 setEditingExerciseId={setEditingExerciseId}
                 setEditExercise={setEditExercise}
                 handleDeleteExercise={handleDeleteExercise}
+                setTutorialModal={setTutorialModal}
                 editingSetId={editingSetId}
                 setEditingSetId={setEditingSetId}
                 logType={logType}
@@ -1191,18 +1198,18 @@ export default function WorkoutClient({ initialData }: WorkoutClientProps) {
 
       {/* Tutorial Modal */}
       {tutorialModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-card w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 rounded-3xl shadow-xl animate-in zoom-in-95">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">{tutorialModal.title} - Tutorials</h3>
+        <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-2 sm:p-4">
+          <div className="bg-card w-full max-w-3xl max-h-[95vh] overflow-y-auto p-3 sm:p-6 rounded-2xl sm:rounded-3xl shadow-xl animate-in zoom-in-95">
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+              <h3 className="text-sm sm:text-lg font-semibold truncate pr-2">{tutorialModal.title}</h3>
               <button
                 onClick={() => setTutorialModal(null)}
-                className="p-2 rounded-xl hover:bg-secondary transition-colors"
+                className="p-2 rounded-xl hover:bg-secondary transition-colors shrink-0"
               >
                 <X size={18} />
               </button>
             </div>
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               {tutorialModal.tutorials.map((tutorial, idx) => {
                 const isYouTube = tutorial.url.includes('youtube.com') || tutorial.url.includes('youtu.be');
                 const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(tutorial.url);
@@ -1217,9 +1224,9 @@ export default function WorkoutClient({ initialData }: WorkoutClientProps) {
                 return (
                   <div key={idx} className="rounded-xl border border-border overflow-hidden">
                     {isYouTube && youtubeId ? (
-                      <div className="aspect-video">
+                      <div className="aspect-[9/16] sm:aspect-video w-full">
                         <iframe
-                          src={`https://www.youtube.com/embed/${youtubeId}`}
+                          src={`https://www.youtube.com/embed/${youtubeId}?loop=1&playlist=${youtubeId}`}
                           className="w-full h-full"
                           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                           allowFullScreen

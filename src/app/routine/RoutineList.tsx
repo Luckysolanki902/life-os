@@ -52,7 +52,7 @@ function shouldShowTaskOnDay(task: any, dayOfWeek: number): boolean {
 }
 
 // Sortable Wrapper for TaskItem
-function SortableTaskItem({ task }: { task: any }) {
+function SortableTaskItem({ task, dateStr }: { task: any; dateStr?: string }) {
   const {
     attributes,
     listeners,
@@ -81,7 +81,7 @@ function SortableTaskItem({ task }: { task: any }) {
           <GripVertical size={20} />
         </div>
         
-        <TaskItem task={task} />
+        <TaskItem task={task} dateStr={dateStr} />
       </div>
     </div>
   );
@@ -105,28 +105,36 @@ export default function RoutineList({ initialTasks, allTasks = [] }: RoutineList
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [isLoadingCustom, setIsLoadingCustom] = useState(false);
   
-  // Get today's date in IST for max date limit
-  const getTodayIST = () => {
+  // Get today's date in user's local timezone as YYYY-MM-DD
+  const getLocalDateString = () => {
     const now = new Date();
-    const istOffset = 5.5 * 60 * 60 * 1000;
-    const istDate = new Date(now.getTime() + istOffset);
-    return istDate.toISOString().split('T')[0];
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   };
   
-  const todayIST = getTodayIST();
+  const todayIST = getLocalDateString();
   
   // Get current day of week in client timezone
   const todayDayOfWeek = new Date().getDay();
 
   // Format date for display
   const formatDateDisplay = (dateStr: string) => {
-    const date = new Date(dateStr + 'T00:00:00');
-    const today = new Date(todayIST + 'T00:00:00');
+    // Parse date components to avoid timezone issues
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
+    
+    const todayStr = getLocalDateString();
+    const [tYear, tMonth, tDay] = todayStr.split('-').map(Number);
+    const today = new Date(tYear, tMonth - 1, tDay);
+    
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
     
-    if (dateStr === todayIST) return 'Today';
-    if (dateStr === yesterday.toISOString().split('T')[0]) return 'Yesterday';
+    if (dateStr === todayStr) return 'Today';
+    if (dateStr === yesterdayStr) return 'Yesterday';
     
     return date.toLocaleDateString('en-IN', { 
       weekday: 'short',
@@ -137,10 +145,15 @@ export default function RoutineList({ initialTasks, allTasks = [] }: RoutineList
 
   // Navigate to previous/next day
   const navigateDay = (direction: 'prev' | 'next') => {
-    const currentDate = customDate || todayIST;
-    const date = new Date(currentDate + 'T00:00:00');
+    const currentDateStr = customDate || todayIST;
+    const [year, month, day] = currentDateStr.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
     date.setDate(date.getDate() + (direction === 'next' ? 1 : -1));
-    const newDateStr = date.toISOString().split('T')[0];
+    
+    const newYear = date.getFullYear();
+    const newMonth = String(date.getMonth() + 1).padStart(2, '0');
+    const newDay = String(date.getDate()).padStart(2, '0');
+    const newDateStr = `${newYear}-${newMonth}-${newDay}`;
     
     // Don't allow future dates
     if (newDateStr > todayIST) return;
@@ -429,7 +442,7 @@ export default function RoutineList({ initialTasks, allTasks = [] }: RoutineList
         >
           <div className="space-y-2">
             {pendingAndCompletedTasks.map((task) => (
-              <SortableTaskItem key={task._id} task={task} />
+              <SortableTaskItem key={task._id} task={task} dateStr={customDate || todayIST} />
             ))}
             {pendingAndCompletedTasks.length === 0 && skippedTasks.length === 0 && (
                 <div className="text-center py-10 text-muted-foreground text-sm">
@@ -454,7 +467,7 @@ export default function RoutineList({ initialTasks, allTasks = [] }: RoutineList
           </p>
           <div className="space-y-2">
             {skippedTasks.map((task) => (
-              <TaskItem key={task._id} task={task} />
+              <TaskItem key={task._id} task={task} dateStr={customDate || todayIST} />
             ))}
           </div>
         </div>

@@ -110,7 +110,10 @@ const MOOD_OPTIONS = [
 export default function HealthClient({ initialData }: HealthClientProps) {
   const router = useRouter();
   const { routine, weightStats, pages, mood, date } = initialData;
-  const currentDate = new Date(date).toISOString().split("T")[0];
+  
+  // Parse date and format as YYYY-MM-DD in local timezone
+  const parsedDate = new Date(date);
+  const currentDate = `${parsedDate.getFullYear()}-${String(parsedDate.getMonth() + 1).padStart(2, '0')}-${String(parsedDate.getDate()).padStart(2, '0')}`;
 
   const [isWeightModalOpen, setIsWeightModalOpen] = useState(false);
   const [isPageModalOpen, setIsPageModalOpen] = useState(false);
@@ -519,7 +522,7 @@ export default function HealthClient({ initialData }: HealthClientProps) {
                 </label>
                 <input
                   type="number"
-                  step="0.1"
+                  step="0.01"
                   value={weightInput}
                   onChange={(e) => setWeightInput(e.target.value)}
                   placeholder="e.g. 75.5"

@@ -5,6 +5,34 @@ import Task from '@/models/Task';
 import DailyLog from '@/models/DailyLog';
 import { revalidatePath } from 'next/cache';
 
+// --- Date Utilities for Robust Timezone Handling ---
+
+/**
+ * Parse a date string (YYYY-MM-DD) to UTC midnight of that date.
+ */
+function parseToUTCMidnight(dateStr: string): Date {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+}
+
+/**
+ * Get today's date as UTC midnight.
+ */
+function getTodayUTCMidnight(): Date {
+  const now = new Date();
+  return new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0));
+}
+
+/**
+ * Get date range for a day.
+ */
+function getDateRange(dateStr: string): { startOfDay: Date; endOfDay: Date } {
+  const startOfDay = parseToUTCMidnight(dateStr);
+  const endOfDay = new Date(startOfDay);
+  endOfDay.setUTCDate(endOfDay.getUTCDate() + 1);
+  return { startOfDay, endOfDay };
+}
+
 // Helper function to check if a task should appear on a given day
 function shouldShowTaskOnDay(task: any, dayOfWeek: number): boolean {
   const recurrenceType = task.recurrenceType || 'daily';
@@ -28,30 +56,12 @@ function shouldShowTaskOnDay(task: any, dayOfWeek: number): boolean {
 
 // --- Fetching ---
 
-export async function getRoutine(timezone?: string) {
+export async function getRoutine(dateStr?: string) {
   await connectDB();
   
-  // Use client timezone to determine the current day
-  const now = new Date();
-  let dayOfWeek: number;
-  
-  if (timezone) {
-    // Get day of week in client's timezone
-    const formatter = new Intl.DateTimeFormat('en-US', {
-      timeZone: timezone,
-      weekday: 'short'
-    });
-    const dayStr = formatter.format(now);
-    const dayMap: Record<string, number> = {
-      'Sun': 0, 'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6
-    };
-    dayOfWeek = dayMap[dayStr] ?? now.getDay();
-  } else {
-    dayOfWeek = now.getDay();
-  }
-  
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  // Use UTC midnight for consistent date handling
+  const today = dateStr ? parseToUTCMidnight(dateStr) : getTodayUTCMidnight();
+  const dayOfWeek = today.getUTCDay();
 
   // 1. Get all active tasks definition
   const tasks = await Task.find({ isActive: true }).sort({ order: 1 }).lean();
@@ -59,9 +69,12 @@ export async function getRoutine(timezone?: string) {
   // 2. Filter tasks by recurrence for today
   const todaysTasks = tasks.filter((task: any) => shouldShowTaskOnDay(task, dayOfWeek));
 
-  // 3. Get today's logs for these tasks
+  // 3. Get today's logs for these tasks (use date range for safety)
+  const nextDay = new Date(today);
+  nextDay.setUTCDate(nextDay.getUTCDate() + 1);
+  
   const logs = await DailyLog.find({
-    date: today,
+    date: { $gte: today, $lt: nextDay },
     taskId: { $in: todaysTasks.map((t: any) => t._id) }
   }).lean();
 
@@ -228,11 +241,11 @@ export async function deleteTask(taskId: string) {
   return { success: true };
 }
 
-export async function completeTask(taskId: string) {
+export async function completeTask(taskId: string, dateStr?: string) {
   await connectDB();
   
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  // Use client-provided date or today's date, always as UTC midnight
+  const today = dateStr ? parseToUTCMidnight(dateStr) : getTodayUTCMidnight();
 
   const task = await Task.findById(taskId);
   if (!task) return { error: 'Task not found' };
@@ -259,11 +272,11 @@ export async function completeTask(taskId: string) {
   return { success: true };
 }
 
-export async function uncompleteTask(taskId: string) {
+export async function uncompleteTask(taskId: string, dateStr?: string) {
   await connectDB();
   
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  // Use client-provided date or today's date, always as UTC midnight
+  const today = dateStr ? parseToUTCMidnight(dateStr) : getTodayUTCMidnight();
 
   // Remove the log - points will be recalculated via aggregation
   // DailyLog is the single source of truth
@@ -274,11 +287,11 @@ export async function uncompleteTask(taskId: string) {
   return { success: true };
 }
 
-export async function skipTask(taskId: string) {
+export async function skipTask(taskId: string, dateStr?: string) {
   await connectDB();
   
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  // Use client-provided date or today's date, always as UTC midnight
+  const today = dateStr ? parseToUTCMidnight(dateStr) : getTodayUTCMidnight();
 
   const task = await Task.findById(taskId);
   if (!task) return { error: 'Task not found' };
@@ -301,11 +314,11 @@ export async function skipTask(taskId: string) {
   return { success: true };
 }
 
-export async function unskipTask(taskId: string) {
+export async function unskipTask(taskId: string, dateStr?: string) {
   await connectDB();
   
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  // Use client-provided date or today's date, always as UTC midnight
+  const today = dateStr ? parseToUTCMidnight(dateStr) : getTodayUTCMidnight();
 
   // Find the log and remove it to allow fresh completion
   const log = await DailyLog.findOne({ taskId, date: today });
