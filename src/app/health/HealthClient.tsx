@@ -16,8 +16,9 @@ import {
   CheckCircle2,
   Eye,
   EyeOff,
+  Pencil,
 } from "lucide-react";
-import { logWeight, createHealthPage, saveMood } from "@/app/actions/health";
+import { logWeight, createHealthPage, saveMood, updateWeight } from "@/app/actions/health";
 import TaskItem from "@/app/routine/TaskItem";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -52,6 +53,11 @@ interface WeightStats {
   bmi: string | null;
   delta: string | null;
   lastLogged?: Date;
+  todaysWeight?: {
+    _id: string;
+    weight: number;
+    date: Date;
+  } | null;
 }
 
 interface HealthClientProps {
@@ -118,9 +124,8 @@ export default function HealthClient({ initialData }: HealthClientProps) {
   const [isWeightModalOpen, setIsWeightModalOpen] = useState(false);
   const [isPageModalOpen, setIsPageModalOpen] = useState(false);
   const [weightInput, setWeightInput] = useState("");
-  const [weightDate, setWeightDate] = useState(
-    new Date().toISOString().split("T")[0]
-  );
+  const [weightDate, setWeightDate] = useState(currentDate);
+  const [editingWeightId, setEditingWeightId] = useState<string | null>(null);
   const [pageTitle, setPageTitle] = useState("");
   const [selectedMood, setSelectedMood] = useState<string | null>(
     mood?.mood || null
@@ -156,10 +161,31 @@ export default function HealthClient({ initialData }: HealthClientProps) {
   async function handleLogWeight(e: React.FormEvent) {
     e.preventDefault();
     if (!weightInput) return;
-    await logWeight(Number(weightInput), new Date(weightDate));
+    
+    if (editingWeightId) {
+      // Update existing weight
+      await updateWeight(editingWeightId, Number(weightInput));
+    } else {
+      // Create new weight log with string date
+      await logWeight(Number(weightInput), weightDate);
+    }
+    
     setIsWeightModalOpen(false);
     setWeightInput("");
+    setEditingWeightId(null);
     router.refresh();
+  }
+
+  function openWeightModal(existingWeight?: { _id: string; weight: number }) {
+    if (existingWeight) {
+      setEditingWeightId(existingWeight._id);
+      setWeightInput(existingWeight.weight.toString());
+    } else {
+      setEditingWeightId(null);
+      setWeightInput("");
+    }
+    setWeightDate(currentDate);
+    setIsWeightModalOpen(true);
   }
 
   async function handleCreatePage(e: React.FormEvent) {
@@ -174,8 +200,9 @@ export default function HealthClient({ initialData }: HealthClientProps) {
   async function handleMoodSelect(moodValue: string) {
     setSelectedMood(moodValue);
     setIsSavingMood(true);
+    // Send currentDate (YYYY-MM-DD) which represents the user's local date
     await saveMood(
-      date,
+      currentDate,
       moodValue as "great" | "good" | "okay" | "low" | "bad"
     );
     setIsSavingMood(false);
@@ -191,7 +218,9 @@ export default function HealthClient({ initialData }: HealthClientProps) {
     timeZone: "Asia/Kolkata",
   });
 
-  const isToday = currentDate === new Date().toISOString().split("T")[0];
+  // Check if current date is today using local date comparison
+  const todayStr = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`;
+  const isToday = currentDate === todayStr;
 
   return (
     <div className="space-y-6 pb-20">
@@ -328,14 +357,60 @@ export default function HealthClient({ initialData }: HealthClientProps) {
             <Scale size={16} />
             Body Weight
           </h2>
-          <button
-            onClick={() => setIsWeightModalOpen(true)}
-            className="text-xs font-medium text-primary hover:underline"
-          >
-            + Log
-          </button>
         </div>
 
+        {/* Inline Weight Logger - Show if today and no weight entry, or show existing entry with edit */}
+        {isToday && (
+          <div className="bg-card rounded-2xl border border-border/50 p-4">
+            {weightStats.todaysWeight ? (
+              // Show existing weight with edit option
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-xl bg-emerald-500/10">
+                    <Scale size={20} className="text-emerald-500" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Today&apos;s Weight</p>
+                    <p className="text-xl font-bold">{weightStats.todaysWeight.weight} <span className="text-sm font-normal text-muted-foreground">kg</span></p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => openWeightModal(weightStats.todaysWeight!)}
+                  className="p-2 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+                  title="Edit weight"
+                >
+                  <Pencil size={18} />
+                </button>
+              </div>
+            ) : (
+              // Show input to log new weight
+              <form onSubmit={handleLogWeight} className="flex items-center gap-3">
+                <div className="p-2 rounded-xl bg-rose-500/10">
+                  <Scale size={20} className="text-rose-500" />
+                </div>
+                <div className="flex-1">
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={weightInput}
+                    onChange={(e) => setWeightInput(e.target.value)}
+                    placeholder="Weight in kg"
+                    className="w-full bg-transparent border-b border-border/50 focus:border-primary py-1 text-lg outline-none"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={!weightInput}
+                  className="px-4 py-2 rounded-xl bg-primary text-primary-foreground font-medium text-sm hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Log
+                </button>
+              </form>
+            )}
+          </div>
+        )}
+
+        {/* Stats Grid - Show more details for historical dates or always show BMI/delta */}
         <div className="grid grid-cols-3 gap-3">
           <div className="p-4 rounded-xl bg-card border border-border/50">
             <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
@@ -412,6 +487,40 @@ export default function HealthClient({ initialData }: HealthClientProps) {
             </div>
           </div>
         </div>
+
+        {/* Log for different date button */}
+        {!isToday && !weightStats.todaysWeight && (
+          <button
+            onClick={() => openWeightModal()}
+            className="w-full p-3 rounded-xl border border-dashed border-border hover:border-primary/50 hover:bg-primary/5 transition-all flex items-center justify-center gap-2 text-muted-foreground hover:text-primary text-sm"
+          >
+            <Plus size={16} />
+            <span>Log weight for {displayDate.split(',')[0]}</span>
+          </button>
+        )}
+        
+        {!isToday && weightStats.todaysWeight && (
+          <div className="bg-card rounded-2xl border border-border/50 p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-xl bg-emerald-500/10">
+                  <Scale size={20} className="text-emerald-500" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Weight on this day</p>
+                  <p className="text-xl font-bold">{weightStats.todaysWeight.weight} <span className="text-sm font-normal text-muted-foreground">kg</span></p>
+                </div>
+              </div>
+              <button
+                onClick={() => openWeightModal(weightStats.todaysWeight!)}
+                className="p-2 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+                title="Edit weight"
+              >
+                <Pencil size={18} />
+              </button>
+            </div>
+          </div>
+        )}
       </section>
 
       {/* Workout Pages */}
@@ -503,26 +612,30 @@ export default function HealthClient({ initialData }: HealthClientProps) {
       {isWeightModalOpen && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-card w-full max-w-sm p-6 rounded-3xl shadow-xl animate-in zoom-in-95">
-            <h3 className="text-lg font-semibold mb-4">Log Weight</h3>
+            <h3 className="text-lg font-semibold mb-4">
+              {editingWeightId ? "Edit Weight" : "Log Weight"}
+            </h3>
             <form onSubmit={handleLogWeight} className="space-y-4">
-              <div>
-                <label className="text-xs font-medium text-muted-foreground ml-1">
-                  Date
-                </label>
-                <input
-                  type="date"
-                  value={weightDate}
-                  onChange={(e) => setWeightDate(e.target.value)}
-                  className="w-full rounded-xl border border-input bg-background px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20 scheme-dark"
-                />
-              </div>
+              {!editingWeightId && (
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground ml-1">
+                    Date
+                  </label>
+                  <input
+                    type="date"
+                    value={weightDate}
+                    onChange={(e) => setWeightDate(e.target.value)}
+                    className="w-full rounded-xl border border-input bg-background px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20 scheme-dark"
+                  />
+                </div>
+              )}
               <div>
                 <label className="text-xs font-medium text-muted-foreground ml-1">
                   Weight (kg)
                 </label>
                 <input
                   type="number"
-                  step="0.01"
+                  step="0.1"
                   value={weightInput}
                   onChange={(e) => setWeightInput(e.target.value)}
                   placeholder="e.g. 75.5"
@@ -533,7 +646,11 @@ export default function HealthClient({ initialData }: HealthClientProps) {
               <div className="flex gap-2 pt-2">
                 <button
                   type="button"
-                  onClick={() => setIsWeightModalOpen(false)}
+                  onClick={() => {
+                    setIsWeightModalOpen(false);
+                    setEditingWeightId(null);
+                    setWeightInput("");
+                  }}
                   className="flex-1 py-2.5 rounded-xl bg-secondary text-secondary-foreground font-medium hover:opacity-80"
                 >
                   Cancel
@@ -542,7 +659,7 @@ export default function HealthClient({ initialData }: HealthClientProps) {
                   type="submit"
                   className="flex-1 py-2.5 rounded-xl bg-primary text-primary-foreground font-medium hover:opacity-90"
                 >
-                  Save
+                  {editingWeightId ? "Update" : "Save"}
                 </button>
               </div>
             </form>

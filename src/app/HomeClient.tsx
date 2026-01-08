@@ -17,9 +17,10 @@ import {
   Plus,
   Minus,
   SkipForward,
+  Pencil,
 } from 'lucide-react';
 import { toggleTaskStatus, skipTask, unskipTask } from './actions/routine';
-import { logWeight } from './actions/health';
+import { logWeight, updateWeight } from './actions/health';
 import { createLog } from './actions/learning';
 
 const iconMap: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
@@ -55,13 +56,20 @@ interface Domain {
   border: string;
 }
 
+interface TodaysWeight {
+  _id: string;
+  weight: number;
+  date: Date;
+}
+
 interface Props {
   incompleteTasks: Task[];
   allMediums: Medium[];
   domains: Domain[];
+  todaysWeight: TodaysWeight | null;
 }
 
-export default function HomeClient({ incompleteTasks, allMediums, domains }: Props) {
+export default function HomeClient({ incompleteTasks, allMediums, domains, todaysWeight }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);
@@ -71,6 +79,7 @@ export default function HomeClient({ incompleteTasks, allMediums, domains }: Pro
   const [weight, setWeight] = useState<string>('');
   const [weightLoading, setWeightLoading] = useState(false);
   const [weightSuccess, setWeightSuccess] = useState(false);
+  const [isEditingWeight, setIsEditingWeight] = useState(false);
   
   // Learning logging state
   const [selectedMedium, setSelectedMedium] = useState<string>('');
@@ -104,15 +113,30 @@ export default function HomeClient({ incompleteTasks, allMediums, domains }: Pro
     
     setWeightLoading(true);
     try {
-      await logWeight(parseFloat(weight), new Date());
+      // Get today's date in YYYY-MM-DD format
+      const today = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`;
+      
+      if (isEditingWeight && todaysWeight) {
+        await updateWeight(todaysWeight._id, parseFloat(weight));
+      } else {
+        await logWeight(parseFloat(weight), today);
+      }
       setWeightSuccess(true);
       setWeight('');
+      setIsEditingWeight(false);
       setTimeout(() => setWeightSuccess(false), 2000);
       router.refresh();
     } catch (error) {
       console.error('Error logging weight:', error);
     } finally {
       setWeightLoading(false);
+    }
+  };
+
+  const startEditingWeight = () => {
+    if (todaysWeight) {
+      setWeight(todaysWeight.weight.toString());
+      setIsEditingWeight(true);
     }
   };
 
@@ -305,36 +329,68 @@ export default function HomeClient({ incompleteTasks, allMediums, domains }: Pro
             <h3 className="font-semibold">Log Weight</h3>
           </div>
 
-          <form onSubmit={handleLogWeight} className="space-y-3">
-            <div className="flex gap-2">
-              <input
-                type="number"
-                step="0.01"
-                placeholder="Weight in kg"
-                value={weight}
-                onChange={(e) => setWeight(e.target.value)}
-                className="flex-1 px-4 py-3 rounded-xl bg-secondary/50 border border-border/50 
-                  focus:outline-none focus:border-primary/50 text-sm"
-              />
+          {todaysWeight && !isEditingWeight ? (
+            // Show existing weight with edit option
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-muted-foreground">Today&apos;s Weight</p>
+                <p className="text-2xl font-bold">{todaysWeight.weight} <span className="text-sm font-normal text-muted-foreground">kg</span></p>
+              </div>
               <button
-                type="submit"
-                disabled={!weight || weightLoading}
-                className={`px-6 py-3 rounded-xl font-medium text-sm transition-all
-                  ${weightSuccess 
-                    ? 'bg-emerald-500 text-white' 
-                    : 'bg-primary text-primary-foreground hover:bg-primary/90'}
-                  disabled:opacity-50 disabled:cursor-not-allowed`}
+                onClick={startEditingWeight}
+                className="p-3 rounded-xl bg-secondary/50 hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+                title="Edit weight"
               >
-                {weightLoading ? (
-                  <Loader2 size={18} className="animate-spin" />
-                ) : weightSuccess ? (
-                  <CheckCircle2 size={18} />
-                ) : (
-                  'Log'
-                )}
+                <Pencil size={18} />
               </button>
             </div>
-          </form>
+          ) : (
+            // Show input form for new or editing weight
+            <form onSubmit={handleLogWeight} className="space-y-3">
+              <div className="flex gap-2">
+                <input
+                  type="number"
+                  step="0.1"
+                  placeholder="Weight in kg"
+                  value={weight}
+                  onChange={(e) => setWeight(e.target.value)}
+                  className="flex-1 px-4 py-3 rounded-xl bg-secondary/50 border border-border/50 
+                    focus:outline-none focus:border-primary/50 text-sm"
+                />
+                <button
+                  type="submit"
+                  disabled={!weight || weightLoading}
+                  className={`px-6 py-3 rounded-xl font-medium text-sm transition-all
+                    ${weightSuccess 
+                      ? 'bg-emerald-500 text-white' 
+                      : 'bg-primary text-primary-foreground hover:bg-primary/90'}
+                    disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  {weightLoading ? (
+                    <Loader2 size={18} className="animate-spin" />
+                  ) : weightSuccess ? (
+                    <CheckCircle2 size={18} />
+                  ) : isEditingWeight ? (
+                    'Update'
+                  ) : (
+                    'Log'
+                  )}
+                </button>
+              </div>
+              {isEditingWeight && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsEditingWeight(false);
+                    setWeight('');
+                  }}
+                  className="text-xs text-muted-foreground hover:text-foreground"
+                >
+                  Cancel editing
+                </button>
+              )}
+            </form>
+          )}
         </section>
 
         {/* Learning Quick Log */}

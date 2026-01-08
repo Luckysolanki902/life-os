@@ -1,6 +1,7 @@
 import { getIdentityMetric } from "./actions/stats";
 import { getRoutine } from "./actions/routine";
 import { getLearningDashboardData } from "./actions/learning";
+import { getTodaysWeightData } from "./actions/health";
 import Link from "next/link";
 import {
   Heart,
@@ -11,10 +12,11 @@ import {
 import HomeClient from "./HomeClient";
 
 export default async function Dashboard() {
-  const [stats, routine, learningData] = await Promise.all([
+  const [stats, routine, learningData, todaysWeight] = await Promise.all([
     getIdentityMetric(),
     getRoutine(),
-    getLearningDashboardData()
+    getLearningDashboardData(),
+    getTodaysWeightData()
   ]);
 
   // Get next tasks: incomplete first (not completed, not skipped), then skipped
@@ -105,6 +107,7 @@ export default async function Dashboard() {
         incompleteTasks={incompleteTasks}
         allMediums={allMediums}
         domains={domains}
+        todaysWeight={todaysWeight}
       />
     </div>
   );

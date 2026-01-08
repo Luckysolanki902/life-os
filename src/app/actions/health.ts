@@ -63,14 +63,29 @@ function getTodayUTCMidnight(timezoneOffset?: number): Date {
 }
 
 /**
- * Get the date range for a day (midnight to next midnight UTC).
+ * Get the date range for a day, extended to handle timezone differences.
+ * This finds records stored at either UTC midnight OR local midnight converted to UTC.
  * @param dateStr - Date string in YYYY-MM-DD format
- * @returns Object with startOfDay and endOfDay
+ * @returns Object with startOfDay and endOfDay (extended range)
  */
 function getDateRange(dateStr: string): { startOfDay: Date; endOfDay: Date } {
   const startOfDay = parseToUTCMidnight(dateStr);
   const endOfDay = new Date(startOfDay);
   endOfDay.setUTCDate(endOfDay.getUTCDate() + 1);
+  return { startOfDay, endOfDay };
+}
+
+/**
+ * Get extended date range to find records that might have been stored with timezone offset.
+ * This handles legacy data stored at local midnight (e.g., IST) converted to UTC.
+ * For Jan 8: looks from Jan 7 12:00 UTC to Jan 9 12:00 UTC to catch all timezones.
+ */
+function getExtendedDateRange(dateStr: string): { startOfDay: Date; endOfDay: Date } {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  // Start from previous day noon UTC to catch dates stored at local midnight from UTC+12 or later
+  const startOfDay = new Date(Date.UTC(year, month - 1, day - 1, 12, 0, 0, 0));
+  // End at next day noon UTC to catch dates stored at local midnight from UTC-12 or earlier  
+  const endOfDay = new Date(Date.UTC(year, month - 1, day + 1, 12, 0, 0, 0));
   return { startOfDay, endOfDay };
 }
 
@@ -145,6 +160,14 @@ export async function getHealthDashboardData(dateStr?: string) {
   // 2. Weight Stats (Current vs 30 days ago)
   const latestWeight = await WeightLog.findOne({ date: { $lt: nextDay } }).sort({ date: -1 }).lean();
   
+  // Check if there's a weight entry for the selected date (using extended range for timezone compatibility)
+  const weightDateRange = dateStr 
+    ? getExtendedDateRange(dateStr) 
+    : getExtendedDateRange(`${targetDate.getUTCFullYear()}-${String(targetDate.getUTCMonth() + 1).padStart(2, '0')}-${String(targetDate.getUTCDate()).padStart(2, '0')}`);
+  const todaysWeight = await WeightLog.findOne({ 
+    date: { $gte: weightDateRange.startOfDay, $lt: weightDateRange.endOfDay } 
+  }).sort({ date: -1 }).lean();
+  
   const thirtyDaysAgo = new Date(targetDate);
   thirtyDaysAgo.setDate(targetDate.getDate() - 30);
   const pastWeight = await WeightLog.findOne({ date: { $lte: thirtyDaysAgo } }).sort({ date: -1 }).lean();
@@ -156,7 +179,13 @@ export async function getHealthDashboardData(dateStr?: string) {
     current: currentWeight,
     delta: (latestWeight && pastWeight) ? (latestWeight.weight - pastWeight.weight).toFixed(1) : null,
     lastLogged: latestWeight?.date || null,
-    bmi
+    bmi,
+    // Add today's specific weight for edit functionality
+    todaysWeight: todaysWeight ? { 
+      _id: (todaysWeight as any)._id.toString(),
+      weight: todaysWeight.weight,
+      date: todaysWeight.date
+    } : null
   };
 
   // 3. Health Pages (Static definitions)
@@ -192,8 +221,13 @@ export async function getHealthDashboardData(dateStr?: string) {
     ? (lastWorkoutPageIndex + 1) % pageIds.length 
     : 0;
 
-  // 5. Mood for that date
-  const moodLog = await MoodLog.findOne({ date: { $gte: targetDate, $lt: nextDay } }).lean();
+  // 5. Mood for that date - use extended range to handle timezone differences in legacy data
+  const extendedRange = dateStr 
+    ? getExtendedDateRange(dateStr) 
+    : getExtendedDateRange(`${targetDate.getUTCFullYear()}-${String(targetDate.getUTCMonth() + 1).padStart(2, '0')}-${String(targetDate.getUTCDate()).padStart(2, '0')}`);
+  const moodLog = await MoodLog.findOne({ 
+    date: { $gte: extendedRange.startOfDay, $lt: extendedRange.endOfDay } 
+  }).sort({ date: -1 }).lean();
 
   return {
     date: targetDate.toISOString(),
@@ -344,21 +378,54 @@ export async function logExerciseSet(exerciseId: string, data: { weight?: number
 
 // --- Actions ---
 
-export async function logWeight(weight: number, date: Date) {
+export async function logWeight(weight: number, dateStr: string) {
   await connectDB();
   
-  // Normalize date to handle "same day updates" if needed, or keep precise timestamp?
-  // User said "weight i might tell any day... there should be date filter".
-  // Let's store exact timestamp provided, but maybe we want one per day?
-  // For simplicity, let's just create a new log entry.
+  // Parse date as UTC midnight for consistent storage
+  const logDate = parseToUTCMidnight(dateStr);
   
-  await WeightLog.create({
-    weight,
-    date
-  });
+  // Use upsert to update existing entry or create new one for this date
+  await WeightLog.findOneAndUpdate(
+    { date: logDate },
+    { weight, date: logDate },
+    { upsert: true, new: true }
+  );
 
   revalidatePath('/health');
+  revalidatePath('/');
   return { success: true };
+}
+
+export async function updateWeight(weightId: string, weight: number) {
+  await connectDB();
+  
+  await WeightLog.findByIdAndUpdate(weightId, { weight });
+
+  revalidatePath('/health');
+  revalidatePath('/');
+  return { success: true };
+}
+
+/**
+ * Get today's weight data for the home page
+ */
+export async function getTodaysWeightData(dateStr?: string) {
+  await connectDB();
+  
+  // Use provided date or today
+  const targetDateStr = dateStr || `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`;
+  const extendedRange = getExtendedDateRange(targetDateStr);
+  
+  // Get today's weight entry
+  const todaysWeight = await WeightLog.findOne({ 
+    date: { $gte: extendedRange.startOfDay, $lt: extendedRange.endOfDay } 
+  }).sort({ date: -1 }).lean();
+  
+  return todaysWeight ? {
+    _id: (todaysWeight as any)._id.toString(),
+    weight: todaysWeight.weight,
+    date: todaysWeight.date
+  } : null;
 }
 
 export async function createHealthPage(title: string, description?: string) {
