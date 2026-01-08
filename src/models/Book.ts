@@ -9,8 +9,8 @@ const BookSchema = new mongoose.Schema({
   // Status managed by logic
   status: { 
     type: String, 
-    enum: ['reading', 'paused', 'completed', 'dropped'],
-    default: 'reading' 
+    enum: ['to-read', 'reading', 'paused', 'completed', 'dropped'],
+    default: 'to-read' 
   },
   
   // Dates

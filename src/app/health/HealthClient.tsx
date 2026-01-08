@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   Scale,
   Dumbbell,
@@ -14,6 +14,8 @@ import {
   ThumbsUp,
   ThumbsDown,
   CheckCircle2,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { logWeight, createHealthPage, saveMood } from "@/app/actions/health";
 import TaskItem from "@/app/routine/TaskItem";
@@ -25,7 +27,10 @@ interface Task {
   _id: string;
   title: string;
   domainId: string;
-  isCompleted?: boolean;
+  log?: {
+    status?: 'completed' | 'skipped';
+    [key: string]: unknown;
+  };
   [key: string]: unknown;
 }
 
@@ -118,6 +123,28 @@ export default function HealthClient({ initialData }: HealthClientProps) {
     mood?.mood || null
   );
   const [isSavingMood, setIsSavingMood] = useState(false);
+  const [showDoneTasks, setShowDoneTasks] = useState(false);
+  const [showSkippedTasks, setShowSkippedTasks] = useState(false);
+
+  // Filter tasks into categories
+  const { activeTasks, doneTasks, skippedTasks } = useMemo(() => {
+    const active: Task[] = [];
+    const done: Task[] = [];
+    const skipped: Task[] = [];
+    
+    routine.forEach((task) => {
+      const status = task.log?.status;
+      if (status === 'skipped') {
+        skipped.push(task);
+      } else if (status === 'completed') {
+        done.push(task);
+      } else {
+        active.push(task);
+      }
+    });
+    
+    return { activeTasks: active, doneTasks: done, skippedTasks: skipped };
+  }, [routine]);
 
   function handleDateChange(e: React.ChangeEvent<HTMLInputElement>) {
     router.push(`/health?date=${e.target.value}`);
@@ -241,14 +268,54 @@ export default function HealthClient({ initialData }: HealthClientProps) {
           Today&apos;s Habits
         </h2>
         <div className="space-y-2">
-          {routine.length > 0 ? (
-            routine.map((task) => <TaskItem key={task._id} task={task} />)
-          ) : (
+          {activeTasks.length > 0 ? (
+            activeTasks.map((task) => <TaskItem key={task._id} task={task} />)
+          ) : routine.length === 0 ? (
             <div className="p-5 rounded-xl border border-dashed border-border text-center text-muted-foreground text-sm">
               No health habits scheduled for today.
             </div>
+          ) : (
+            <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-center text-emerald-400 text-sm">
+              All habits completed! 🎉
+            </div>
           )}
         </div>
+        
+        {/* Toggle buttons for done/skipped tasks */}
+        <div className="flex flex-wrap gap-2">
+          {doneTasks.length > 0 && (
+            <button
+              onClick={() => setShowDoneTasks(!showDoneTasks)}
+              className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors px-2.5 py-1.5 rounded-lg bg-secondary/50 hover:bg-secondary"
+            >
+              {showDoneTasks ? <EyeOff size={14} /> : <Eye size={14} />}
+              {showDoneTasks ? "Hide" : "Show"} done ({doneTasks.length})
+            </button>
+          )}
+          {skippedTasks.length > 0 && (
+            <button
+              onClick={() => setShowSkippedTasks(!showSkippedTasks)}
+              className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors px-2.5 py-1.5 rounded-lg bg-secondary/50 hover:bg-secondary"
+            >
+              {showSkippedTasks ? <EyeOff size={14} /> : <Eye size={14} />}
+              {showSkippedTasks ? "Hide" : "Show"} skipped ({skippedTasks.length})
+            </button>
+          )}
+        </div>
+        
+        {/* Done tasks (collapsed by default) */}
+        {showDoneTasks && doneTasks.length > 0 && (
+          <div className="space-y-2 opacity-60">
+            {doneTasks.map((task) => <TaskItem key={task._id} task={task} />)}
+          </div>
+        )}
+        
+        {/* Skipped tasks (collapsed by default) */}
+        {showSkippedTasks && skippedTasks.length > 0 && (
+          <div className="space-y-2 opacity-60">
+            {skippedTasks.map((task) => <TaskItem key={task._id} task={task} />)}
+          </div>
+        )}
       </section>
 
       {/* Weight Stats */}

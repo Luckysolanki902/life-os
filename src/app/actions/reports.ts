@@ -212,26 +212,46 @@ export async function getOverallReport(period: string = 'thisWeek') {
   
   // Daily breakdown for charts
   const dailyBreakdown = [];
+  
+  // Helper function to check if task should appear on a given day
+  const shouldShowTaskOnDay = (task: any, dayOfWeek: number): boolean => {
+    const recurrenceType = task.recurrenceType || 'daily';
+    switch (recurrenceType) {
+      case 'daily':
+        return true;
+      case 'weekdays':
+        return dayOfWeek >= 1 && dayOfWeek <= 5;
+      case 'weekends':
+        return dayOfWeek === 0 || dayOfWeek === 6;
+      case 'custom':
+        return (task.recurrenceDays || []).includes(dayOfWeek);
+      default:
+        return true;
+    }
+  };
+  
   for (let i = 0; i < daysInPeriod && i < 31; i++) {
     const dayStart = new Date(start.getTime() + i * 24 * 60 * 60 * 1000);
     const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+    const dayOfWeek = dayStart.getDay();
     
+    // Calculate how many tasks SHOULD appear on this day based on recurrence
+    const expectedTasksForDay = allTasks.filter((task: any) => shouldShowTaskOnDay(task, dayOfWeek)).length;
+    
+    // Get actual completed tasks from DailyLog
     const dayCompleted = await DailyLog.countDocuments({
       taskId: { $in: taskIds },
       date: { $gte: dayStart, $lt: dayEnd },
       status: 'completed'
     });
     
-    const dayTotal = await DailyLog.countDocuments({
-      taskId: { $in: taskIds },
-      date: { $gte: dayStart, $lt: dayEnd }
-    });
-    
+    // Use expected tasks as total (not just logged tasks)
     dailyBreakdown.push({
       date: dayStart.toISOString().split('T')[0],
+      dayName: dayStart.toLocaleDateString('en-US', { weekday: 'short' }),
       completed: dayCompleted,
-      total: dayTotal,
-      rate: dayTotal > 0 ? Math.round((dayCompleted / dayTotal) * 100) : 0
+      total: expectedTasksForDay,
+      rate: expectedTasksForDay > 0 ? Math.round((dayCompleted / expectedTasksForDay) * 100) : 0
     });
   }
   

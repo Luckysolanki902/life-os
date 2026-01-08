@@ -11,7 +11,6 @@ import {
   createBook, updateBook, deleteBook, checkInBook as checkInBookAction, bulkImportBooks, deleteBookLog
 } from '@/app/actions/books';
 import { cn } from '@/lib/utils';
-import TaskItem from '@/app/routine/TaskItem';
 import BooksTableView from './BooksTableView';
 
 interface BooksClientProps {
@@ -31,6 +30,7 @@ const DOMAIN_COLORS = [
 ];
 
 const STATUS_OPTIONS = [
+  { value: 'to-read', label: 'To Read', icon: BookOpen, color: 'text-slate-400', bg: 'bg-slate-500/20' },
   { value: 'reading', label: 'Reading', icon: BookOpen, color: 'text-emerald-400', bg: 'bg-emerald-500/20' },
   { value: 'paused', label: 'Paused', icon: Pause, color: 'text-amber-400', bg: 'bg-amber-500/20' },
   { value: 'completed', label: 'Completed', icon: CheckCircle2, color: 'text-blue-400', bg: 'bg-blue-500/20' },
@@ -56,13 +56,12 @@ function getColorClasses(colorName: string) {
 
 export default function BooksClient({ initialData, tableData }: BooksClientProps) {
   const router = useRouter();
-  const { domains, books, recentLogs, routine, stats } = initialData;
+  const { domains, books, recentLogs, stats } = initialData;
   
   // View mode
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
   
   // UI States
-  const [expandedDomains, setExpandedDomains] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -93,16 +92,6 @@ export default function BooksClient({ initialData, tableData }: BooksClientProps
   
   // Context menu
   const [contextMenu, setContextMenu] = useState<{ type: string; id: string } | null>(null);
-
-  // Toggle functions
-  function toggleDomain(domainId: string) {
-    setExpandedDomains(prev => {
-      const next = new Set(prev);
-      if (next.has(domainId)) next.delete(domainId);
-      else next.add(domainId);
-      return next;
-    });
-  }
 
   // Handlers
   async function handleCreateDomain(e: React.FormEvent) {
@@ -303,63 +292,11 @@ export default function BooksClient({ initialData, tableData }: BooksClientProps
         <BooksTableView initialData={tableData} />
       ) : (
         <>
-          {/* Today's Reading Tasks */}
-          {routine.length > 0 && (
-            <section className="space-y-3">
-              <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-                Reading Habits
-              </h2>
-              <div className="space-y-2">
-                {routine.map((task: any) => (
-                  <TaskItem key={task._id} task={task} />
-                ))}
-              </div>
-            </section>
-          )}
-
-          {/* Quick Check-in: Read Today */}
-          {readingBooks.length > 0 && (
-            <section className="space-y-3">
-              <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                <Check size={14} />
-                Read Today
-              </h2>
-              <div className="grid gap-2 sm:grid-cols-2">
-                {readingBooks.slice(0, 6).map((book: any) => {
-                  const colorClasses = book.domain ? getColorClasses(book.domain.color) : DOMAIN_COLORS[0];
-                  
-                  return (
-                    <div 
-                      key={book._id}
-                      className="flex items-center justify-between p-3 rounded-xl bg-card border border-border/50 hover:border-primary/30 transition-all"
-                    >
-                      <div className="flex items-center gap-3 flex-1 min-w-0">
-                        <div className={cn("w-1 h-8 rounded-full", colorClasses.accent)} />
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm truncate">{book.title}</p>
-                          <p className="text-xs text-muted-foreground truncate">
-                            {book.domain?.name} • {book.subcategory}
-                          </p>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => handleCheckIn(book._id)}
-                        className="p-2 rounded-lg bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 transition-colors flex-shrink-0"
-                      >
-                        <Check size={16} />
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            </section>
-          )}
-
-          {/* Search & Quick Check-in */}
+          {/* Quick Log Section */}
           <section className="space-y-3">
             <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-              <Search size={14} />
-              Quick Check-in
+              <BookOpen size={14} />
+              Quick Log
             </h2>
             <div className="relative">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -369,7 +306,6 @@ export default function BooksClient({ initialData, tableData }: BooksClientProps
                   setSearchQuery(e.target.value);
                   if (e.target.value.length >= 2) {
                     setIsSearching(true);
-                    // Simplified inline search
                     const results = books.filter((b: any) => 
                       b.title.toLowerCase().includes(e.target.value.toLowerCase()) ||
                       (b.author && b.author.toLowerCase().includes(e.target.value.toLowerCase()))
@@ -380,7 +316,7 @@ export default function BooksClient({ initialData, tableData }: BooksClientProps
                     setSearchResults([]);
                   }
                 }}
-                placeholder="Search books to check in..."
+                placeholder="Search book to log pages..."
                 className="w-full pl-10 pr-4 py-3 rounded-xl bg-card border border-border/50 text-sm outline-none focus:ring-2 focus:ring-primary/20"
               />
               
@@ -405,7 +341,7 @@ export default function BooksClient({ initialData, tableData }: BooksClientProps
                             <div className="flex-1 min-w-0">
                               <p className="font-medium text-sm truncate">{book.title}</p>
                               <p className="text-xs text-muted-foreground">
-                                {book.domain?.name} • {book.subcategory}
+                                {book.domain?.name} • p.{book.currentPage || 0}{book.totalPages ? `/${book.totalPages}` : ''}
                               </p>
                             </div>
                           </div>
@@ -416,7 +352,7 @@ export default function BooksClient({ initialData, tableData }: BooksClientProps
                             }}
                             className="px-3 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 transition-colors text-xs font-medium"
                           >
-                            Check In
+                            Log Pages
                           </button>
                         </div>
                       );
@@ -426,6 +362,50 @@ export default function BooksClient({ initialData, tableData }: BooksClientProps
               )}
             </div>
           </section>
+
+          {/* Currently Reading - Only show if has books */}
+          {readingBooks.length > 0 && (
+            <section className="space-y-3">
+              <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                <Check size={14} />
+                Currently Reading ({readingBooks.length})
+              </h2>
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {readingBooks.map((book: any) => {
+                  const colorClasses = book.domain ? getColorClasses(book.domain.color) : DOMAIN_COLORS[0];
+                  const progress = book.totalPages > 0 ? Math.round((book.currentPage / book.totalPages) * 100) : 0;
+                  
+                  return (
+                    <div 
+                      key={book._id}
+                      className="flex items-center justify-between p-3 rounded-xl bg-card border border-border/50 hover:border-primary/30 transition-all group"
+                    >
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <div className={cn("w-1.5 h-10 rounded-full", colorClasses.accent)} />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm truncate">{book.title}</p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {book.totalPages > 0 ? `${book.currentPage}/${book.totalPages} pages` : book.domain?.name}
+                          </p>
+                          {book.totalPages > 0 && (
+                            <div className="mt-1 h-1 bg-secondary rounded-full overflow-hidden">
+                              <div className={cn("h-full", colorClasses.accent)} style={{ width: `${progress}%` }} />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleCheckIn(book._id)}
+                        className="p-2 rounded-lg bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 transition-colors flex-shrink-0 ml-2"
+                      >
+                        <Plus size={16} />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          )}
 
           {/* Recent Reading Logs */}
           {recentLogs && recentLogs.length > 0 && (
@@ -477,7 +457,7 @@ export default function BooksClient({ initialData, tableData }: BooksClientProps
             </section>
           )}
 
-          {/* Domains & Books */}
+          {/* Domains & Books - Simplified List View */}
           <section className="space-y-3">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Library</h2>
@@ -501,121 +481,103 @@ export default function BooksClient({ initialData, tableData }: BooksClientProps
                 </button>
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {domains.map((domain: any) => {
                   const colorClasses = getColorClasses(domain.color);
-                  const isExpanded = expandedDomains.has(domain._id);
                   const domainBooks = booksByDomain[domain._id] || [];
                   
                   return (
                     <div key={domain._id} className={cn(
-                      "rounded-2xl border overflow-hidden transition-all",
+                      "rounded-xl border overflow-hidden",
                       colorClasses.border,
-                      colorClasses.bg
+                      "bg-card"
                     )}>
-                      {/* Domain Header */}
-                      <div 
-                        className="flex items-center justify-between p-4 cursor-pointer hover:bg-white/5 transition-colors"
-                        onClick={() => toggleDomain(domain._id)}
-                      >
-                        <div className="flex items-center gap-3">
-                          <span className="text-2xl">{domain.icon}</span>
-                          <div>
-                            <h3 className="font-semibold">{domain.name}</h3>
-                            {domain.description && (
-                              <p className="text-xs text-muted-foreground">{domain.description}</p>
-                            )}
-                          </div>
+                      {/* Domain Header - Always visible */}
+                      <div className="flex items-center justify-between p-3 border-b border-border/30">
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg">{domain.icon}</span>
+                          <span className="font-medium text-sm">{domain.name}</span>
+                          <span className="text-xs text-muted-foreground">({domainBooks.length})</span>
                         </div>
                         
-                        <div className="flex items-center gap-3">
-                          <div className="text-right">
-                            <p className="text-sm font-medium">{domainBooks.length} books</p>
-                            <p className="text-xs text-muted-foreground">
-                              {domainBooks.filter((b: any) => b.status === 'reading').length} reading
-                            </p>
-                          </div>
-                          
+                        <div className="flex items-center gap-2">
                           <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setContextMenu({ type: 'domain', id: domain._id });
-                            }}
-                            className="p-1.5 rounded hover:bg-white/10"
+                            onClick={() => { setNewBook({ ...newBook, domainId: domain._id }); setIsBookModalOpen(true); }}
+                            className="p-1.5 rounded-lg hover:bg-secondary text-muted-foreground hover:text-primary"
                           >
-                            <MoreVertical size={16} />
+                            <Plus size={14} />
+                          </button>
+                          <button
+                            onClick={() => setContextMenu({ type: 'domain', id: domain._id })}
+                            className="p-1.5 rounded-lg hover:bg-secondary text-muted-foreground"
+                          >
+                            <MoreVertical size={14} />
                           </button>
                         </div>
                       </div>
                       
-                      {/* Books List */}
-                      {isExpanded && (
-                        <div className="px-4 pb-4 space-y-2">
-                          {domainBooks.length === 0 ? (
-                            <div className="p-4 rounded-xl border border-dashed border-border/50 text-center text-sm text-muted-foreground">
-                              No books in this domain yet. <button onClick={() => { setNewBook({ ...newBook, domainId: domain._id }); setIsBookModalOpen(true); }} className="text-primary hover:underline">Add one?</button>
-                            </div>
-                          ) : (
-                            domainBooks.map((book: any) => {
-                              const statusInfo = STATUS_OPTIONS.find(s => s.value === book.status);
-                              const Icon = statusInfo?.icon || BookOpen;
-                              
-                              return (
-                                <div 
-                                  key={book._id}
-                                  className="flex items-center justify-between p-3 rounded-xl bg-card/50 border border-border/30 hover:border-primary/30 transition-all"
-                                >
-                                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                                    <div className={cn(
-                                      "w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0",
-                                      statusInfo?.bg
-                                    )}>
-                                      <Icon size={18} className={statusInfo?.color} />
-                                    </div>
-                                    
-                                    <div className="flex-1 min-w-0">
-                                      <p className="font-medium truncate">{book.title}</p>
-                                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                        <span>{book.subcategory}</span>
-                                        {book.author && (
-                                          <>
-                                            <span>•</span>
-                                            <span className="truncate">{book.author}</span>
-                                          </>
-                                        )}
-                                      </div>
-                                      {book.totalPages > 0 && (
-                                        <div className="mt-1 flex items-center gap-2">
-                                          <div className="flex-1 h-1 bg-secondary rounded-full overflow-hidden max-w-[120px]">
-                                            <div 
-                                              className={cn("h-full", colorClasses.accent)}
-                                              style={{ width: `${Math.min(100, (book.currentPage / book.totalPages) * 100)}%` }}
-                                            />
-                                          </div>
-                                          <span className="text-[10px] text-muted-foreground">
-                                            {book.currentPage}/{book.totalPages}
-                                          </span>
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                  
-                                  <div className="flex items-center gap-2 text-xs text-muted-foreground flex-shrink-0 ml-3">
-                                    <span>{formatRelativeDate(book.lastReadDate)}</span>
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setContextMenu({ type: 'book', id: book._id });
-                                      }}
-                                      className="p-1.5 rounded hover:bg-secondary"
-                                    >
-                                      <MoreVertical size={14} />
-                                    </button>
+                      {/* Books List - Flat, no accordion */}
+                      {domainBooks.length > 0 && (
+                        <div className="p-2 space-y-1">
+                          {domainBooks.map((book: any) => {
+                            const statusInfo = STATUS_OPTIONS.find(s => s.value === book.status);
+                            const progress = book.totalPages > 0 ? Math.round((book.currentPage / book.totalPages) * 100) : 0;
+                            
+                            return (
+                              <div 
+                                key={book._id}
+                                className="flex items-center gap-3 p-2 rounded-lg hover:bg-secondary/50 transition-colors group"
+                              >
+                                {/* Status indicator */}
+                                <div className={cn(
+                                  "w-2 h-2 rounded-full flex-shrink-0",
+                                  statusInfo?.color.replace('text-', 'bg-').replace('-400', '-500')
+                                )} />
+                                
+                                {/* Book info */}
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-medium text-sm truncate">{book.title}</p>
+                                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                    <span className={cn("capitalize", statusInfo?.color)}>{book.status?.replace('-', ' ')}</span>
+                                    {book.totalPages > 0 && (
+                                      <>
+                                        <span>•</span>
+                                        <span>{progress}%</span>
+                                      </>
+                                    )}
+                                    {book.author && (
+                                      <>
+                                        <span>•</span>
+                                        <span className="truncate">{book.author}</span>
+                                      </>
+                                    )}
                                   </div>
                                 </div>
-                              );
-                            })
-                          )}
+                                
+                                {/* Quick actions */}
+                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  {(book.status === 'reading' || book.status === 'paused' || book.status === 'to-read') && (
+                                    <button
+                                      onClick={() => handleCheckIn(book._id)}
+                                      className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30"
+                                      title="Log pages"
+                                    >
+                                      <Plus size={12} />
+                                    </button>
+                                  )}
+                                  <button
+                                    onClick={() => {
+                                      setEditingBook(book);
+                                      setIsEditBookModalOpen(true);
+                                    }}
+                                    className="p-1.5 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground"
+                                  >
+                                    <Edit2 size={12} />
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
                       )}
                     </div>

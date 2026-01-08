@@ -86,6 +86,49 @@ export async function getRoutine(timezone?: string) {
   return routine;
 }
 
+// Get routine for a specific date (for viewing/editing past days)
+export async function getRoutineForDate(dateStr: string) {
+  await connectDB();
+  
+  // Parse the date string (YYYY-MM-DD format, treated as IST)
+  const targetDate = new Date(dateStr + 'T00:00:00+05:30');
+  const dayOfWeek = targetDate.getDay();
+  
+  // Set start and end of day in IST
+  const startOfDay = new Date(dateStr + 'T00:00:00+05:30');
+  const endOfDay = new Date(dateStr + 'T23:59:59+05:30');
+  
+  // 1. Get all active tasks
+  const tasks = await Task.find({ isActive: true }).sort({ order: 1 }).lean();
+  
+  // 2. Filter tasks by recurrence for that day
+  const daysTasks = tasks.filter((task: any) => shouldShowTaskOnDay(task, dayOfWeek));
+  
+  // 3. Get logs for these tasks on that date
+  const logs = await DailyLog.find({
+    date: { $gte: startOfDay, $lte: endOfDay },
+    taskId: { $in: daysTasks.map((t: any) => t._id) }
+  }).lean();
+  
+  // 4. Merge them
+  const routine = daysTasks.map((task: any) => {
+    const log = logs.find((l: any) => l.taskId.toString() === task._id.toString());
+    const { subtasks, ...cleanTask } = task;
+    
+    return {
+      ...cleanTask,
+      _id: task._id.toString(),
+      log: log ? {
+        ...log,
+        _id: log._id.toString(),
+        taskId: log.taskId.toString(),
+      } : null
+    };
+  });
+  
+  return routine;
+}
+
 // Get all tasks (regardless of recurrence) for management view
 export async function getAllTasks() {
   await connectDB();

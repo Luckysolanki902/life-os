@@ -171,6 +171,7 @@ export async function getBooksDashboardData(page: number = 1, limit: number = 20
   // Stats
   const stats = {
     totalBooks: await Book.countDocuments(),
+    toRead: await Book.countDocuments({ status: 'to-read' }),
     reading: await Book.countDocuments({ status: 'reading' }),
     paused: await Book.countDocuments({ status: 'paused' }),
     completed: await Book.countDocuments({ status: 'completed' })
@@ -180,7 +181,6 @@ export async function getBooksDashboardData(page: number = 1, limit: number = 20
     domains: domainsWithStats,
     books: enrichedBooks,
     recentLogs: enrichedRecent,
-    routine,
     stats,
     pagination: {
       page,
@@ -221,19 +221,32 @@ export async function createBook(data: {
   domainId: string; 
   title: string; 
   author?: string;
+  subcategory?: string;
   totalPages?: number;
   startDate?: string;
   notes?: string;
+  status?: string;
 }) {
   await connectDB();
   const maxOrder = await Book.findOne({ domainId: data.domainId }).sort({ order: -1 }).lean();
-  await Book.create({ 
+  
+  // Don't auto-set lastReadDate or status - let user control when they start
+  const bookData: any = { 
     ...data, 
-    startDate: data.startDate ? new Date(data.startDate) : new Date(),
-    status: 'reading',
-    lastReadDate: new Date(),
     order: ((maxOrder as any)?.order || 0) + 1 
-  });
+  };
+  
+  // Only set startDate if explicitly provided
+  if (data.startDate) {
+    bookData.startDate = new Date(data.startDate);
+  }
+  
+  // Default to 'to-read' unless explicitly set
+  if (!data.status) {
+    bookData.status = 'to-read';
+  }
+  
+  await Book.create(bookData);
   revalidatePath('/books');
   return { success: true };
 }
@@ -277,17 +290,33 @@ export async function deleteBook(bookId: string) {
 
 // ============ CHECK-IN ============
 
-// Check in - mark book as read today
+// Check in - log reading progress and start reading if needed
 export async function checkInBook(bookId: string, currentPage?: number, notes?: string) {
   await connectDB();
   
+  const book = await Book.findById(bookId);
+  if (!book) return { error: 'Book not found' };
+  
   const updateData: any = {
     lastReadDate: new Date(),
-    status: 'reading' // Resume if was paused
   };
+  
+  // If book was 'to-read' or 'paused', change to 'reading' and set startDate if not set
+  if (book.status === 'to-read' || book.status === 'paused') {
+    updateData.status = 'reading';
+    if (!book.startDate) {
+      updateData.startDate = new Date();
+    }
+  }
   
   if (currentPage !== undefined) {
     updateData.currentPage = currentPage;
+    
+    // Auto-complete if reached total pages
+    if (book.totalPages && currentPage >= book.totalPages) {
+      updateData.status = 'completed';
+      updateData.completedDate = new Date();
+    }
   }
   
   await Book.findByIdAndUpdate(bookId, updateData);

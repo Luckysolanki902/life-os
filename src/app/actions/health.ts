@@ -61,7 +61,19 @@ function shouldShowTaskOnDay(task: any, dayOfWeek: number): boolean {
 
 export async function getHealthDashboardData(dateStr?: string, timezone?: string) {
   await connectDB();
-  const targetDate = dateStr ? new Date(dateStr) : new Date();
+  // If dateStr is provided in YYYY-MM-DD format, parse as midnight UTC
+  // If ISO format, parse directly
+  let targetDate: Date;
+  if (dateStr) {
+    if (dateStr.includes('T')) {
+      targetDate = new Date(dateStr);
+    } else {
+      // YYYY-MM-DD format - treat as local date, convert to midnight UTC
+      targetDate = new Date(dateStr + 'T00:00:00');
+    }
+  } else {
+    targetDate = new Date();
+  }
   targetDate.setHours(0, 0, 0, 0);
   
   // Get day of week for recurrence filtering
@@ -285,22 +297,23 @@ export async function updateSet(logId: string, setId: string, data: { weight: nu
 export async function logExerciseSet(exerciseId: string, data: { weight?: number; reps?: number; duration?: number; distance?: number; notes?: string }, dateStr?: string) {
   await connectDB();
   // Find the log for the specific date, or create one
-  const targetDate = dateStr ? new Date(dateStr) : new Date();
+  const targetDate = dateStr ? new Date(dateStr + 'T00:00:00') : new Date();
   targetDate.setHours(0, 0, 0, 0);
   
-  await ExerciseLog.findOneAndUpdate(
+  const updatedLog = await ExerciseLog.findOneAndUpdate(
     { exerciseId, date: targetDate },
     { $push: { sets: data } },
     { upsert: true, new: true }
   );
 
-  // We need to know the pageId to revalidate the correct path. 
-  // We can fetch the exercise to get the pageId.
+  // Revalidate the health page
   const exercise = await ExerciseDefinition.findById(exerciseId);
   if (exercise) {
     revalidatePath(`/health/${exercise.pageId}`);
+    revalidatePath('/health');
   }
-  return { success: true };
+  
+  return { success: true, log: updatedLog };
 }
 
 // --- Actions ---
@@ -669,8 +682,16 @@ export async function logExercise(date: Date, exerciseId: string, sets: any[]) {
 
 export async function saveMood(dateStr: string, mood: 'great' | 'good' | 'okay' | 'low' | 'bad', note?: string) {
   await connectDB();
-  const logDate = new Date(dateStr);
-  logDate.setUTCHours(0, 0, 0, 0);
+  
+  // Parse date string - handle both ISO and YYYY-MM-DD formats
+  let logDate: Date;
+  if (dateStr.includes('T')) {
+    logDate = new Date(dateStr);
+  } else {
+    logDate = new Date(dateStr + 'T00:00:00');
+  }
+  // Normalize to midnight local time (consistent with getHealthDashboardData)
+  logDate.setHours(0, 0, 0, 0);
 
   await MoodLog.findOneAndUpdate(
     { date: logDate },
@@ -679,7 +700,7 @@ export async function saveMood(dateStr: string, mood: 'great' | 'good' | 'okay' 
   );
 
   revalidatePath('/health');
-  return { success: true };
+  return { success: true, mood };
 }
 
 export async function deleteExercise(exerciseId: string, pageId: string) {
@@ -697,6 +718,7 @@ export async function updateExercise(exerciseId: string, pageId: string, data: {
   initialSets?: number | null;
   initialReps?: number | null;
   recommendedWeight?: number | null;
+  tutorials?: { url: string; title?: string }[];
 }) {
   await connectDB();
 
@@ -796,6 +818,7 @@ export async function updateExercise(exerciseId: string, pageId: string, data: {
   if (data.initialSets !== undefined) updateData.initialSets = data.initialSets;
   if (data.initialReps !== undefined) updateData.initialReps = data.initialReps;
   if (data.recommendedWeight !== undefined) updateData.recommendedWeight = data.recommendedWeight;
+  if (data.tutorials !== undefined) updateData.tutorials = data.tutorials;
   
   await ExerciseDefinition.findByIdAndUpdate(exerciseId, updateData);
   revalidatePath(`/health/${pageId}`);

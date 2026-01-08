@@ -10,6 +10,11 @@ const ExerciseDefinitionSchema = new mongoose.Schema({
   initialSets: { type: Number, default: null },
   initialReps: { type: Number, default: null },
   recommendedWeight: { type: Number, default: null }, // 0 for bodyweight, else kg
+  // Tutorial links (videos/images)
+  tutorials: [{
+    url: { type: String, required: true },
+    title: { type: String } // Optional title for the link
+  }]
 }, { timestamps: true });
 
 export default mongoose.models.ExerciseDefinition || mongoose.model('ExerciseDefinition', ExerciseDefinitionSchema);

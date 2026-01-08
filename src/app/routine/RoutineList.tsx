@@ -18,9 +18,9 @@ import {
   useSortable
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, CalendarDays, List } from 'lucide-react';
+import { GripVertical, CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
 import TaskItem from './TaskItem';
-import { updateTaskOrder, getRoutine } from '@/app/actions/routine';
+import { updateTaskOrder, getRoutine, getRoutineForDate } from '@/app/actions/routine';
 import { cn } from '@/lib/utils';
 
 const DAYS_OF_WEEK = [
@@ -94,14 +94,106 @@ interface RoutineListProps {
 
 export default function RoutineList({ initialTasks, allTasks = [] }: RoutineListProps) {
   const [tasks, setTasks] = useState(initialTasks);
-  const [viewMode, setViewMode] = useState<'today' | 'all'>('today');
+  const [viewMode, setViewMode] = useState<'today' | 'custom'>('today');
   const [filterOpen, setFilterOpen] = useState(false);
   const [timeFilter, setTimeFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
   const [recurrenceFilter, setRecurrenceFilter] = useState('all');
   
+  // Custom date picker state
+  const [customDate, setCustomDate] = useState<string>('');
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const [isLoadingCustom, setIsLoadingCustom] = useState(false);
+  
+  // Get today's date in IST for max date limit
+  const getTodayIST = () => {
+    const now = new Date();
+    const istOffset = 5.5 * 60 * 60 * 1000;
+    const istDate = new Date(now.getTime() + istOffset);
+    return istDate.toISOString().split('T')[0];
+  };
+  
+  const todayIST = getTodayIST();
+  
   // Get current day of week in client timezone
   const todayDayOfWeek = new Date().getDay();
+
+  // Format date for display
+  const formatDateDisplay = (dateStr: string) => {
+    const date = new Date(dateStr + 'T00:00:00');
+    const today = new Date(todayIST + 'T00:00:00');
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    
+    if (dateStr === todayIST) return 'Today';
+    if (dateStr === yesterday.toISOString().split('T')[0]) return 'Yesterday';
+    
+    return date.toLocaleDateString('en-IN', { 
+      weekday: 'short',
+      day: 'numeric', 
+      month: 'short'
+    });
+  };
+
+  // Navigate to previous/next day
+  const navigateDay = (direction: 'prev' | 'next') => {
+    const currentDate = customDate || todayIST;
+    const date = new Date(currentDate + 'T00:00:00');
+    date.setDate(date.getDate() + (direction === 'next' ? 1 : -1));
+    const newDateStr = date.toISOString().split('T')[0];
+    
+    // Don't allow future dates
+    if (newDateStr > todayIST) return;
+    
+    setCustomDate(newDateStr);
+    fetchCustomDate(newDateStr);
+  };
+
+  // Fetch tasks for custom date
+  const fetchCustomDate = async (dateStr: string) => {
+    setIsLoadingCustom(true);
+    try {
+      const customTasks = await getRoutineForDate(dateStr);
+      setTasks(customTasks);
+    } finally {
+      setIsLoadingCustom(false);
+    }
+  };
+
+  // Handle date picker change
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedDate = e.target.value;
+    if (selectedDate > todayIST) return; // Don't allow future dates
+    
+    setCustomDate(selectedDate);
+    setIsDatePickerOpen(false);
+    fetchCustomDate(selectedDate);
+  };
+
+  // Switch to custom mode
+  const switchToCustom = () => {
+    setViewMode('custom');
+    if (!customDate) {
+      // Default to yesterday
+      const yesterday = new Date(todayIST + 'T00:00:00');
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = yesterday.toISOString().split('T')[0];
+      setCustomDate(yesterdayStr);
+      fetchCustomDate(yesterdayStr);
+    }
+  };
+
+  // Switch to today mode
+  const switchToToday = () => {
+    setViewMode('today');
+    // Refetch today's tasks
+    const fetchToday = async () => {
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const todaysTasks = await getRoutine(timezone);
+      setTasks(todaysTasks);
+    };
+    fetchToday();
+  };
 
   // Re-fetch tasks with correct timezone on mount
   useEffect(() => {
@@ -149,7 +241,7 @@ export default function RoutineList({ initialTasks, allTasks = [] }: RoutineList
   }
 
   // Use allTasks when in 'all' view mode
-  const displayTasks = viewMode === 'today' ? tasks : allTasks;
+  const displayTasks = tasks;
 
   const filteredTasks = displayTasks.filter(task => {
     const taskTime = task.timeOfDay || 'none';
@@ -159,14 +251,8 @@ export default function RoutineList({ initialTasks, allTasks = [] }: RoutineList
       (typeFilter === 'scheduled' && task.isScheduled) ||
       (typeFilter === 'flexible' && !task.isScheduled);
     
-    // Recurrence filter (only applies in 'all' view)
-    let matchesRecurrence = true;
-    if (viewMode === 'all' && recurrenceFilter !== 'all') {
-      const recType = task.recurrenceType || 'daily';
-      matchesRecurrence = recType === recurrenceFilter;
-    }
-      
-    return matchesTime && matchesType && matchesRecurrence;
+    // Recurrence filter removed since we no longer have 'all' view
+    return matchesTime && matchesType;
   });
 
   // Sort tasks: pending first, then skipped, then completed
@@ -182,7 +268,7 @@ export default function RoutineList({ initialTasks, allTasks = [] }: RoutineList
   const skippedTasks = sortedTasks.filter(t => t.log?.status === 'skipped');
 
   // Count active filters
-  const activeFilters = [timeFilter, typeFilter, recurrenceFilter].filter(f => f !== 'all').length;
+  const activeFilters = [timeFilter, typeFilter].filter(f => f !== 'all').length;
 
   return (
     <div className="space-y-4">
@@ -191,7 +277,7 @@ export default function RoutineList({ initialTasks, allTasks = [] }: RoutineList
         {/* View Mode Toggle */}
         <div className="flex gap-1 p-1 rounded-lg bg-secondary/30 flex-1 sm:flex-initial">
           <button
-            onClick={() => setViewMode('today')}
+            onClick={switchToToday}
             className={cn(
               "flex-1 sm:flex-initial px-3 py-1.5 rounded text-xs font-medium transition-all",
               viewMode === 'today' 
@@ -202,15 +288,16 @@ export default function RoutineList({ initialTasks, allTasks = [] }: RoutineList
             Today
           </button>
           <button
-            onClick={() => setViewMode('all')}
+            onClick={switchToCustom}
             className={cn(
-              "flex-1 sm:flex-initial px-3 py-1.5 rounded text-xs font-medium transition-all",
-              viewMode === 'all' 
+              "flex-1 sm:flex-initial px-3 py-1.5 rounded text-xs font-medium transition-all flex items-center gap-1.5",
+              viewMode === 'custom' 
                 ? "bg-background text-foreground shadow-sm" 
                 : "text-muted-foreground hover:text-foreground"
             )}
           >
-            All
+            <CalendarDays size={12} />
+            Custom
           </button>
         </div>
 
@@ -232,6 +319,63 @@ export default function RoutineList({ initialTasks, allTasks = [] }: RoutineList
           )}
         </button>
       </div>
+
+      {/* Custom Date Navigator */}
+      {viewMode === 'custom' && (
+        <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-secondary/30 border border-border/50">
+          <button
+            onClick={() => navigateDay('prev')}
+            className="p-2 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ChevronLeft size={18} />
+          </button>
+          
+          <div className="flex-1 text-center relative">
+            <button
+              onClick={() => setIsDatePickerOpen(!isDatePickerOpen)}
+              className="px-4 py-1.5 rounded-lg hover:bg-secondary transition-colors font-medium flex items-center gap-2 mx-auto"
+            >
+              <CalendarDays size={14} className="text-primary" />
+              {customDate ? formatDateDisplay(customDate) : 'Select date'}
+            </button>
+            
+            {isDatePickerOpen && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setIsDatePickerOpen(false)} />
+                <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-20 bg-card border border-border rounded-xl shadow-xl p-3 animate-in zoom-in-95">
+                  <input
+                    type="date"
+                    value={customDate}
+                    onChange={handleDateChange}
+                    max={todayIST}
+                    className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20 scheme-dark"
+                  />
+                </div>
+              </>
+            )}
+          </div>
+          
+          <button
+            onClick={() => navigateDay('next')}
+            disabled={customDate >= todayIST}
+            className={cn(
+              "p-2 rounded-lg transition-colors",
+              customDate >= todayIST
+                ? "text-muted-foreground/30 cursor-not-allowed"
+                : "hover:bg-secondary text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <ChevronRight size={18} />
+          </button>
+        </div>
+      )}
+
+      {/* Loading indicator for custom date */}
+      {isLoadingCustom && (
+        <div className="text-center py-2">
+          <span className="text-sm text-muted-foreground animate-pulse">Loading...</span>
+        </div>
+      )}
 
       {/* Collapsible Filters */}
       {filterOpen && (
@@ -271,26 +415,6 @@ export default function RoutineList({ initialTasks, allTasks = [] }: RoutineList
               </button>
             ))}
           </div>
-
-          {viewMode === 'all' && (
-            <div className="flex flex-wrap gap-1.5">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-1">Recurrence:</span>
-              {['all', 'daily', 'weekdays', 'weekends', 'custom'].map((f) => (
-                <button
-                  key={f}
-                  onClick={() => setRecurrenceFilter(f)}
-                  className={cn(
-                    "px-2 py-1 rounded text-[10px] font-medium transition-all",
-                    recurrenceFilter === f 
-                      ? "bg-violet-500/20 text-violet-400" 
-                      : "bg-background text-muted-foreground hover:bg-violet-500/10"
-                  )}
-                >
-                  {f === 'weekdays' ? 'Mon-Fri' : f === 'weekends' ? 'Sat-Sun' : f.charAt(0).toUpperCase() + f.slice(1)}
-                </button>
-              ))}
-            </div>
-          )}
         </div>
       )}
 
@@ -310,8 +434,8 @@ export default function RoutineList({ initialTasks, allTasks = [] }: RoutineList
             {pendingAndCompletedTasks.length === 0 && skippedTasks.length === 0 && (
                 <div className="text-center py-10 text-muted-foreground text-sm">
                     {viewMode === 'today' 
-                      ? "No tasks scheduled for today. Check 'All' or add a new habit!"
-                      : "No tasks match the selected filters."
+                      ? "No tasks scheduled for today. Add a new habit!"
+                      : `No tasks scheduled for ${customDate ? formatDateDisplay(customDate) : 'this day'}.`
                     }
                 </div>
             )}

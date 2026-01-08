@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { ArrowLeft, Plus, Upload, Dumbbell, History, Save, X, Trash2, Edit2, Check, ChevronDown, ChevronUp, MoreVertical, GripVertical } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { ArrowLeft, Plus, Upload, Dumbbell, History, Save, X, Trash2, Edit2, Check, ChevronDown, ChevronUp, MoreVertical, GripVertical, Video, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createExercise, bulkCreateExercises, logExerciseSet, deleteSet, updateSet, deleteExercise, updateExercise, reorderExercises, updateHealthPage, deleteHealthPage } from '@/app/actions/health';
@@ -25,6 +25,11 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
+interface Tutorial {
+  url: string;
+  title?: string;
+}
+
 interface Set {
   _id?: string;
   reps: number;
@@ -38,6 +43,7 @@ interface Exercise {
   title: string;
   type: 'reps' | 'duration' | 'distance';
   targetMuscles: string[];
+  tutorials?: Tutorial[];
   order: number;
   initialSets?: number;
   initialReps?: number;
@@ -219,7 +225,8 @@ function SortableExerciseCard({
                         targetMuscles: ex.targetMuscles || [],
                         initialSets: ex.initialSets?.toString() || '',
                         initialReps: ex.initialReps?.toString() || '',
-                        recommendedWeight: ex.recommendedWeight?.toString() || ''
+                        recommendedWeight: ex.recommendedWeight?.toString() || '',
+                        tutorials: ex.tutorials || []
                       });
                       setShowExerciseMenu(null);
                     }}
@@ -228,6 +235,18 @@ function SortableExerciseCard({
                     <Edit2 size={14} />
                     Edit
                   </button>
+                  {ex.tutorials && ex.tutorials.length > 0 && (
+                    <button
+                      onClick={() => {
+                        setTutorialModal({ title: ex.title, tutorials: ex.tutorials || [] });
+                        setShowExerciseMenu(null);
+                      }}
+                      className="w-full px-4 py-2.5 text-sm text-left hover:bg-secondary transition-colors flex items-center gap-2 text-primary"
+                    >
+                      <Video size={14} />
+                      Tutorials ({ex.tutorials.length})
+                    </button>
+                  )}
                   <button
                     onClick={() => handleDeleteExercise(ex._id)}
                     className="w-full px-4 py-2.5 text-sm text-left hover:bg-destructive/10 text-destructive transition-colors flex items-center gap-2"
@@ -472,7 +491,10 @@ export default function WorkoutClient({ initialData }: WorkoutClientProps) {
   const { page } = initialData;
   const router = useRouter();
   
-  const [exercises, setExercises] = useState(initialData.exercises);
+  // Deep clone exercises to avoid circular references from MongoDB documents
+  const [exercises, setExercises] = useState<Exercise[]>(() => 
+    JSON.parse(JSON.stringify(initialData.exercises))
+  );
   const [date, setDate] = useState(initialData.date.split('T')[0]);
 
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
@@ -496,7 +518,8 @@ export default function WorkoutClient({ initialData }: WorkoutClientProps) {
     targetMuscles: [] as string[],
     initialSets: '' as string,
     initialReps: '' as string,
-    recommendedWeight: '' as string
+    recommendedWeight: '' as string,
+    tutorials: [] as Tutorial[]
   });
   const [bulkCsv, setBulkCsv] = useState('');
   const [logData, setLogData] = useState({ weight: '', reps: '' });
@@ -504,6 +527,14 @@ export default function WorkoutClient({ initialData }: WorkoutClientProps) {
   
   const [editingSetId, setEditingSetId] = useState<string | null>(null);
   const [editData, setEditData] = useState({ weight: '', reps: '' });
+
+  // Tutorial modal state - store only what we need to avoid circular refs
+  const [tutorialModal, setTutorialModal] = useState<{ title: string; tutorials: Tutorial[] } | null>(null);
+
+  // Sync exercises when initialData changes (e.g., after router.refresh)
+  useEffect(() => {
+    setExercises(JSON.parse(JSON.stringify(initialData.exercises)));
+  }, [initialData.exercises]);
 
   // Page edit/delete states
   const [isEditingPageName, setIsEditingPageName] = useState(false);
@@ -601,10 +632,11 @@ export default function WorkoutClient({ initialData }: WorkoutClientProps) {
       targetMuscles: editExercise.targetMuscles,
       initialSets: editExercise.initialSets ? Number(editExercise.initialSets) : null,
       initialReps: editExercise.initialReps ? Number(editExercise.initialReps) : null,
-      recommendedWeight: editExercise.recommendedWeight !== '' ? Number(editExercise.recommendedWeight) : null
+      recommendedWeight: editExercise.recommendedWeight !== '' ? Number(editExercise.recommendedWeight) : null,
+      tutorials: editExercise.tutorials.filter(t => t.url.trim())
     });
     setEditingExerciseId(null);
-    setEditExercise({ title: '', type: 'reps', targetMuscles: [], initialSets: '', initialReps: '', recommendedWeight: '' });
+    setEditExercise({ title: '', type: 'reps', targetMuscles: [], initialSets: '', initialReps: '', recommendedWeight: '', tutorials: [] });
     setIsLoading(false);
     router.refresh();
   }
@@ -649,14 +681,36 @@ export default function WorkoutClient({ initialData }: WorkoutClientProps) {
     e.preventDefault();
     if (!loggingExerciseId) return;
     
-    await logExerciseSet(loggingExerciseId, {
+    const newSet = {
+      _id: `temp-${Date.now()}`, // Temporary ID for optimistic update
       weight: logType === 'weighted' ? Number(logData.weight) : 0,
       reps: Number(logData.reps)
-    }, date);
+    };
+    
+    // Optimistic update
+    setExercises(prev => prev.map(ex => {
+      if (ex._id === loggingExerciseId) {
+        return {
+          ...ex,
+          todaysLog: {
+            ...ex.todaysLog,
+            sets: [...(ex.todaysLog?.sets || []), newSet]
+          }
+        };
+      }
+      return ex;
+    }));
     
     setLoggingExerciseId(null);
     setLogData({ weight: '', reps: '' });
     setLogType('weighted');
+    
+    // Persist to server
+    await logExerciseSet(loggingExerciseId, {
+      weight: newSet.weight,
+      reps: newSet.reps
+    }, date);
+    
     router.refresh();
   }
 
@@ -1061,12 +1115,62 @@ export default function WorkoutClient({ initialData }: WorkoutClientProps) {
                   ))}
                 </div>
               </div>
+
+              {/* Tutorials Section */}
+              <div className="border border-dashed border-border rounded-xl p-3 space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-medium text-muted-foreground">Tutorial Links</label>
+                  <button
+                    type="button"
+                    onClick={() => setEditExercise(prev => ({
+                      ...prev,
+                      tutorials: [...prev.tutorials, { url: '', title: '' }]
+                    }))}
+                    className="text-xs text-primary hover:underline"
+                  >
+                    + Add Link
+                  </button>
+                </div>
+                {editExercise.tutorials.length === 0 ? (
+                  <p className="text-[10px] text-muted-foreground text-center py-2">No tutorials added yet</p>
+                ) : (
+                  <div className="space-y-2">
+                    {editExercise.tutorials.map((tutorial, idx) => (
+                      <div key={idx} className="flex gap-2">
+                        <input
+                          type="url"
+                          value={tutorial.url}
+                          onChange={(e) => {
+                            const newTutorials = [...editExercise.tutorials];
+                            newTutorials[idx] = { ...newTutorials[idx], url: e.target.value };
+                            setEditExercise(prev => ({ ...prev, tutorials: newTutorials }));
+                          }}
+                          placeholder="https://youtube.com/..."
+                          className="flex-1 rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newTutorials = editExercise.tutorials.filter((_, i) => i !== idx);
+                            setEditExercise(prev => ({ ...prev, tutorials: newTutorials }));
+                          }}
+                          className="p-2 rounded-lg hover:bg-destructive/10 text-destructive transition-colors"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <p className="text-[10px] text-muted-foreground">Add YouTube links or image URLs for exercise tutorials</p>
+              </div>
+
               <div className="flex gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => {
                     setEditingExerciseId(null);
-                    setEditExercise({ title: '', type: 'reps', targetMuscles: [], initialSets: '', initialReps: '', recommendedWeight: '' });
+                    setEditExercise({ title: '', type: 'reps', targetMuscles: [], initialSets: '', initialReps: '', recommendedWeight: '', tutorials: [] });
                   }}
                   className="flex-1 py-2.5 rounded-xl bg-secondary text-secondary-foreground font-medium hover:opacity-80"
                 >
@@ -1081,6 +1185,63 @@ export default function WorkoutClient({ initialData }: WorkoutClientProps) {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Tutorial Modal */}
+      {tutorialModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-card w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 rounded-3xl shadow-xl animate-in zoom-in-95">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">{tutorialModal.title} - Tutorials</h3>
+              <button
+                onClick={() => setTutorialModal(null)}
+                className="p-2 rounded-xl hover:bg-secondary transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="space-y-4">
+              {tutorialModal.tutorials.map((tutorial, idx) => {
+                const isYouTube = tutorial.url.includes('youtube.com') || tutorial.url.includes('youtu.be');
+                const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(tutorial.url);
+                
+                // Extract YouTube video ID
+                let youtubeId = '';
+                if (isYouTube) {
+                  const match = tutorial.url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([^&?\s]+)/);
+                  youtubeId = match ? match[1] : '';
+                }
+                
+                return (
+                  <div key={idx} className="rounded-xl border border-border overflow-hidden">
+                    {isYouTube && youtubeId ? (
+                      <div className="aspect-video">
+                        <iframe
+                          src={`https://www.youtube.com/embed/${youtubeId}`}
+                          className="w-full h-full"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                        />
+                      </div>
+                    ) : isImage ? (
+                      <img src={tutorial.url} alt={tutorial.title || 'Tutorial'} className="w-full" />
+                    ) : (
+                      <a
+                        href={tutorial.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-3 p-4 hover:bg-secondary/50 transition-colors"
+                      >
+                        <ExternalLink size={18} className="text-primary shrink-0" />
+                        <span className="text-sm truncate">{tutorial.title || tutorial.url}</span>
+                      </a>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       )}
