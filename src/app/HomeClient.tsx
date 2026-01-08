@@ -17,11 +17,11 @@ import {
   Plus,
   Minus,
 } from 'lucide-react';
-import { toggleTaskCompletion } from './actions/routine';
+import { toggleTaskStatus } from './actions/routine';
 import { logWeight } from './actions/health';
-import { addLearningLog } from './actions/learning';
+import { createLog } from './actions/learning';
 
-const iconMap: Record<string, any> = {
+const iconMap: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
   Heart,
   Brain,
   Library,
@@ -78,7 +78,7 @@ export default function HomeClient({ incompleteTasks, allMediums, domains }: Pro
   const handleToggleTask = async (taskId: string) => {
     setCompletingTaskId(taskId);
     startTransition(async () => {
-      await toggleTaskCompletion(taskId);
+      await toggleTaskStatus(taskId, true);
       router.refresh();
       setCompletingTaskId(null);
     });
@@ -108,7 +108,7 @@ export default function HomeClient({ incompleteTasks, allMediums, domains }: Pro
     
     setLearningLoading(true);
     try {
-      await addLearningLog({
+      await createLog({
         mediumId: selectedMedium,
         date: new Date().toISOString(),
         duration,
