@@ -169,6 +169,18 @@ export default function RoutineList({ initialTasks, allTasks = [] }: RoutineList
     return matchesTime && matchesType && matchesRecurrence;
   });
 
+  // Sort tasks: pending first, then skipped, then completed
+  const sortedTasks = [...filteredTasks].sort((a, b) => {
+    const statusOrder = { pending: 0, undefined: 0, skipped: 1, completed: 2 };
+    const aStatus = a.log?.status || 'pending';
+    const bStatus = b.log?.status || 'pending';
+    return (statusOrder[aStatus as keyof typeof statusOrder] || 0) - (statusOrder[bStatus as keyof typeof statusOrder] || 0);
+  });
+
+  // Separate skipped tasks for display
+  const pendingAndCompletedTasks = sortedTasks.filter(t => t.log?.status !== 'skipped');
+  const skippedTasks = sortedTasks.filter(t => t.log?.status === 'skipped');
+
   // Count active filters
   const activeFilters = [timeFilter, typeFilter, recurrenceFilter].filter(f => f !== 'all').length;
 
@@ -288,14 +300,14 @@ export default function RoutineList({ initialTasks, allTasks = [] }: RoutineList
         onDragEnd={handleDragEnd}
       >
         <SortableContext 
-          items={filteredTasks.map(t => t._id)} 
+          items={pendingAndCompletedTasks.map(t => t._id)} 
           strategy={verticalListSortingStrategy}
         >
           <div className="space-y-2">
-            {filteredTasks.map((task) => (
+            {pendingAndCompletedTasks.map((task) => (
               <SortableTaskItem key={task._id} task={task} />
             ))}
-            {filteredTasks.length === 0 && (
+            {pendingAndCompletedTasks.length === 0 && skippedTasks.length === 0 && (
                 <div className="text-center py-10 text-muted-foreground text-sm">
                     {viewMode === 'today' 
                       ? "No tasks scheduled for today. Check 'All' or add a new habit!"
@@ -306,6 +318,23 @@ export default function RoutineList({ initialTasks, allTasks = [] }: RoutineList
           </div>
         </SortableContext>
       </DndContext>
+
+      {/* Skipped Tasks Section */}
+      {skippedTasks.length > 0 && (
+        <div className="mt-4 pt-4 border-t border-amber-500/20">
+          <p className="text-xs font-medium text-amber-500 mb-3 px-1 flex items-center gap-2">
+            <span>Skipped Tasks</span>
+            <span className="px-1.5 py-0.5 rounded-full bg-amber-500/10 text-[10px]">
+              {skippedTasks.length}
+            </span>
+          </p>
+          <div className="space-y-2">
+            {skippedTasks.map((task) => (
+              <TaskItem key={task._id} task={task} />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

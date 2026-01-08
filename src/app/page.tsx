@@ -17,17 +17,23 @@ export default async function Dashboard() {
     getLearningDashboardData()
   ]);
 
-  // Get next 3 incomplete tasks (already sorted by order from getRoutine)
-  const incompleteTasks = routine
-    .filter((t: any) => t.log?.status !== 'completed')
-    .slice(0, 3)
-    .map((t: any) => ({
-      _id: t._id?.toString() || t._id,
-      title: t.title,
-      domainId: t.domainId,
-      timeOfDay: t.timeOfDay,
-      points: t.points
-    }));
+  // Get next tasks: incomplete first (not completed, not skipped), then skipped
+  const notCompletedTasks = routine.filter((t: any) => t.log?.status !== 'completed');
+  const pendingTasks = notCompletedTasks.filter((t: any) => t.log?.status !== 'skipped');
+  const skippedTasks = notCompletedTasks.filter((t: any) => t.log?.status === 'skipped');
+  
+  // Take first 3 pending tasks + all skipped tasks for the home view
+  const incompleteTasks = [
+    ...pendingTasks.slice(0, 3),
+    ...skippedTasks
+  ].map((t: any) => ({
+    _id: t._id?.toString() || t._id,
+    title: t.title,
+    domainId: t.domainId,
+    timeOfDay: t.timeOfDay,
+    points: t.basePoints || t.points,
+    status: t.log?.status || 'pending'
+  }));
 
   // Get all mediums for quick learning log
   const allMediums: any[] = [];

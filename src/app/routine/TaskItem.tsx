@@ -1,9 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { Check, Clock, Edit2, Trash2, X, CalendarDays, Bell } from 'lucide-react';
+import { Check, Clock, Edit2, Trash2, X, CalendarDays, Bell, SkipForward } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { completeTask, uncompleteTask, updateTask, deleteTask } from '@/app/actions/routine';
+import { completeTask, uncompleteTask, updateTask, deleteTask, skipTask, unskipTask } from '@/app/actions/routine';
 
 const DAYS_OF_WEEK = [
   { value: 0, label: 'S', fullLabel: 'Sunday' },
@@ -33,10 +33,12 @@ interface TaskItemProps {
 
 export default function TaskItem({ task, onOptimisticToggle }: TaskItemProps) {
   const [isCompleting, setIsCompleting] = useState(false);
+  const [isSkipping, setIsSkipping] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isPending, setIsPending] = useState(false);
   // Optimistic state for completion
   const [optimisticCompleted, setOptimisticCompleted] = useState<boolean | null>(null);
+  const [optimisticSkipped, setOptimisticSkipped] = useState<boolean | null>(null);
   
   // Edit form state
   const [title, setTitle] = useState(task.title);
@@ -56,12 +58,17 @@ export default function TaskItem({ task, onOptimisticToggle }: TaskItemProps) {
   const isCompleted = optimisticCompleted !== null 
     ? optimisticCompleted 
     : task.log?.status === 'completed';
+  
+  const isSkipped = optimisticSkipped !== null
+    ? optimisticSkipped
+    : task.log?.status === 'skipped';
 
   const handleToggle = async () => {
     const newStatus = !isCompleted;
     
     // Optimistic update
     setOptimisticCompleted(newStatus);
+    setOptimisticSkipped(false); // Clear skipped state when completing
     setIsCompleting(true);
     
     // Notify parent for list-level optimistic update
@@ -75,12 +82,39 @@ export default function TaskItem({ task, onOptimisticToggle }: TaskItemProps) {
       }
       // Reset optimistic state - server state will take over on revalidation
       setOptimisticCompleted(null);
+      setOptimisticSkipped(null);
     } catch (error) {
       // Revert on error
       setOptimisticCompleted(!newStatus);
       console.error('Failed to toggle task:', error);
     } finally {
       setIsCompleting(false);
+    }
+  };
+
+  const handleSkip = async () => {
+    const newSkipStatus = !isSkipped;
+    
+    // Optimistic update
+    setOptimisticSkipped(newSkipStatus);
+    setOptimisticCompleted(false); // Clear completed state when skipping
+    setIsSkipping(true);
+    
+    try {
+      if (newSkipStatus) {
+        await skipTask(task._id);
+      } else {
+        await unskipTask(task._id);
+      }
+      // Reset optimistic state
+      setOptimisticSkipped(null);
+      setOptimisticCompleted(null);
+    } catch (error) {
+      // Revert on error
+      setOptimisticSkipped(!newSkipStatus);
+      console.error('Failed to skip task:', error);
+    } finally {
+      setIsSkipping(false);
     }
   };
 
@@ -322,6 +356,8 @@ export default function TaskItem({ task, onOptimisticToggle }: TaskItemProps) {
       "group relative rounded-2xl border transition-all duration-300 overflow-hidden",
       isCompleted 
         ? "bg-secondary/30 border-transparent opacity-60" 
+        : isSkipped
+        ? "bg-amber-500/5 border-amber-500/20 opacity-70"
         : "bg-card border-border/50 hover:shadow-md hover:border-primary/20"
     )}>
       {/* Main Row */}
@@ -334,6 +370,8 @@ export default function TaskItem({ task, onOptimisticToggle }: TaskItemProps) {
             "w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all",
             isCompleted
               ? "bg-primary border-primary text-primary-foreground"
+              : isSkipped
+              ? "border-amber-500/50 hover:border-primary"
               : "border-muted-foreground/30 hover:border-primary"
           )}
         >
@@ -344,9 +382,11 @@ export default function TaskItem({ task, onOptimisticToggle }: TaskItemProps) {
         <div className="flex-1 min-w-0">
           <h3 className={cn(
             "font-medium truncate transition-all",
-            isCompleted && "line-through text-muted-foreground"
+            isCompleted && "line-through text-muted-foreground",
+            isSkipped && "text-amber-500/70"
           )}>
             {task.title}
+            {isSkipped && <span className="ml-2 text-xs text-amber-500">(skipped)</span>}
           </h3>
           <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5 flex-wrap">
             <span className={cn(
@@ -375,6 +415,23 @@ export default function TaskItem({ task, onOptimisticToggle }: TaskItemProps) {
             <span>{task.basePoints} pts</span>
           </div>
         </div>
+
+        {/* Skip Button */}
+        {!isCompleted && (
+          <button
+            onClick={handleSkip}
+            disabled={isSkipping}
+            className={cn(
+              "p-2 rounded-lg transition-all",
+              isSkipped
+                ? "text-amber-500 bg-amber-500/10 hover:bg-amber-500/20"
+                : "text-muted-foreground/50 hover:text-amber-500 hover:bg-amber-500/10 opacity-0 group-hover:opacity-100"
+            )}
+            title={isSkipped ? "Undo skip" : "Skip task"}
+          >
+            <SkipForward size={16} />
+          </button>
+        )}
 
         {/* Edit Button */}
         <button

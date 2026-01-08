@@ -16,8 +16,9 @@ import {
   Loader2,
   Plus,
   Minus,
+  SkipForward,
 } from 'lucide-react';
-import { toggleTaskStatus } from './actions/routine';
+import { toggleTaskStatus, skipTask, unskipTask } from './actions/routine';
 import { logWeight } from './actions/health';
 import { createLog } from './actions/learning';
 
@@ -33,6 +34,7 @@ interface Task {
   domainId: string;
   timeOfDay?: string;
   points: number;
+  status?: 'pending' | 'completed' | 'skipped';
 }
 
 interface Medium {
@@ -63,6 +65,7 @@ export default function HomeClient({ incompleteTasks, allMediums, domains }: Pro
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);
+  const [skippingTaskId, setSkippingTaskId] = useState<string | null>(null);
   
   // Weight logging state
   const [weight, setWeight] = useState<string>('');
@@ -79,8 +82,19 @@ export default function HomeClient({ incompleteTasks, allMediums, domains }: Pro
     setCompletingTaskId(taskId);
     startTransition(async () => {
       await toggleTaskStatus(taskId, true);
-      router.refresh();
       setCompletingTaskId(null);
+    });
+  };
+
+  const handleSkipTask = async (taskId: string, isCurrentlySkipped: boolean) => {
+    setSkippingTaskId(taskId);
+    startTransition(async () => {
+      if (isCurrentlySkipped) {
+        await unskipTask(taskId);
+      } else {
+        await skipTask(taskId);
+      }
+      setSkippingTaskId(null);
     });
   };
 
@@ -168,42 +182,114 @@ export default function HomeClient({ incompleteTasks, allMediums, domains }: Pro
               <p className="text-sm text-muted-foreground mt-1">You&apos;ve completed all your tasks</p>
             </div>
           ) : (
-            incompleteTasks.map((task) => (
-              <button
-                key={task._id}
-                onClick={() => handleToggleTask(task._id)}
-                disabled={completingTaskId === task._id || isPending}
-                className={`w-full flex items-center gap-3 p-4 rounded-2xl bg-card border border-border/50 
-                  hover:border-primary/30 hover:bg-primary/5 transition-all text-left group
-                  ${completingTaskId === task._id ? 'opacity-50' : ''}`}
-              >
-                <div className={`p-2 rounded-xl ${getDomainBg(task.domainId)}`}>
-                  {completingTaskId === task._id ? (
-                    <Loader2 size={20} className="animate-spin text-primary" />
-                  ) : (
-                    <Circle size={20} className={getDomainColor(task.domainId)} />
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium truncate">{task.title}</p>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span className="capitalize">{task.domainId}</span>
-                    {task.timeOfDay && (
-                      <>
-                        <span>•</span>
-                        <span className="capitalize">{task.timeOfDay}</span>
-                      </>
+            <>
+              {/* Regular tasks (not skipped) */}
+              {incompleteTasks.filter(t => t.status !== 'skipped').map((task) => (
+                <div
+                  key={task._id}
+                  className={`w-full flex items-center gap-3 p-4 rounded-2xl bg-card border border-border/50 
+                    hover:border-primary/30 hover:bg-primary/5 transition-all text-left group
+                    ${completingTaskId === task._id || skippingTaskId === task._id ? 'opacity-50' : ''}`}
+                >
+                  {/* Complete Button */}
+                  <button
+                    onClick={() => handleToggleTask(task._id)}
+                    disabled={completingTaskId === task._id || isPending}
+                    className={`p-2 rounded-xl ${getDomainBg(task.domainId)}`}
+                  >
+                    {completingTaskId === task._id ? (
+                      <Loader2 size={20} className="animate-spin text-primary" />
+                    ) : (
+                      <Circle size={20} className={getDomainColor(task.domainId)} />
                     )}
-                    <span>•</span>
-                    <span>{task.points} pts</span>
+                  </button>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium truncate">{task.title}</p>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <span className="capitalize">{task.domainId}</span>
+                      {task.timeOfDay && (
+                        <>
+                          <span>•</span>
+                          <span className="capitalize">{task.timeOfDay}</span>
+                        </>
+                      )}
+                      <span>•</span>
+                      <span>{task.points} pts</span>
+                    </div>
                   </div>
+                  {/* Skip Button */}
+                  <button
+                    onClick={() => handleSkipTask(task._id, false)}
+                    disabled={skippingTaskId === task._id || isPending}
+                    className="p-2 rounded-lg text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10 
+                      transition-all"
+                    title="Skip task"
+                  >
+                    {skippingTaskId === task._id ? (
+                      <Loader2 size={18} className="animate-spin" />
+                    ) : (
+                      <SkipForward size={18} />
+                    )}
+                  </button>
                 </div>
-                <CheckCircle2 
-                  size={20} 
-                  className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" 
-                />
-              </button>
-            ))
+              ))}
+              
+              {/* Skipped tasks section */}
+              {/* {incompleteTasks.filter(t => t.status === 'skipped').length > 0 && (
+                <div className="pt-2 mt-2 border-t border-border/30">
+                  <p className="text-xs text-amber-500 font-medium mb-2 px-1">Skipped</p>
+                  {incompleteTasks.filter(t => t.status === 'skipped').map((task) => (
+                    <div
+                      key={task._id}
+                      className={`w-full flex items-center gap-3 p-4 rounded-2xl bg-amber-500/5 border border-amber-500/20 
+                        hover:border-primary/30 transition-all text-left group opacity-70
+                        ${completingTaskId === task._id || skippingTaskId === task._id ? 'opacity-40' : ''}`}
+                    >
+                      <button
+                        onClick={() => handleToggleTask(task._id)}
+                        disabled={completingTaskId === task._id || isPending}
+                        className={`p-2 rounded-xl bg-amber-500/10`}
+                      >
+                        {completingTaskId === task._id ? (
+                          <Loader2 size={20} className="animate-spin text-primary" />
+                        ) : (
+                          <Circle size={20} className="text-amber-500/50" />
+                        )}
+                      </button>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate text-amber-500/70">
+                          {task.title}
+                          <span className="ml-2 text-xs">(skipped)</span>
+                        </p>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <span className="capitalize">{task.domainId}</span>
+                          {task.timeOfDay && (
+                            <>
+                              <span>•</span>
+                              <span className="capitalize">{task.timeOfDay}</span>
+                            </>
+                          )}
+                          <span>•</span>
+                          <span>{task.points} pts</span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleSkipTask(task._id, true)}
+                        disabled={skippingTaskId === task._id || isPending}
+                        className="p-2 rounded-lg text-amber-500 bg-amber-500/10 hover:bg-amber-500/20 transition-all"
+                        title="Undo skip"
+                      >
+                        {skippingTaskId === task._id ? (
+                          <Loader2 size={18} className="animate-spin" />
+                        ) : (
+                          <SkipForward size={18} />
+                        )}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )} */}
+            </>
           )}
         </div>
       </section>

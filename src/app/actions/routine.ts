@@ -197,6 +197,10 @@ export async function completeTask(taskId: string) {
 
   const points = task.basePoints || 0;
 
+  // Check if task was previously skipped (need to handle points correctly)
+  const existingLog = await DailyLog.findOne({ taskId, date: today });
+  const wasSkipped = existingLog?.status === 'skipped';
+
   // Create/Update Log
   const log = await DailyLog.findOneAndUpdate(
     { taskId, date: today },
@@ -205,6 +209,7 @@ export async function completeTask(taskId: string) {
         status: 'completed',
         completedAt: new Date(),
         pointsEarned: points,
+        skippedAt: null,
       }
     },
     { upsert: true, new: true }
@@ -216,9 +221,13 @@ export async function completeTask(taskId: string) {
   
   // Simple fix: We should recalculate total points from scratch or handle diff.
   // For now, let's just increment. *To be improved*.
-  await User.findOneAndUpdate({}, { $inc: { totalPoints: points } });
+  // Only add points if not already completed (or was skipped)
+  if (!existingLog || existingLog.status !== 'completed') {
+    await User.findOneAndUpdate({}, { $inc: { totalPoints: points } });
+  }
 
   revalidatePath('/routine');
+  revalidatePath('/');
   return { success: true };
 }
 
@@ -241,6 +250,52 @@ export async function uncompleteTask(taskId: string) {
   }
 
   revalidatePath('/routine');
+  revalidatePath('/');
+  return { success: true };
+}
+
+export async function skipTask(taskId: string) {
+  await connectDB();
+  
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const task = await Task.findById(taskId);
+  if (!task) return { error: 'Task not found' };
+
+  // Create/Update Log with skipped status (no points)
+  await DailyLog.findOneAndUpdate(
+    { taskId, date: today },
+    {
+      $set: {
+        status: 'skipped',
+        skippedAt: new Date(),
+        pointsEarned: 0,
+      }
+    },
+    { upsert: true, new: true }
+  );
+
+  revalidatePath('/routine');
+  revalidatePath('/');
+  return { success: true };
+}
+
+export async function unskipTask(taskId: string) {
+  await connectDB();
+  
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // Find the log and remove it to allow fresh completion
+  const log = await DailyLog.findOne({ taskId, date: today });
+  
+  if (log && log.status === 'skipped') {
+    await DailyLog.deleteOne({ _id: log._id });
+  }
+
+  revalidatePath('/routine');
+  revalidatePath('/');
   return { success: true };
 }
 

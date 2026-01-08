@@ -9,9 +9,10 @@ const DailyLogSchema = new mongoose.Schema(
     },
     date: { type: Date, required: true }, // Normalized to midnight
     completedAt: { type: Date }, // Timestamp of completion
+    skippedAt: { type: Date }, // Timestamp of skip
     status: {
       type: String,
-      enum: ["pending", "completed"],
+      enum: ["pending", "completed", "skipped"],
       default: "pending",
     },
     pointsEarned: { type: Number, default: 0 },
