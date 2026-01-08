@@ -3,7 +3,6 @@
 import connectDB from '@/lib/db';
 import Task from '@/models/Task';
 import DailyLog from '@/models/DailyLog';
-import User from '@/models/User';
 import { revalidatePath } from 'next/cache';
 
 // Helper function to check if a task should appear on a given day
@@ -197,12 +196,9 @@ export async function completeTask(taskId: string) {
 
   const points = task.basePoints || 0;
 
-  // Check if task was previously skipped (need to handle points correctly)
-  const existingLog = await DailyLog.findOne({ taskId, date: today });
-  const wasSkipped = existingLog?.status === 'skipped';
-
-  // Create/Update Log
-  const log = await DailyLog.findOneAndUpdate(
+  // Create/Update Log - points are stored in DailyLog and calculated via aggregation
+  // This is the single source of truth for points
+  await DailyLog.findOneAndUpdate(
     { taskId, date: today },
     {
       $set: {
@@ -215,17 +211,6 @@ export async function completeTask(taskId: string) {
     { upsert: true, new: true }
   );
 
-  // Update User Total
-  // Note: In a real app, we'd need to handle un-completing or re-completing (diffing points)
-  // For MVP, we just add. *Bug risk: double counting if re-clicked* -> Fixed below
-  
-  // Simple fix: We should recalculate total points from scratch or handle diff.
-  // For now, let's just increment. *To be improved*.
-  // Only add points if not already completed (or was skipped)
-  if (!existingLog || existingLog.status !== 'completed') {
-    await User.findOneAndUpdate({}, { $inc: { totalPoints: points } });
-  }
-
   revalidatePath('/routine');
   revalidatePath('/');
   return { success: true };
@@ -237,17 +222,9 @@ export async function uncompleteTask(taskId: string) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  // Find the log to know how many points to deduct
-  const log = await DailyLog.findOne({ taskId, date: today });
-  
-  if (log && log.status === 'completed') {
-    // Deduct points
-    await User.findOneAndUpdate({}, { $inc: { totalPoints: -log.pointsEarned } });
-    
-    // Remove log or set to pending
-    // We'll remove it to allow fresh completion
-    await DailyLog.deleteOne({ _id: log._id });
-  }
+  // Remove the log - points will be recalculated via aggregation
+  // DailyLog is the single source of truth
+  await DailyLog.deleteOne({ taskId, date: today });
 
   revalidatePath('/routine');
   revalidatePath('/');
