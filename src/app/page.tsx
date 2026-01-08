@@ -17,15 +17,8 @@ export default async function Dashboard() {
     getLearningDashboardData()
   ]);
 
-  // Get next 3 incomplete tasks (sorted by timeOfDay order)
-  const timeOrder = ['morning', 'afternoon', 'evening', 'night', 'anytime'];
-  const sortedRoutine = [...routine].sort((a: any, b: any) => {
-    const aIdx = timeOrder.indexOf(a.timeOfDay || 'anytime');
-    const bIdx = timeOrder.indexOf(b.timeOfDay || 'anytime');
-    return aIdx - bIdx;
-  });
-  
-  const incompleteTasks = sortedRoutine
+  // Get next 3 incomplete tasks (already sorted by order from getRoutine)
+  const incompleteTasks = routine
     .filter((t: any) => t.log?.status !== 'completed')
     .slice(0, 3)
     .map((t: any) => ({

@@ -270,7 +270,7 @@ export async function updateTaskOrder(items: { id: string; order: number }[]) {
 export async function bulkCreateTasks(tasksData: any[]) {
   await connectDB();
   
-  const tasksToInsert = tasksData.map(t => ({
+  const tasksToInsert = tasksData.map((t, index) => ({
     title: t.title,
     domainId: t.domainId || 'health',
     timeOfDay: t.timeOfDay || 'none',
@@ -281,7 +281,7 @@ export async function bulkCreateTasks(tasksData: any[]) {
     notificationsEnabled: true,
     recurrenceType: t.recurrenceType || 'daily',
     recurrenceDays: t.recurrenceDays || [],
-    order: 999
+    order: t.order !== undefined ? Number(t.order) : index
   }));
 
   if (tasksToInsert.length > 0) {

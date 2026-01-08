@@ -57,8 +57,8 @@ export default function NewTaskForm() {
   async function handleBulkImport() {
     setIsPending(true);
     const lines = csvInput.split('\n').filter(l => l.trim());
-    const tasks = lines.map(line => {
-      const [title, domainId, timeOfDay, basePoints, startTime, recurrence] = line.split(',').map(s => s.trim());
+    const tasks = lines.map((line, index) => {
+      const [title, domainId, timeOfDay, basePoints, startTime, recurrence, order] = line.split(',').map(s => s.trim());
       
       // Parse recurrence: daily, weekdays, weekends, or custom days like "0,1,3,5"
       let recurrenceType = 'daily';
@@ -90,7 +90,8 @@ export default function NewTaskForm() {
         basePoints: basePoints || 1,
         startTime: startTime || null,
         recurrenceType,
-        recurrenceDays
+        recurrenceDays,
+        order: order ? Number(order) : index
       };
     });
 
