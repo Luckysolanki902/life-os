@@ -1,13 +1,13 @@
 'use client';
 
-import { useState } from 'react';
-import { ArrowLeft, Plus, Upload, Dumbbell, History, Save, X, Trash2, Edit2, Check, ChevronDown, ChevronUp, MoreVertical, GripVertical, Video, ExternalLink } from 'lucide-react';
+import { useState, useEffect, useTransition } from 'react';
+import { ArrowLeft, Plus, Upload, Dumbbell, History, Save, X, Trash2, Edit2, Check, ChevronDown, ChevronUp, MoreVertical, GripVertical, Video, ExternalLink, Calendar } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createExercise, bulkCreateExercises, logExerciseSet, deleteSet, updateSet, deleteExercise, updateExercise, reorderExercises, updateHealthPage, deleteHealthPage } from '@/app/actions/health';
 import MuscleMap from '@/components/MuscleMap';
 import { cn } from '@/lib/utils';
-import { parseServerDate, formatDateForDisplay } from '@/lib/date-utils';
+import { parseServerDate, formatDateForDisplay, getLocalDateString } from '@/lib/date-utils';
 import {
   DndContext,
   closestCenter,
@@ -80,8 +80,10 @@ const MUSCLE_LIST = [
 ];
 
 // Helper to format last session sets like "2 × 20 (BW) + 2 × 21 (5kg)"
-function formatLastSessionSets(sets: Set[]): string {
+function formatLastSessionSets(sets: Set[], type: 'reps' | 'duration' | 'distance' = 'reps'): string {
   if (!sets || sets.length === 0) return '';
+  
+  const unit = type === 'duration' ? 'sec' : type === 'distance' ? 'm' : '';
   
   // Group sets by weight
   const groups: { weight: number; reps: number[] }[] = [];
@@ -98,7 +100,7 @@ function formatLastSessionSets(sets: Set[]): string {
   return groups.map(g => {
     const weightLabel = g.weight > 0 ? `${g.weight}kg` : 'BW';
     const avgReps = Math.round(g.reps.reduce((a, b) => a + b, 0) / g.reps.length);
-    return `${g.reps.length} × ${avgReps} (${weightLabel})`;
+    return `${g.reps.length} × ${avgReps}${unit ? unit : ''} (${weightLabel})`;
   }).join(' + ');
 }
 
@@ -124,6 +126,7 @@ function SortableExerciseCard({
   handleLogSet,
   logData,
   setLogData,
+  openLogForExercise,
 }: {
   ex: Exercise;
   loggingExerciseId: string | null;
@@ -142,9 +145,10 @@ function SortableExerciseCard({
   setEditData: (data: { weight: string; reps: string }) => void;
   handleUpdateSet: (logId: string, setId: string) => void;
   handleDeleteSet: (logId: string, setId: string) => void;
-  handleLogSet: (e: React.FormEvent) => void;
+  handleLogSet: (e: React.FormEvent, moveToNext?: boolean) => void;
   logData: { weight: string; reps: string };
   setLogData: (data: { weight: string; reps: string }) => void;
+  openLogForExercise: (exerciseId: string) => void;
 }) {
   const {
     attributes,
@@ -264,11 +268,19 @@ function SortableExerciseCard({
         </div>
       </div>
 
-      {/* Log List */}
+      {/* Log List - Today's/Selected Date's Sets */}
       {ex.todaysLog && ex.todaysLog.sets.length > 0 && (
         <div className="space-y-2">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="h-px flex-1 bg-gradient-to-r from-emerald-500/50 to-transparent" />
+            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+              <Check size={12} />
+              Logged Sets
+            </span>
+            <div className="h-px flex-1 bg-gradient-to-l from-emerald-500/50 to-transparent" />
+          </div>
           {ex.todaysLog.sets.map((set, i: number) => (
-            <div key={set._id} className="group flex items-center justify-between p-3 bg-secondary/20 rounded-xl border border-transparent hover:border-border/50 transition-all">
+            <div key={set._id} className="group flex items-center justify-between p-3 bg-emerald-500/10 rounded-xl border border-emerald-500/20 hover:border-emerald-500/40 transition-all">
               {editingSetId === set._id ? (
                 <div className="flex flex-col gap-2 w-full">
                   <div className="flex gap-2 mb-1">
@@ -315,7 +327,7 @@ function SortableExerciseCard({
                     )}
                     <input 
                       type="number" 
-                      placeholder="reps"
+                      placeholder={ex.type === 'duration' ? 'sec' : 'reps'}
                       className="w-16 bg-background rounded-lg px-2 py-1 text-xs outline-none border border-input"
                       value={editData.reps}
                       onChange={e => setEditData({...editData, reps: e.target.value})}
@@ -345,7 +357,7 @@ function SortableExerciseCard({
                     <span className="font-medium">
                       {set.weight > 0 ? `${set.weight}kg` : 'Bodyweight'} 
                       <span className="text-muted-foreground mx-1">×</span> 
-                      {set.reps} reps
+                      {set.reps} {ex.type === 'duration' ? 'sec' : 'reps'}
                     </span>
                   </div>
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -375,34 +387,62 @@ function SortableExerciseCard({
 
       {/* Last Log Info (Reference) - Only show if no today's log but has previous log */}
       {(!ex.todaysLog || ex.todaysLog.sets.length === 0) && ex.lastLog && ex.lastLog.sets.length > 0 && (
-        <div className="flex items-center gap-2 text-xs text-muted-foreground bg-secondary/10 p-2 rounded-lg border border-dashed border-border/50">
-          <History size={12} />
-          <span>
-            Last Session: {formatLastSessionSets(ex.lastLog.sets)}
-          </span>
-          <span className="opacity-50 ml-auto">
-            {formatDateForDisplay(ex.lastLog.date, { month: 'short', day: 'numeric' })}
+        <div className="relative overflow-hidden rounded-xl border border-amber-500/30 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent p-3">
+          <div className="absolute top-0 left-0 w-1 h-full bg-amber-500" />
+          <div className="flex items-center gap-2 mb-2">
+            <History size={14} className="text-amber-400" />
+            <span className="text-xs font-semibold text-amber-400">Previous Session</span>
+            <span className="text-[10px] text-muted-foreground ml-auto px-2 py-0.5 rounded-full bg-secondary/50">
+              {formatDateForDisplay(ex.lastLog.date, { month: 'short', day: 'numeric', showTodayYesterday: true })}
+            </span>
+          </div>
+          <div className="text-sm font-medium text-foreground/90">
+            {formatLastSessionSets(ex.lastLog.sets, ex.type)}
+          </div>
+        </div>
+      )}
+
+      {/* Compact Last Session Reference - Show when you have today's log but also have history */}
+      {ex.todaysLog && ex.todaysLog.sets.length > 0 && ex.lastLog && ex.lastLog.sets.length > 0 && (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground/70 px-2 py-1.5 rounded-lg bg-secondary/30">
+          <History size={11} className="text-amber-500/70" />
+          <span>Prev: {formatLastSessionSets(ex.lastLog.sets, ex.type)}</span>
+          <span className="opacity-50 ml-auto text-[10px]">
+            {formatDateForDisplay(ex.lastLog.date, { month: 'short', day: 'numeric', showTodayYesterday: true })}
           </span>
         </div>
       )}
 
       {/* Initial Recommendation - Only show if NO log (today or past) AND has initial values set */}
       {(!ex.todaysLog || ex.todaysLog.sets.length === 0) && !ex.lastLog && (ex.initialSets || ex.initialReps) && (
-        <div className="flex items-center gap-2 text-xs text-muted-foreground bg-primary/5 p-2 rounded-lg border border-dashed border-primary/20">
-          <Dumbbell size={12} />
-          <span>
-            Recommended: {ex.initialSets || '?'} × {ex.initialReps || '?'} {ex.type === 'duration' ? 'sec' : ex.type === 'distance' ? 'm' : 'reps'}
+        <div className="relative overflow-hidden rounded-xl border border-primary/30 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-3">
+          <div className="absolute top-0 left-0 w-1 h-full bg-primary" />
+          <div className="flex items-center gap-2 mb-1">
+            <Dumbbell size={14} className="text-primary" />
+            <span className="text-xs font-semibold text-primary">Recommended</span>
+          </div>
+          <div className="text-sm font-medium text-foreground/90">
+            {ex.initialSets || '?'} × {ex.initialReps || '?'} {ex.type === 'duration' ? 'sec' : ex.type === 'distance' ? 'm' : 'reps'}
             {ex.recommendedWeight !== null && ex.recommendedWeight !== undefined && (
-              <span> @ {ex.recommendedWeight === 0 ? 'BW' : `${ex.recommendedWeight}kg`}</span>
+              <span className="text-muted-foreground"> @ {ex.recommendedWeight === 0 ? 'BW' : `${ex.recommendedWeight}kg`}</span>
             )}
-          </span>
+          </div>
         </div>
       )}
       
 
       {/* Log Input Area */}
       {loggingExerciseId === ex._id ? (
-        <form onSubmit={handleLogSet} className="flex flex-col gap-3 animate-in slide-in-from-top-2 bg-secondary/20 p-3 rounded-xl">
+        <form 
+          onSubmit={(e) => handleLogSet(e, false)} 
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && e.shiftKey) {
+              e.preventDefault();
+              handleLogSet(e, true); // Move to next exercise
+            }
+          }}
+          className="flex flex-col gap-3 animate-in slide-in-from-top-2 bg-secondary/20 p-3 rounded-xl"
+        >
           
           {/* Type Selector Chips */}
           <div className="flex gap-2">
@@ -448,19 +488,23 @@ function SortableExerciseCard({
             )}
             
             <div className="flex-1 space-y-1">
-              <label className="text-[10px] font-medium text-muted-foreground uppercase">Reps</label>
+              <label className="text-[10px] font-medium text-muted-foreground uppercase">
+                {ex.type === 'duration' ? 'Seconds' : 'Reps'}
+              </label>
               <input 
                 type="number" 
                 placeholder="#"
                 className="w-full bg-secondary/50 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20"
                 value={logData.reps}
                 onChange={e => setLogData({...logData, reps: e.target.value})}
+                autoFocus={logType === 'bodyweight'}
               />
             </div>
 
             <button 
               type="submit"
               className="h-9.5 w-9.5 flex items-center justify-center rounded-lg bg-primary text-primary-foreground hover:opacity-90"
+              title="Enter to log another set, Shift+Enter to move to next exercise"
             >
               <Save size={18} />
             </button>
@@ -472,14 +516,11 @@ function SortableExerciseCard({
               <X size={18} />
             </button>
           </div>
+          <p className="text-[10px] text-muted-foreground/60 text-center">Enter = log another set • Shift+Enter = next exercise</p>
         </form>
       ) : (
         <button 
-          onClick={() => {
-            setLoggingExerciseId(ex._id);
-            setLogType('weighted');
-            setLogData({ weight: '', reps: '' });
-          }}
+          onClick={() => openLogForExercise(ex._id)}
           className="w-full py-2 rounded-xl border border-dashed border-border hover:bg-secondary/50 hover:border-primary/50 text-sm font-medium text-muted-foreground hover:text-primary transition-all flex items-center justify-center gap-2"
         >
           <Plus size={16} />
@@ -501,6 +542,19 @@ export default function WorkoutClient({ initialData }: WorkoutClientProps) {
   
   // Parse date and format as YYYY-MM-DD in IST timezone using dayjs
   const [date, setDate] = useState(() => parseServerDate(initialData.date));
+  
+  // Check if viewing today
+  const todayStr = getLocalDateString();
+  const isToday = date === todayStr;
+  
+  // Loading state for date changes using useTransition
+  const [isPending, startTransition] = useTransition();
+
+  // Sync exercises when initialData changes (e.g., after navigation)
+  useEffect(() => {
+    setExercises(JSON.parse(JSON.stringify(initialData.exercises)));
+    setDate(parseServerDate(initialData.date));
+  }, [initialData]);
 
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
   const [loggingExerciseId, setLoggingExerciseId] = useState<string | null>(null);
@@ -576,8 +630,15 @@ export default function WorkoutClient({ initialData }: WorkoutClientProps) {
 
   function handleDateChange(e: React.ChangeEvent<HTMLInputElement>) {
     const newDate = e.target.value;
-    setDate(newDate);
-    router.push(`/health/${page._id}?date=${newDate}`);
+    startTransition(() => {
+      router.push(`/health/${page._id}?date=${newDate}`);
+    });
+  }
+
+  function goToToday() {
+    startTransition(() => {
+      router.push(`/health/${page._id}`);
+    });
   }
 
   async function handleSavePageName() {
@@ -677,12 +738,60 @@ export default function WorkoutClient({ initialData }: WorkoutClientProps) {
     router.refresh();
   }
 
-  async function handleLogSet(e: React.FormEvent) {
+  // Helper to get latest set for an exercise (from today or last session)
+  function getLatestSet(exercise: Exercise): { weight: number; reps: number } | null {
+    // First check today's log
+    if (exercise.todaysLog?.sets && exercise.todaysLog.sets.length > 0) {
+      const lastSet = exercise.todaysLog.sets[exercise.todaysLog.sets.length - 1];
+      return { weight: lastSet.weight, reps: lastSet.reps };
+    }
+    // Then check last session
+    if (exercise.lastLog && exercise.lastLog.sets && exercise.lastLog.sets.length > 0) {
+      const lastSet = exercise.lastLog.sets[exercise.lastLog.sets.length - 1];
+      return { weight: lastSet.weight, reps: lastSet.reps };
+    }
+    return null;
+  }
+
+  // Open log form with prefilled data from latest log or recommended values
+  function openLogForExercise(exerciseId: string) {
+    const exercise = exercises.find(ex => ex._id === exerciseId);
+    if (!exercise) return;
+    
+    const latestSet = getLatestSet(exercise);
+    
+    if (latestSet) {
+      // Prefill from latest log (today or previous session)
+      setLogType(latestSet.weight > 0 ? 'weighted' : 'bodyweight');
+      setLogData({ 
+        weight: latestSet.weight > 0 ? latestSet.weight.toString() : '', 
+        reps: latestSet.reps.toString() 
+      });
+    } else if (exercise.initialReps !== undefined || exercise.recommendedWeight !== undefined) {
+      // No logs, prefill from recommended initial values
+      const recWeight = exercise.recommendedWeight ?? 0;
+      const recReps = exercise.initialReps ?? 0;
+      const hasWeight = recWeight > 0;
+      
+      setLogType(hasWeight ? 'weighted' : 'bodyweight');
+      setLogData({ 
+        weight: hasWeight ? recWeight.toString() : '', 
+        reps: recReps > 0 ? recReps.toString() : '' 
+      });
+    } else {
+      // No logs and no recommendations, use defaults
+      setLogType('bodyweight');
+      setLogData({ weight: '', reps: '' });
+    }
+    
+    setLoggingExerciseId(exerciseId);
+  }
+
+  async function handleLogSet(e: React.FormEvent, moveToNextExercise: boolean = false) {
     e.preventDefault();
     if (!loggingExerciseId) return;
     
     const currentExerciseId = loggingExerciseId;
-    const currentLogType = logType;
     const currentWeight = logData.weight;
     
     const newSet = {
@@ -705,9 +814,47 @@ export default function WorkoutClient({ initialData }: WorkoutClientProps) {
       return ex;
     }));
     
-    // Keep focused on same exercise, preserve weight type, clear only reps
-    setLogData({ weight: currentWeight, reps: '' });
-    // Keep logType as is (don't reset to 'weighted')
+    if (moveToNextExercise) {
+      // Find current exercise index and move to next
+      const currentIndex = exercises.findIndex(ex => ex._id === currentExerciseId);
+      const nextIndex = currentIndex + 1;
+      
+      if (nextIndex < exercises.length) {
+        // Move to next exercise with its prefilled data
+        const nextExercise = exercises[nextIndex];
+        const nextLatestSet = getLatestSet(nextExercise);
+        
+        if (nextLatestSet) {
+          setLogType(nextLatestSet.weight > 0 ? 'weighted' : 'bodyweight');
+          setLogData({ 
+            weight: nextLatestSet.weight > 0 ? nextLatestSet.weight.toString() : '', 
+            reps: nextLatestSet.reps.toString() 
+          });
+        } else if (nextExercise.initialReps !== undefined || nextExercise.recommendedWeight !== undefined) {
+          // No logs, prefill from recommended initial values
+          const recWeight = nextExercise.recommendedWeight ?? 0;
+          const recReps = nextExercise.initialReps ?? 0;
+          const hasWeight = recWeight > 0;
+          
+          setLogType(hasWeight ? 'weighted' : 'bodyweight');
+          setLogData({ 
+            weight: hasWeight ? recWeight.toString() : '', 
+            reps: recReps > 0 ? recReps.toString() : '' 
+          });
+        } else {
+          setLogType('bodyweight');
+          setLogData({ weight: '', reps: '' });
+        }
+        setLoggingExerciseId(nextExercise._id);
+      } else {
+        // No more exercises, close form
+        setLoggingExerciseId(null);
+        setLogData({ weight: '', reps: '' });
+      }
+    } else {
+      // Stay on same exercise, preserve weight, clear reps
+      setLogData({ weight: currentWeight, reps: '' });
+    }
     
     // Persist to server
     await logExerciseSet(currentExerciseId, {
@@ -782,16 +929,34 @@ export default function WorkoutClient({ initialData }: WorkoutClientProps) {
         </div>
         
         {/* Date Picker */}
-        <div className="relative shrink-0">
-          <input 
-            type="date" 
-            value={date}
-            onChange={handleDateChange}
-            className="bg-card border border-border rounded-xl px-3 py-2 text-sm font-medium outline-none focus:ring-2 focus:ring-primary/20 scheme-dark"
-          />
+        <div className="relative shrink-0 flex items-center gap-2">
+          {!isToday && (
+            <button
+              onClick={goToToday}
+              className="text-[10px] font-bold uppercase tracking-wider text-amber-400 bg-amber-500/10 px-2 py-1 rounded-lg border border-amber-500/30 hover:bg-amber-500/20 transition-colors"
+            >
+              Go to Today
+            </button>
+          )}
+          <div className="relative">
+            <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+            <input 
+              type="date" 
+              value={date}
+              max={todayStr}
+              onChange={handleDateChange}
+              className={cn(
+                "bg-card border rounded-xl pl-9 pr-3 py-2 text-sm font-medium outline-none focus:ring-2 focus:ring-primary/20 scheme-dark transition-colors",
+                isToday 
+                  ? "border-border" 
+                  : "border-amber-500/50 bg-amber-500/5"
+              )}
+            />
+          </div>
         </div>
       </div>
 
+      {/* Loading Overlay for Date Change */}
       {/* Delete Confirmation Modal */}
       {isDeleteModalOpen && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -936,52 +1101,79 @@ export default function WorkoutClient({ initialData }: WorkoutClientProps) {
       </div>
 
       {/* Exercise List */}
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragEnd={handleDragEnd}
-      >
-        <SortableContext
-          items={exercises.map((ex) => ex._id)}
-          strategy={verticalListSortingStrategy}
-        >
-          <div className="space-y-4">
-            {exercises.map((ex) => (
-              <SortableExerciseCard
-                key={ex._id}
-                ex={ex}
-                loggingExerciseId={loggingExerciseId}
-                setLoggingExerciseId={setLoggingExerciseId}
-                showExerciseMenu={showExerciseMenu}
-                setShowExerciseMenu={setShowExerciseMenu}
-                setEditingExerciseId={setEditingExerciseId}
-                setEditExercise={setEditExercise}
-                handleDeleteExercise={handleDeleteExercise}
-                setTutorialModal={setTutorialModal}
-                editingSetId={editingSetId}
-                setEditingSetId={setEditingSetId}
-                logType={logType}
-                setLogType={setLogType}
-                editData={editData}
-                setEditData={setEditData}
-                handleUpdateSet={handleUpdateSet}
-                handleDeleteSet={handleDeleteSet}
-                handleLogSet={handleLogSet}
-                logData={logData}
-                setLogData={setLogData}
-              />
-            ))}
-
-            {exercises.length === 0 && (
-              <div className="text-center py-10 text-muted-foreground">
-                <Dumbbell className="mx-auto mb-3 opacity-20" size={48} />
-                <p>No exercises yet.</p>
-                <p className="text-sm">Add one or import from CSV.</p>
+      {isPending ? (
+        /* Skeleton Loading State */
+        <div className="space-y-4">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="bg-card rounded-2xl border border-border/50 p-4 animate-pulse">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-6 h-6 bg-secondary rounded" />
+                <div className="flex-1">
+                  <div className="h-5 bg-secondary rounded w-32 mb-2" />
+                  <div className="flex gap-1">
+                    <div className="h-4 w-12 bg-secondary rounded-full" />
+                    <div className="h-4 w-14 bg-secondary rounded-full" />
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <div className="w-8 h-8 bg-secondary rounded-lg" />
+                  <div className="w-8 h-8 bg-secondary rounded-lg" />
+                </div>
               </div>
-            )}
-          </div>
-        </SortableContext>
-      </DndContext>
+              <div className="h-16 bg-secondary/50 rounded-xl mb-3" />
+              <div className="h-10 bg-secondary/30 rounded-xl border border-dashed border-border" />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={exercises.map((ex) => ex._id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className="space-y-4">
+              {exercises.map((ex) => (
+                <SortableExerciseCard
+                  key={ex._id}
+                  ex={ex}
+                  loggingExerciseId={loggingExerciseId}
+                  setLoggingExerciseId={setLoggingExerciseId}
+                  showExerciseMenu={showExerciseMenu}
+                  setShowExerciseMenu={setShowExerciseMenu}
+                  setEditingExerciseId={setEditingExerciseId}
+                  setEditExercise={setEditExercise}
+                  handleDeleteExercise={handleDeleteExercise}
+                  setTutorialModal={setTutorialModal}
+                  editingSetId={editingSetId}
+                  setEditingSetId={setEditingSetId}
+                  logType={logType}
+                  setLogType={setLogType}
+                  editData={editData}
+                  setEditData={setEditData}
+                  handleUpdateSet={handleUpdateSet}
+                  handleDeleteSet={handleDeleteSet}
+                  handleLogSet={handleLogSet}
+                  logData={logData}
+                  setLogData={setLogData}
+                  openLogForExercise={openLogForExercise}
+                />
+              ))}
+
+              {exercises.length === 0 && (
+                <div className="text-center py-10 text-muted-foreground">
+                  <Dumbbell className="mx-auto mb-3 opacity-20" size={48} />
+                  <p>No exercises yet.</p>
+                  <p className="text-sm">Add one or import from CSV.</p>
+                </div>
+              )}
+            </div>
+          </SortableContext>
+        </DndContext>
+      )}
 
       {/* Bulk Import Modal */}
       {isBulkModalOpen && (

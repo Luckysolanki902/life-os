@@ -11,6 +11,9 @@ import {
 } from "lucide-react";
 import HomeClient from "./HomeClient";
 
+// Force dynamic rendering since dashboard depends on current date/time
+export const dynamic = 'force-dynamic';
+
 export default async function Dashboard() {
   const [stats, routine, learningData, todaysWeight] = await Promise.all([
     getIdentityMetric(),

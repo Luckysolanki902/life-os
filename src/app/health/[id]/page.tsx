@@ -2,6 +2,9 @@ import { getHealthPageData } from '@/app/actions/health';
 import WorkoutClient from './WorkoutClient';
 import { notFound } from 'next/navigation';
 
+// Force dynamic rendering since date depends on current time
+export const dynamic = 'force-dynamic';
+
 export default async function WorkoutPage({ 
   params,
   searchParams 

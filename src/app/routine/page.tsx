@@ -3,8 +3,11 @@ import RoutineList from './RoutineList';
 import NewTaskForm from './NewTaskForm';
 import { headers } from 'next/headers';
 
+// Force dynamic rendering since routine depends on current date/time
+export const dynamic = 'force-dynamic';
+
 export default async function RoutinePage() {
-  // Get tasks for today (server-side uses UTC day by default)
+  // Get tasks for today (server-side uses IST day)
   // Client will re-fetch with correct timezone
   const tasks = await getRoutine();
   const allTasks = await getAllTasks();
