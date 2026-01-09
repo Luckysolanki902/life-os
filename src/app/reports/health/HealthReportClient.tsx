@@ -162,8 +162,8 @@ function WeightTrendChart({ data }: { data: any[] }) {
                 borderRadius: '8px',
                 fontSize: '12px',
               }}
-              formatter={(value: number) => [`${value}kg`, 'Weight']}
-              labelFormatter={(label: string, payload: any) => payload?.[0]?.payload?.fullDate || label}
+              formatter={(value) => [`${value}kg`, 'Weight']}
+              labelFormatter={(_label, payload) => payload?.[0]?.payload?.fullDate || _label}
             />
             <Line 
               type="monotone" 
@@ -222,11 +222,11 @@ function ExerciseSessionsChart({ data }: { data: any[] }) {
                 borderRadius: '8px',
                 fontSize: '12px',
               }}
-              formatter={(value: number, name: string) => [
+              formatter={(value, name) => [
                 name === 'sessions' ? `${value} exercises` : `${value} sets`,
                 name === 'sessions' ? 'Exercises' : 'Sets'
               ]}
-              labelFormatter={(label: string, payload: any) => payload?.[0]?.payload?.date || label}
+              labelFormatter={(_label, payload) => payload?.[0]?.payload?.date || _label}
             />
             <Bar 
               dataKey="sessions" 
