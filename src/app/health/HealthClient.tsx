@@ -24,6 +24,7 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { getLocalDateString, parseServerDate, formatDateForDisplay } from "@/lib/date-utils";
+import ShareableWorkout from "./ShareableWorkout";
 
 interface Task {
   _id: string;
@@ -68,6 +69,7 @@ interface HealthClientProps {
     pages: HealthPage[];
     mood: MoodLog | null;
     date: string;
+    todaysExerciseCount?: number;
   };
 }
 
@@ -116,7 +118,7 @@ const MOOD_OPTIONS = [
 
 export default function HealthClient({ initialData }: HealthClientProps) {
   const router = useRouter();
-  const { routine, weightStats, pages, mood, date } = initialData;
+  const { routine, weightStats, pages, mood, date, todaysExerciseCount = 0 } = initialData;
   
   // Parse server date and get YYYY-MM-DD in local timezone (IST)
   const currentDate = parseServerDate(date);
@@ -227,12 +229,22 @@ export default function HealthClient({ initialData }: HealthClientProps) {
           </h1>
           <p className="text-muted-foreground text-sm">{displayDate}</p>
         </div>
-        <input
-          type="date"
-          value={currentDate}
-          onChange={handleDateChange}
-          className="bg-secondary/50 border border-border rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20 scheme-dark w-full sm:w-auto"
-        />
+        <div className="flex items-center gap-3">
+          {/* Share Button - Only show for today */}
+          {isToday && (
+            <ShareableWorkout 
+              canShare={todaysExerciseCount >= 5 && !!weightStats.todaysWeight}
+              exerciseCount={todaysExerciseCount}
+              hasWeight={!!weightStats.todaysWeight}
+            />
+          )}
+          <input
+            type="date"
+            value={currentDate}
+            onChange={handleDateChange}
+            className="bg-secondary/50 border border-border rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20 scheme-dark w-full sm:w-auto"
+          />
+        </div>
       </div>
 
       {/* Mood Tracker */}

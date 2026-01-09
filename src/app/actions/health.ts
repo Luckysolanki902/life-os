@@ -142,6 +142,7 @@ export async function getHealthDashboardData(dateStr?: string) {
   // 4. Find the most recent workout log to determine cycle position
   let lastWorkoutPageIndex = -1;
   let lastWorkoutDate: Date | null = null;
+  let todaysExerciseCount = 0;
   
   if (pageIds.length > 0) {
     // Get all exercises for all pages
@@ -161,6 +162,13 @@ export async function getHealthDashboardData(dateStr?: string) {
       lastWorkoutPageIndex = pageIds.indexOf(loggedPageId);
       lastWorkoutDate = (latestLog as any).date;
     }
+    
+    // Count today's exercise logs (for shareable)
+    const todaysLogs = await ExerciseLog.find({
+      exerciseId: { $in: allExercises.map((e: any) => e._id) },
+      date: { $gte: targetDate, $lt: nextDay }
+    }).lean();
+    todaysExerciseCount = todaysLogs.filter((l: any) => l.sets && l.sets.length > 0).length;
   }
 
   // Calculate next workout index (cycles back to 0)
@@ -187,7 +195,8 @@ export async function getHealthDashboardData(dateStr?: string) {
       lastWorkoutDate: lastWorkoutDate?.toISOString() || null,
       nextWorkoutIndex
     },
-    mood: moodLog ? { mood: moodLog.mood, note: moodLog.note } : null
+    mood: moodLog ? { mood: moodLog.mood, note: moodLog.note } : null,
+    todaysExerciseCount
   };
 }
 
@@ -868,4 +877,75 @@ export async function reorderExercises(pageId: string, orderedIds: string[]) {
   return { success: true };
 }
 
-
+// Get today's workout summary for shareable export
+export async function getTodaysWorkoutSummary() {
+  await connectDB();
+  
+  const targetDateStr = getTodayDateString();
+  const { startOfDay: targetDate, endOfDay: nextDay } = getDateRange(targetDateStr);
+  
+  // Get all health pages
+  const pages = await HealthPage.find().sort({ createdAt: 1 }).lean();
+  const pageIds = pages.map((p: any) => p._id);
+  
+  // Get all exercises
+  const allExercises = await ExerciseDefinition.find({ pageId: { $in: pageIds } }).lean();
+  const exerciseIds = allExercises.map((e: any) => e._id);
+  
+  // Get today's exercise logs
+  const todaysLogs = await ExerciseLog.find({
+    exerciseId: { $in: exerciseIds },
+    date: { $gte: targetDate, $lt: nextDay }
+  }).lean();
+  
+  // Map exercises with their logs
+  const exercisesWithLogs = allExercises
+    .map((ex: any) => {
+      const log = todaysLogs.find((l: any) => l.exerciseId.toString() === ex._id.toString());
+      if (!log || !log.sets || log.sets.length === 0) return null;
+      
+      const page = pages.find((p: any) => p._id.toString() === ex.pageId.toString());
+      
+      return {
+        _id: ex._id.toString(),
+        title: ex.title,
+        type: ex.type,
+        targetMuscles: ex.targetMuscles || [],
+        pageName: page?.title || 'Workout',
+        sets: log.sets.map((s: any) => ({
+          weight: s.weight,
+          reps: s.reps,
+          duration: s.duration
+        }))
+      };
+    })
+    .filter(Boolean);
+  
+  // Get today's weight
+  const todaysWeight = await WeightLog.findOne({ 
+    date: { $gte: targetDate, $lt: nextDay } 
+  }).lean();
+  
+  // Get weight from 30 days ago for delta
+  const thirtyDaysAgo = parseToISTMidnight(
+    dayjs(targetDate).tz('Asia/Kolkata').subtract(30, 'day').format('YYYY-MM-DD')
+  );
+  const pastWeight = await WeightLog.findOne({ date: { $lte: thirtyDaysAgo } }).sort({ date: -1 }).lean();
+  
+  // Get mood
+  const moodLog = await MoodLog.findOne({ 
+    date: { $gte: targetDate, $lt: nextDay } 
+  }).lean();
+  
+  return {
+    date: targetDate.toISOString(),
+    exercises: exercisesWithLogs,
+    totalExercises: exercisesWithLogs.length,
+    totalSets: exercisesWithLogs.reduce((acc: number, ex: any) => acc + (ex?.sets?.length || 0), 0),
+    weight: todaysWeight?.weight || null,
+    weightDelta: (todaysWeight && pastWeight) 
+      ? (todaysWeight.weight - pastWeight.weight).toFixed(1) 
+      : null,
+    mood: moodLog?.mood || null
+  };
+}
