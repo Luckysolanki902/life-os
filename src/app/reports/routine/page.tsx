@@ -7,7 +7,7 @@ export default async function RoutineReportPage({
   searchParams: Promise<{ period?: string }>;
 }) {
   const params = await searchParams;
-  const period = params.period || 'thisWeek';
+  const period = params.period || 'last7Days';
   const data = await getRoutineReport(period);
 
   return <RoutineReportClient initialData={data} initialPeriod={period} />;

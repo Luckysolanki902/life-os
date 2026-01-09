@@ -7,7 +7,7 @@ export default async function ReportsPage({
   searchParams: Promise<{ period?: string }>;
 }) {
   const params = await searchParams;
-  const period = params.period || 'thisWeek';
+  const period = params.period || 'last7Days';
   const data = await getOverallReport(period);
 
   return <ReportsClient initialData={data} initialPeriod={period} />;

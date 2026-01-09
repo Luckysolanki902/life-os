@@ -105,7 +105,7 @@ export async function getHealthDashboardData(dateStr?: string) {
     };
   });
 
-  // 2. Weight Stats (Current vs 30 days ago)
+  // 2. Weight Stats (Current vs oldest weight within 30 days)
   const latestWeight = await WeightLog.findOne({ date: { $lt: nextDay } }).sort({ date: -1 }).lean();
   
   // Check if there's a weight entry for the selected date
@@ -114,23 +114,45 @@ export async function getHealthDashboardData(dateStr?: string) {
     date: { $gte: weightStart, $lt: weightEnd } 
   }).sort({ date: -1 }).lean();
   
-  const thirtyDaysAgo = parseToISTMidnight(
-    dayjs(targetDate).tz('Asia/Kolkata').subtract(30, 'day').format('YYYY-MM-DD')
-  );
-  const pastWeight = await WeightLog.findOne({ date: { $lte: thirtyDaysAgo } }).sort({ date: -1 }).lean();
+  // Get oldest weight log within 30 days for delta calculation
+  const thirtyDaysAgo = dayjs(targetDate).subtract(30, 'day').toDate();
+  const comparisonWeight = latestWeight 
+    ? await WeightLog.findOne({ 
+        date: { $gte: thirtyDaysAgo, $lt: latestWeight.date } 
+      }).sort({ date: 1 }).lean() // Sort ascending to get oldest
+    : null;
 
-  const currentWeight = latestWeight?.weight || 0;
+  const currentWeight = latestWeight?.weight ? Number(latestWeight.weight.toFixed(2)) : 0;
   const bmi = currentWeight > 0 ? (currentWeight / ((heightCm / 100) ** 2)).toFixed(1) : null;
+
+  // Calculate delta from oldest log within 30 days
+  const delta = (latestWeight && comparisonWeight) 
+    ? Number((latestWeight.weight - comparisonWeight.weight).toFixed(2))
+    : null;
+  
+  // Calculate delta label (days difference)
+  let deltaLabel: string | null = null;
+  if (latestWeight && comparisonWeight) {
+    const daysDiff = dayjs(latestWeight.date).diff(dayjs(comparisonWeight.date), 'day');
+    if (daysDiff === 1) {
+      deltaLabel = 'yesterday';
+    } else if (daysDiff <= 7) {
+      deltaLabel = `${daysDiff} days`;
+    } else {
+      deltaLabel = `${daysDiff} days`;
+    }
+  }
 
   const weightStats = {
     current: currentWeight,
-    delta: (latestWeight && pastWeight) ? (latestWeight.weight - pastWeight.weight).toFixed(1) : null,
+    delta,
+    deltaLabel,
     lastLogged: latestWeight?.date || null,
     bmi,
     // Add today's specific weight for edit functionality
     todaysWeight: todaysWeight ? { 
       _id: (todaysWeight as any)._id.toString(),
-      weight: todaysWeight.weight,
+      weight: Number(todaysWeight.weight.toFixed(2)),
       date: todaysWeight.date
     } : null
   };
@@ -926,26 +948,58 @@ export async function getTodaysWorkoutSummary() {
     date: { $gte: targetDate, $lt: nextDay } 
   }).lean();
   
-  // Get weight from 30 days ago for delta
-  const thirtyDaysAgo = parseToISTMidnight(
-    dayjs(targetDate).tz('Asia/Kolkata').subtract(30, 'day').format('YYYY-MM-DD')
-  );
-  const pastWeight = await WeightLog.findOne({ date: { $lte: thirtyDaysAgo } }).sort({ date: -1 }).lean();
+  // Get previous weight log for delta
+  const previousWeight = todaysWeight 
+    ? await WeightLog.findOne({ date: { $lt: todaysWeight.date } }).sort({ date: -1 }).lean()
+    : null;
   
   // Get mood
   const moodLog = await MoodLog.findOne({ 
     date: { $gte: targetDate, $lt: nextDay } 
   }).lean();
   
+  // Get meditation status from routine tasks
+  const meditationTask = await Task.findOne({ 
+    title: { $regex: /meditation/i },
+    isActive: true 
+  }).lean();
+  
+  let meditationDone = false;
+  if (meditationTask) {
+    const meditationLog = await DailyLog.findOne({
+      taskId: meditationTask._id,
+      date: { $gte: targetDate, $lt: nextDay }
+    }).lean();
+    meditationDone = meditationLog?.status === 'completed';
+  }
+  
+  // Aggregate muscle counts
+  const muscleCount: Record<string, number> = {};
+  exercisesWithLogs.forEach((ex: any) => {
+    (ex?.targetMuscles || []).forEach((muscle: string) => {
+      muscleCount[muscle] = (muscleCount[muscle] || 0) + 1;
+    });
+  });
+  
+  // Group exercises by page name
+  const exercisesByPage: Record<string, any[]> = {};
+  exercisesWithLogs.forEach((ex: any) => {
+    if (!exercisesByPage[ex.pageName]) exercisesByPage[ex.pageName] = [];
+    exercisesByPage[ex.pageName].push(ex);
+  });
+  
   return {
     date: targetDate.toISOString(),
     exercises: exercisesWithLogs,
+    exercisesByPage,
+    muscleCount,
     totalExercises: exercisesWithLogs.length,
     totalSets: exercisesWithLogs.reduce((acc: number, ex: any) => acc + (ex?.sets?.length || 0), 0),
-    weight: todaysWeight?.weight || null,
-    weightDelta: (todaysWeight && pastWeight) 
-      ? (todaysWeight.weight - pastWeight.weight).toFixed(1) 
+    weight: todaysWeight?.weight ? Number(todaysWeight.weight.toFixed(2)) : null,
+    weightDelta: (todaysWeight && previousWeight) 
+      ? Number((todaysWeight.weight - previousWeight.weight).toFixed(2)) 
       : null,
-    mood: moodLog?.mood || null
+    mood: moodLog?.mood || null,
+    meditationDone
   };
 }

@@ -438,7 +438,12 @@ function SortableExerciseCard({
           onKeyDown={(e) => {
             if (e.key === 'Enter' && e.shiftKey) {
               e.preventDefault();
-              handleLogSet(e, true); // Move to next exercise
+              e.stopPropagation();
+              // Create a synthetic form event for submission
+              const form = e.currentTarget;
+              const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
+              // Call handleLogSet directly with moveToNext=true
+              handleLogSet({ preventDefault: () => {} } as React.FormEvent, true);
             }
           }}
           className="flex flex-col gap-3 animate-in slide-in-from-top-2 bg-secondary/20 p-3 rounded-xl"

@@ -25,8 +25,8 @@ import {
 import { cn } from '@/lib/utils';
 
 const PERIODS = [
-  { value: 'today', label: 'Today' },
-  { value: 'yesterday', label: 'Yesterday' },
+  { value: 'last7Days', label: '7 Days' },
+  { value: 'last14Days', label: '14 Days' },
   { value: 'thisWeek', label: 'This Week' },
   { value: 'lastWeek', label: 'Last Week' },
   { value: 'thisMonth', label: 'This Month' },

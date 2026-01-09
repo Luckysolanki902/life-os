@@ -53,7 +53,8 @@ interface HealthPage {
 interface WeightStats {
   current: number;
   bmi: string | null;
-  delta: string | null;
+  delta: number | null;
+  deltaLabel?: string | null;
   lastLogged?: Date;
   todaysWeight?: {
     _id: string;
@@ -234,7 +235,6 @@ export default function HealthClient({ initialData }: HealthClientProps) {
           {isToday && (
             <ShareableWorkout 
               canShare={todaysExerciseCount >= 5 && !!weightStats.todaysWeight}
-              exerciseCount={todaysExerciseCount}
               hasWeight={!!weightStats.todaysWeight}
             />
           )}
@@ -377,7 +377,7 @@ export default function HealthClient({ initialData }: HealthClientProps) {
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Today&apos;s Weight</p>
-                    <p className="text-xl font-bold">{weightStats.todaysWeight.weight} <span className="text-sm font-normal text-muted-foreground">kg</span></p>
+                    <p className="text-xl font-bold">{weightStats.todaysWeight.weight.toFixed(2)} <span className="text-sm font-normal text-muted-foreground">kg</span></p>
                   </div>
                 </div>
                 <button
@@ -424,7 +424,7 @@ export default function HealthClient({ initialData }: HealthClientProps) {
             </p>
             <div className="mt-1 flex items-baseline gap-1">
               <span className="text-xl sm:text-2xl font-bold">
-                {weightStats.current || "-"}
+                {weightStats.current ? Number(weightStats.current).toFixed(2) : "-"}
               </span>
               {weightStats.current > 0 && (
                 <span className="text-xs text-muted-foreground">kg</span>
@@ -469,25 +469,25 @@ export default function HealthClient({ initialData }: HealthClientProps) {
 
           <div className="p-4 rounded-xl bg-card border border-border/50">
             <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
-              30d Δ
+              Δ vs {weightStats.deltaLabel || 'Prev'}
             </p>
             <div className="mt-1 flex items-baseline gap-1">
               <span
                 className={cn(
                   "text-xl sm:text-2xl font-bold",
-                  !weightStats.delta
+                  weightStats.delta === null
                     ? "text-muted-foreground"
-                    : Number(weightStats.delta) > 0
-                    ? "text-rose-500"
-                    : "text-emerald-500"
+                    : weightStats.delta > 0
+                    ? "text-emerald-500"
+                    : "text-rose-500"
                 )}
               >
-                {weightStats.delta
-                  ? (Number(weightStats.delta) > 0 ? "+" : "") +
-                    weightStats.delta
+                {weightStats.delta !== null
+                  ? (weightStats.delta > 0 ? "+" : "") +
+                    weightStats.delta.toFixed(2)
                   : "-"}
               </span>
-              {weightStats.delta && (
+              {weightStats.delta !== null && (
                 <span className="text-xs text-muted-foreground">kg</span>
               )}
             </div>
@@ -514,7 +514,7 @@ export default function HealthClient({ initialData }: HealthClientProps) {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Weight on this day</p>
-                  <p className="text-xl font-bold">{weightStats.todaysWeight.weight} <span className="text-sm font-normal text-muted-foreground">kg</span></p>
+                  <p className="text-xl font-bold">{weightStats.todaysWeight.weight.toFixed(2)} <span className="text-sm font-normal text-muted-foreground">kg</span></p>
                 </div>
               </div>
               <button

@@ -7,7 +7,7 @@ export default async function LearningReportPage({
   searchParams: Promise<{ period?: string; skillId?: string; areaId?: string }>;
 }) {
   const params = await searchParams;
-  const period = params.period || 'thisWeek';
+  const period = params.period || 'last7Days';
   const skillId = params.skillId || undefined;
   const areaId = params.areaId || undefined;
   

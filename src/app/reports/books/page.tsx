@@ -7,7 +7,7 @@ export default async function BooksReportPage({
   searchParams: Promise<{ period?: string }>;
 }) {
   const params = await searchParams;
-  const period = params.period || 'thisWeek';
+  const period = params.period || 'last7Days';
   const data = await getBooksReport(period);
 
   return <BooksReportClient initialData={data} initialPeriod={period} />;

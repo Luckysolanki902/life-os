@@ -7,7 +7,7 @@ export default async function HealthReportPage({
   searchParams: Promise<{ period?: string }>;
 }) {
   const params = await searchParams;
-  const period = params.period || 'thisWeek';
+  const period = params.period || 'last7Days';
   const data = await getHealthReport(period);
 
   return <HealthReportClient initialData={data} initialPeriod={period} />;

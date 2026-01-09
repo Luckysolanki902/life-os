@@ -12,15 +12,26 @@ import {
   Smile,
   Frown,
   Meh,
-  Dumbbell,
-  Heart,
-  Zap,
   Target,
+  Flame,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import {
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from 'recharts';
+import ShareableHealthReport from './ShareableHealthReport';
 
 const PERIODS = [
-  { value: 'today', label: 'Today' },
+  { value: 'last7Days', label: '7 Days' },
+  { value: 'last14Days', label: '14 Days' },
   { value: 'thisWeek', label: 'This Week' },
   { value: 'lastWeek', label: 'Last Week' },
   { value: 'thisMonth', label: 'This Month' },
@@ -51,7 +62,6 @@ function MoodIcon({ mood, size = 16 }: { mood: string; size?: number }) {
 function MuscleHeatmap({ muscleWork }: { muscleWork: any[] }) {
   const maxCount = Math.max(...muscleWork.map(m => m.count), 1);
   
-  // Group muscles by body area
   const upperBody = ['Chest', 'Back', 'Shoulders', 'Traps', 'Lats'];
   const arms = ['Biceps', 'Triceps', 'Forearms'];
   const core = ['Abs', 'Obliques'];
@@ -108,38 +118,113 @@ function MuscleHeatmap({ muscleWork }: { muscleWork: any[] }) {
   );
 }
 
-function WeightChart({ data }: { data: any[] }) {
+function WeightTrendChart({ data }: { data: any[] }) {
   if (data.length === 0) return null;
   
   const weights = data.map(d => d.weight);
-  const minWeight = Math.min(...weights) - 1;
-  const maxWeight = Math.max(...weights) + 1;
-  const range = maxWeight - minWeight || 1;
+  const minWeight = Math.min(...weights) - 0.5;
+  const maxWeight = Math.max(...weights) + 0.5;
+  
+  const chartData = data.map(d => ({
+    date: d.date.slice(5),
+    weight: d.weight,
+    fullDate: d.date,
+  }));
   
   return (
-    <div className="bg-card border border-border/50 rounded-2xl p-4 md:p-6">
+    <div className="bg-card border border-border/50 rounded-2xl p-4 md:p-5">
       <h3 className="font-semibold mb-4">Weight Trend</h3>
-      <div className="flex items-end gap-1 h-32">
-        {data.slice(-30).map((point, i) => {
-          const height = ((point.weight - minWeight) / range) * 100;
-          return (
-            <div key={i} className="flex-1 flex flex-col items-center gap-1 group">
-              <div 
-                className="w-full bg-cyan-500 rounded-t relative cursor-pointer hover:bg-cyan-400 transition-colors"
-                style={{ height: `${height}%`, minHeight: '4px' }}
-              >
-                <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-popover border border-border px-2 py-1 rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 shadow-lg">
-                  <p className="font-medium">{point.weight}kg</p>
-                  <p className="text-muted-foreground">{point.date}</p>
-                </div>
-              </div>
-            </div>
-          );
-        })}
+      <div className="h-48">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={chartData}>
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
+            <XAxis 
+              dataKey="date" 
+              tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+              tickLine={false}
+              axisLine={false}
+            />
+            <YAxis 
+              domain={[minWeight, maxWeight]}
+              tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+              tickLine={false}
+              axisLine={false}
+              tickFormatter={(v) => `${v}kg`}
+              width={45}
+            />
+            <Tooltip 
+              contentStyle={{ 
+                backgroundColor: 'hsl(var(--card))', 
+                border: '1px solid hsl(var(--border))',
+                borderRadius: '8px',
+                fontSize: '12px',
+              }}
+              formatter={(value: number) => [`${value}kg`, 'Weight']}
+              labelFormatter={(label: string, payload: any) => payload?.[0]?.payload?.fullDate || label}
+            />
+            <Line 
+              type="monotone" 
+              dataKey="weight" 
+              stroke="#22d3ee"
+              strokeWidth={2}
+              dot={{ fill: '#22d3ee', strokeWidth: 0, r: 3 }}
+              activeDot={{ r: 5, fill: '#22d3ee' }}
+            />
+          </LineChart>
+        </ResponsiveContainer>
       </div>
-      <div className="flex justify-between text-xs text-muted-foreground mt-2">
-        <span>{minWeight.toFixed(1)}kg</span>
-        <span>{maxWeight.toFixed(1)}kg</span>
+    </div>
+  );
+}
+
+function ExerciseSessionsChart({ data }: { data: any[] }) {
+  const chartData = data.map(d => ({
+    day: d.dayName,
+    sessions: d.sessions,
+    sets: d.sets,
+    date: d.date,
+  }));
+  
+  return (
+    <div className="bg-card border border-border/50 rounded-2xl p-4 md:p-5">
+      <h3 className="font-semibold mb-4">Workout Sessions</h3>
+      <div className="h-48">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={chartData}>
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} vertical={false} />
+            <XAxis 
+              dataKey="day" 
+              tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+              tickLine={false}
+              axisLine={false}
+            />
+            <YAxis 
+              tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+              tickLine={false}
+              axisLine={false}
+              width={25}
+              allowDecimals={false}
+            />
+            <Tooltip 
+              contentStyle={{ 
+                backgroundColor: 'hsl(var(--card))', 
+                border: '1px solid hsl(var(--border))',
+                borderRadius: '8px',
+                fontSize: '12px',
+              }}
+              formatter={(value: number, name: string) => [
+                name === 'sessions' ? `${value} exercises` : `${value} sets`,
+                name === 'sessions' ? 'Exercises' : 'Sets'
+              ]}
+              labelFormatter={(label: string, payload: any) => payload?.[0]?.payload?.date || label}
+            />
+            <Bar 
+              dataKey="sessions" 
+              fill="#f43f5e"
+              radius={[4, 4, 0, 0]}
+            />
+          </BarChart>
+        </ResponsiveContainer>
       </div>
     </div>
   );
@@ -162,7 +247,6 @@ function MoodChart({ data, distribution }: { data: any[]; distribution: Record<s
       
       {total > 0 ? (
         <>
-          {/* Distribution bars */}
           <div className="space-y-2 mb-4">
             {['great', 'good', 'okay', 'low', 'bad'].map((mood) => {
               const count = distribution[mood] || 0;
@@ -186,7 +270,6 @@ function MoodChart({ data, distribution }: { data: any[]; distribution: Record<s
             })}
           </div>
           
-          {/* Daily mood timeline */}
           {data.length > 0 && (
             <div className="pt-4 border-t border-border/50">
               <p className="text-sm text-muted-foreground mb-2">Recent Days</p>
@@ -214,29 +297,54 @@ function MoodChart({ data, distribution }: { data: any[]; distribution: Record<s
   );
 }
 
-function ExerciseChart({ data }: { data: any[] }) {
-  const maxSets = Math.max(...data.map(d => d.sets), 1);
+function WorkoutStreakCard({ dailyExercise }: { dailyExercise: any[] }) {
+  let currentStreak = 0;
+  const reversedData = [...dailyExercise].reverse();
+  
+  for (const day of reversedData) {
+    if (day.sessions > 0) {
+      currentStreak++;
+    } else {
+      break;
+    }
+  }
+  
+  const totalWorkoutDays = dailyExercise.filter(d => d.sessions > 0).length;
+  const totalDays = dailyExercise.length;
+  const workoutPercentage = totalDays > 0 ? Math.round((totalWorkoutDays / totalDays) * 100) : 0;
   
   return (
-    <div className="bg-card border border-border/50 rounded-2xl p-4 md:p-6">
-      <h3 className="font-semibold mb-4">Daily Exercise Volume</h3>
-      <div className="flex items-end gap-1 h-32">
-        {data.map((day, i) => (
-          <div key={i} className="flex-1 flex flex-col items-center gap-1 group">
-            <div 
-              className="w-full bg-secondary rounded-t relative cursor-pointer"
-              style={{ height: `${Math.max((day.sets / maxSets) * 100, 2)}%` }}
-            >
-              <div className={cn(
-                'absolute inset-0 rounded-t transition-colors',
-                day.sessions > 0 ? 'bg-rose-500' : 'bg-muted'
-              )} />
-              <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-popover border border-border px-2 py-1 rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 shadow-lg">
-                <p className="font-medium">{day.sessions} sessions</p>
-                <p className="text-muted-foreground">{day.sets} sets</p>
-              </div>
-            </div>
-            <span className="text-[10px] text-muted-foreground">{day.dayName}</span>
+    <div className="bg-card border border-border/50 rounded-2xl p-4 md:p-5">
+      <div className="flex items-center gap-2 mb-4">
+        <Flame size={18} className="text-orange-500" />
+        <h3 className="font-semibold">Workout Streak</h3>
+      </div>
+      
+      <div className="flex items-center gap-6 mb-4">
+        <div>
+          <p className="text-3xl font-bold text-orange-500">{currentStreak}</p>
+          <p className="text-sm text-muted-foreground">day streak</p>
+        </div>
+        <div className="h-12 w-px bg-border" />
+        <div>
+          <p className="text-3xl font-bold">{totalWorkoutDays}/{totalDays}</p>
+          <p className="text-sm text-muted-foreground">workout days ({workoutPercentage}%)</p>
+        </div>
+      </div>
+      
+      <div className="flex flex-wrap gap-1">
+        {dailyExercise.slice(-21).map((day, i) => (
+          <div
+            key={i}
+            className={cn(
+              'w-6 h-6 rounded flex items-center justify-center text-xs font-medium',
+              day.sessions > 0 
+                ? 'bg-orange-500/20 text-orange-500' 
+                : 'bg-secondary text-muted-foreground'
+            )}
+            title={`${day.date}: ${day.sessions} exercises`}
+          >
+            {day.sessions > 0 ? '✓' : '·'}
           </div>
         ))}
       </div>
@@ -278,22 +386,31 @@ export default function HealthReportClient({ initialData, initialPeriod }: Healt
           </div>
         </div>
         
-        <div className="flex flex-wrap gap-2">
-          {PERIODS.map((p) => (
-            <button
-              key={p.value}
-              onClick={() => handlePeriodChange(p.value)}
-              className={cn(
-                'px-3 py-1.5 rounded-lg text-sm font-medium transition-colors',
-                period === p.value
-                  ? 'bg-rose-500 text-white'
-                  : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
-              )}
-            >
-              {p.label}
-            </button>
-          ))}
+        <div className="flex items-center gap-3">
+          <ShareableHealthReport 
+            data={data} 
+            period={period} 
+            periodLabel={PERIODS.find(p => p.value === period)?.label || period}
+          />
         </div>
+      </div>
+      
+      {/* Period Selector */}
+      <div className="flex flex-wrap gap-2">
+        {PERIODS.map((p) => (
+          <button
+            key={p.value}
+            onClick={() => handlePeriodChange(p.value)}
+            className={cn(
+              'px-3 py-1.5 rounded-lg text-sm font-medium transition-colors',
+              period === p.value
+                ? 'bg-rose-500 text-white'
+                : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+            )}
+          >
+            {p.label}
+          </button>
+        ))}
       </div>
 
       {/* Summary Stats */}
@@ -301,7 +418,7 @@ export default function HealthReportClient({ initialData, initialPeriod }: Healt
         <div className="bg-card border border-border/50 rounded-2xl p-4">
           <div className="flex items-center gap-2 mb-2">
             <Activity size={16} className="text-rose-500" />
-            <span className="text-sm text-muted-foreground">Workouts</span>
+            <span className="text-sm text-muted-foreground">Exercises</span>
           </div>
           <p className="text-2xl font-bold">{summary.totalExerciseSessions}</p>
           {summary.sessionChange !== 0 && (
@@ -354,13 +471,18 @@ export default function HealthReportClient({ initialData, initialPeriod }: Healt
         </div>
       </div>
 
+      {/* Workout Streak */}
+      {dailyExercise && dailyExercise.length > 0 && (
+        <WorkoutStreakCard dailyExercise={dailyExercise} />
+      )}
+
       {/* Charts Row */}
       <div className="grid md:grid-cols-2 gap-4">
         {dailyExercise && dailyExercise.length > 0 && (
-          <ExerciseChart data={dailyExercise} />
+          <ExerciseSessionsChart data={dailyExercise} />
         )}
         {weightLogs && weightLogs.length > 0 && (
-          <WeightChart data={weightLogs} />
+          <WeightTrendChart data={weightLogs} />
         )}
       </div>
 
@@ -379,18 +501,14 @@ export default function HealthReportClient({ initialData, initialPeriod }: Healt
           <div className="space-y-3">
             {exercisesByType.map((exercise: any, i: number) => (
               <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-secondary/30">
-                <div className="w-8 h-8 rounded-lg bg-rose-500/20 flex items-center justify-center">
-                  <Dumbbell size={16} className="text-rose-500" />
+                <div className="w-8 h-8 rounded-lg bg-rose-500/20 flex items-center justify-center text-sm font-bold text-rose-500">
+                  {i + 1}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-medium truncate">{exercise.name}</p>
                   <p className="text-xs text-muted-foreground">
                     {exercise.count} sessions • {exercise.totalSets} sets • {exercise.totalReps} reps
                   </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-bold text-rose-500">{exercise.totalWeight}kg</p>
-                  <p className="text-xs text-muted-foreground">total volume</p>
                 </div>
               </div>
             ))}

@@ -42,7 +42,8 @@ import {
 } from 'recharts';
 
 const PERIODS = [
-  { value: 'today', label: 'Today' },
+  { value: 'last7Days', label: '7 Days' },
+  { value: 'last14Days', label: '14 Days' },
   { value: 'thisWeek', label: 'This Week' },
   { value: 'lastWeek', label: 'Last Week' },
   { value: 'thisMonth', label: 'This Month' },
