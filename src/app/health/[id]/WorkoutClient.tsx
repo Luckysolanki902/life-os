@@ -793,6 +793,7 @@ export default function WorkoutClient({ initialData }: WorkoutClientProps) {
     
     const currentExerciseId = loggingExerciseId;
     const currentWeight = logData.weight;
+    const currentReps = logData.reps;
     
     const newSet = {
       _id: `temp-${Date.now()}`, // Temporary ID for optimistic update
@@ -852,8 +853,8 @@ export default function WorkoutClient({ initialData }: WorkoutClientProps) {
         setLogData({ weight: '', reps: '' });
       }
     } else {
-      // Stay on same exercise, preserve weight, clear reps
-      setLogData({ weight: currentWeight, reps: '' });
+      // Stay on same exercise, preserve weight and reps for quick repeated logging
+      setLogData({ weight: currentWeight, reps: currentReps });
     }
     
     // Persist to server
