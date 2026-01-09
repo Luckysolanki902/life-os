@@ -22,6 +22,7 @@ import {
 import { toggleTaskStatus, skipTask, unskipTask } from './actions/routine';
 import { logWeight, updateWeight } from './actions/health';
 import { createLog } from './actions/learning';
+import { getLocalDateString } from '@/lib/date-utils';
 
 const iconMap: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
   Heart,
@@ -113,8 +114,8 @@ export default function HomeClient({ incompleteTasks, allMediums, domains, today
     
     setWeightLoading(true);
     try {
-      // Get today's date in YYYY-MM-DD format
-      const today = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`;
+      // Get today's date in YYYY-MM-DD format using dayjs-based utility
+      const today = getLocalDateString();
       
       if (isEditingWeight && todaysWeight) {
         await updateWeight(todaysWeight._id, parseFloat(weight));
@@ -146,9 +147,10 @@ export default function HomeClient({ incompleteTasks, allMediums, domains, today
     
     setLearningLoading(true);
     try {
+      // Use dayjs-based date utility for consistent date handling
       await createLog({
         mediumId: selectedMedium,
-        date: new Date().toISOString(),
+        date: getLocalDateString(),
         duration,
       });
       setLearningSuccess(true);

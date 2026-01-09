@@ -8,39 +8,15 @@ import LearningLog from '@/models/LearningLog';
 import Task from '@/models/Task';
 import DailyLog from '@/models/DailyLog';
 import { revalidatePath } from 'next/cache';
-
-// ============ DATE UTILITIES FOR TIMEZONE-SAFE HANDLING ============
-// All dates are stored as UTC midnight (00:00:00.000Z) of the user's local date
-// Client sends dates as YYYY-MM-DD strings, server converts to UTC midnight
-
-/**
- * Parses a YYYY-MM-DD date string to UTC midnight Date object
- * This ensures the date is stored consistently regardless of server timezone
- */
-function parseToUTCMidnight(dateStr: string): Date {
-  const [year, month, day] = dateStr.split('-').map(Number);
-  return new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
-}
-
-/**
- * Gets today's date as UTC midnight based on the current UTC time
- * Used as fallback when no date is provided
- */
-function getTodayUTCMidnight(): Date {
-  const now = new Date();
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0));
-}
-
-/**
- * Gets the start and end of a day in UTC for date range queries
- */
-function getDateRange(dateStr: string): { startOfDay: Date; endOfDay: Date } {
-  const [year, month, day] = dateStr.split('-').map(Number);
-  return {
-    startOfDay: new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0)),
-    endOfDay: new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999))
-  };
-}
+import {
+  parseToISTMidnight,
+  getTodayISTMidnight,
+  getTodayDateString,
+  getDateRange,
+  getDayOfWeek,
+  getTodayDayOfWeek,
+  dayjs
+} from '@/lib/server-date-utils';
 
 interface LearningLogDoc {
   _id: { toString(): string };
@@ -82,7 +58,9 @@ interface LearningAreaDoc {
 interface TaskDoc {
   _id: { toString(): string };
   title: string;
-  domainId: string;
+  domainId?: string;
+  domain?: string;
+  basePoints?: number;
   [key: string]: unknown;
 }
 
@@ -91,6 +69,7 @@ interface DailyLogDoc {
   taskId: { toString(): string };
   date: Date;
   completed?: boolean;
+  status?: string;
   [key: string]: unknown;
 }
 
@@ -161,30 +140,35 @@ export async function getLearningDashboardData() {
     };
   }));
 
-  // Get today's learning tasks using UTC date
-  const today = getTodayUTCMidnight();
-  const dayOfWeek = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][today.getUTCDay()];
+  // Get today's learning tasks using IST date
+  const today = getTodayISTMidnight();
+  const dayOfWeek = getTodayDayOfWeek();
+  const dayNames = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+  const dayName = dayNames[dayOfWeek];
   
   const learningTasks = await Task.find({
     domain: 'learning',
     isActive: true,
-    [`schedule.${dayOfWeek}`]: true
+    [`schedule.${dayName}`]: true
   }).lean();
 
   const taskIds = learningTasks.map((t: TaskDoc) => t._id);
-  const endOfDay = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate(), 23, 59, 59, 999));
+  const { startOfDay, endOfDay } = getDateRange(getTodayDateString());
   const taskLogs = await DailyLog.find({
     taskId: { $in: taskIds },
-    date: { $gte: today, $lt: endOfDay }
+    date: { $gte: startOfDay, $lt: endOfDay }
   }).lean();
 
   const routine = learningTasks.map((task: TaskDoc) => {
     const log = taskLogs.find((l: DailyLogDoc) => l.taskId.toString() === task._id.toString());
     return {
-      ...task,
       _id: task._id.toString(),
+      title: task.title,
+      domainId: task.domainId || task.domain || 'learning',
+      basePoints: task.basePoints || 0,
       completed: log?.completed || false,
-      logId: log?._id?.toString() || null
+      logId: log?._id?.toString() || null,
+      log: log ? { status: log.status || (log.completed ? 'completed' : 'pending') } : null
     };
   });
 
@@ -316,8 +300,8 @@ export async function createLog(data: {
   rating?: number;
 }) {
   await connectDB();
-  // Parse date as UTC midnight for consistent storage
-  const logDate = parseToUTCMidnight(data.date);
+  // Parse date as IST midnight for consistent storage
+  const logDate = parseToISTMidnight(data.date);
   
   await LearningLog.create({
     ...data,
@@ -350,8 +334,8 @@ export async function deleteLog(logId: string) {
 // ============ QUICK LOG (for fast logging) ============
 export async function quickLog(mediumId: string, duration: number, difficulty: string = 'moderate', dateStr?: string) {
   await connectDB();
-  // Use client-provided date or today's UTC midnight
-  const logDate = dateStr ? parseToUTCMidnight(dateStr) : getTodayUTCMidnight();
+  // Use client-provided date or today's IST midnight
+  const logDate = dateStr ? parseToISTMidnight(dateStr) : getTodayISTMidnight();
   
   await LearningLog.create({
     mediumId,
@@ -374,9 +358,9 @@ export async function getMediumStats(mediumId: string) {
   const totalSessions = logs.length;
   const avgDuration = totalSessions > 0 ? Math.round(totalMinutes / totalSessions) : 0;
   
-  // Last 7 days practice using UTC dates
-  const today = getTodayUTCMidnight();
-  const weekAgo = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() - 7, 0, 0, 0, 0));
+  // Last 7 days practice using IST dates
+  const today = getTodayISTMidnight();
+  const weekAgo = dayjs(today).tz('Asia/Kolkata').subtract(7, 'day').startOf('day').toDate();
   const weekLogs = logs.filter((l: LearningLogDoc) => new Date(l.date) >= weekAgo);
   const weekMinutes = weekLogs.reduce((acc, l: LearningLogDoc) => acc + l.duration, 0);
   

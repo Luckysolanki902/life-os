@@ -8,6 +8,7 @@ import {
   ListChecks
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getLocalDateString, dayjs } from '@/lib/date-utils';
 import { 
   createArea, 
   createSkill, 
@@ -111,9 +112,9 @@ const formatDuration = (minutes: number) => {
 };
 
 const formatRelativeDate = (dateStr: string) => {
-  const date = new Date(dateStr);
-  const now = new Date();
-  const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+  const date = dayjs(dateStr).tz('Asia/Kolkata');
+  const now = dayjs().tz('Asia/Kolkata');
+  const diffDays = now.startOf('day').diff(date.startOf('day'), 'day');
   
   if (diffDays === 0) return 'Today';
   if (diffDays === 1) return 'Yesterday';
@@ -193,8 +194,7 @@ export default function LearningClient({
 
   // Get active/recent mediums (practiced in last 7 days)
   const activeMediums = useMemo(() => {
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const sevenDaysAgo = dayjs().tz('Asia/Kolkata').subtract(7, 'day').toDate();
     
     return allMediums
       .filter(m => m.lastLog && new Date(m.lastLog.date) >= sevenDaysAgo)
@@ -252,7 +252,7 @@ export default function LearningClient({
     startTransition(async () => {
       await createLog({
         mediumId: quickLogData.mediumId,
-        date: new Date().toISOString().split('T')[0],
+        date: getLocalDateString(),
         duration: quickLogData.duration,
         difficulty: quickLogData.difficulty
       });

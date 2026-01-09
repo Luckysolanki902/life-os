@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Check, Clock, Edit2, Trash2, X, CalendarDays, Bell, SkipForward } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { completeTask, uncompleteTask, updateTask, deleteTask, skipTask, unskipTask } from '@/app/actions/routine';
+import { getLocalDateString } from '@/lib/date-utils';
 
 const DAYS_OF_WEEK = [
   { value: 0, label: 'S', fullLabel: 'Sunday' },
@@ -24,15 +25,6 @@ function getRecurrenceLabel(task: any) {
     return task.recurrenceDays.map((d: number) => DAYS_OF_WEEK[d].label).join('');
   }
   return 'Daily';
-}
-
-// Helper to get current date as YYYY-MM-DD string in user's local timezone
-function getLocalDateString(): string {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
 }
 
 interface TaskItemProps {

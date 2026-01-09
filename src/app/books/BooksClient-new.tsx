@@ -11,6 +11,7 @@ import {
   createBook, updateBook, deleteBook, checkInBook as checkInBookAction, bulkImportBooks, deleteBookLog
 } from '@/app/actions/books';
 import { cn } from '@/lib/utils';
+import { getLocalDateString, dayjs } from '@/lib/date-utils';
 import BooksTableView from './BooksTableView';
 
 interface BooksClientProps {
@@ -39,15 +40,15 @@ const STATUS_OPTIONS = [
 
 function formatRelativeDate(dateStr: string): string {
   if (!dateStr) return 'Never';
-  const date = new Date(dateStr);
-  const now = new Date();
-  const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+  const date = dayjs(dateStr).tz('Asia/Kolkata');
+  const now = dayjs().tz('Asia/Kolkata');
+  const diffDays = now.startOf('day').diff(date.startOf('day'), 'day');
   
   if (diffDays === 0) return 'Today';
   if (diffDays === 1) return 'Yesterday';
   if (diffDays < 7) return `${diffDays}d ago`;
   if (diffDays < 30) return `${Math.floor(diffDays / 7)}w ago`;
-  return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+  return date.format('D MMM');
 }
 
 function getColorClasses(colorName: string) {
@@ -82,7 +83,7 @@ export default function BooksClient({ initialData, tableData }: BooksClientProps
     author: '',
     subcategory: '',
     totalPages: 0,
-    startDate: new Date().toISOString().split('T')[0],
+    startDate: getLocalDateString(),
     notes: ''
   });
   const [editingBook, setEditingBook] = useState<any>(null);
@@ -113,7 +114,7 @@ export default function BooksClient({ initialData, tableData }: BooksClientProps
       author: '',
       subcategory: '',
       totalPages: 0,
-      startDate: new Date().toISOString().split('T')[0],
+      startDate: getLocalDateString(),
       notes: ''
     });
     setIsBookModalOpen(false);

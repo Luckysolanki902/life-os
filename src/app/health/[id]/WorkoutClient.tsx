@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { createExercise, bulkCreateExercises, logExerciseSet, deleteSet, updateSet, deleteExercise, updateExercise, reorderExercises, updateHealthPage, deleteHealthPage } from '@/app/actions/health';
 import MuscleMap from '@/components/MuscleMap';
 import { cn } from '@/lib/utils';
+import { parseServerDate, formatDateForDisplay } from '@/lib/date-utils';
 import {
   DndContext,
   closestCenter,
@@ -380,7 +381,7 @@ function SortableExerciseCard({
             Last Session: {formatLastSessionSets(ex.lastLog.sets)}
           </span>
           <span className="opacity-50 ml-auto">
-            {new Date(ex.lastLog.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+            {formatDateForDisplay(ex.lastLog.date, { month: 'short', day: 'numeric' })}
           </span>
         </div>
       )}
@@ -498,11 +499,8 @@ export default function WorkoutClient({ initialData }: WorkoutClientProps) {
     JSON.parse(JSON.stringify(initialData.exercises))
   );
   
-  // Parse date and format as YYYY-MM-DD in local timezone
-  const parsedDate = new Date(initialData.date);
-  const [date, setDate] = useState(
-    `${parsedDate.getFullYear()}-${String(parsedDate.getMonth() + 1).padStart(2, '0')}-${String(parsedDate.getDate()).padStart(2, '0')}`
-  );
+  // Parse date and format as YYYY-MM-DD in IST timezone using dayjs
+  const [date, setDate] = useState(() => parseServerDate(initialData.date));
 
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
   const [loggingExerciseId, setLoggingExerciseId] = useState<string | null>(null);

@@ -14,68 +14,59 @@ import LearningArea from '@/models/LearningArea';
 import LearningSkill from '@/models/LearningSkill';
 import PracticeMedium from '@/models/PracticeMedium';
 import LearningLog from '@/models/LearningLog';
+import {
+  dayjs
+} from '@/lib/server-date-utils';
 
-// ============ DATE UTILITIES FOR TIMEZONE-SAFE HANDLING ============
-// All date calculations use UTC to ensure consistency regardless of server timezone
+const DEFAULT_TIMEZONE = 'Asia/Kolkata';
 
-/**
- * Gets today's date as UTC midnight based on the current UTC time
- */
-function getTodayUTC(): Date {
-  const now = new Date();
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0));
-}
-
-// Helper functions for date ranges - now using UTC
+// Helper functions for date ranges - using dayjs with IST
 function getDateRange(period: string): { start: Date; end: Date } {
-  const today = getTodayUTC();
-  const oneDay = 24 * 60 * 60 * 1000;
+  const today = dayjs().tz(DEFAULT_TIMEZONE).startOf('day');
   
   switch (period) {
     case 'today': {
-      return { start: today, end: new Date(today.getTime() + oneDay) };
+      return { start: today.toDate(), end: today.add(1, 'day').toDate() };
     }
     case 'yesterday': {
-      const yesterday = new Date(today.getTime() - oneDay);
-      return { start: yesterday, end: today };
+      const yesterday = today.subtract(1, 'day');
+      return { start: yesterday.toDate(), end: today.toDate() };
     }
     case 'thisWeek': {
-      const dayOfWeek = today.getUTCDay();
-      const startOfWeek = new Date(today.getTime() - dayOfWeek * oneDay);
-      return { start: startOfWeek, end: new Date(today.getTime() + oneDay) };
+      const startOfWeek = today.startOf('week');
+      return { start: startOfWeek.toDate(), end: today.add(1, 'day').toDate() };
     }
     case 'lastWeek': {
-      const dayOfWeek = today.getUTCDay();
-      const startOfThisWeek = new Date(today.getTime() - dayOfWeek * oneDay);
-      const startOfLastWeek = new Date(startOfThisWeek.getTime() - 7 * oneDay);
-      return { start: startOfLastWeek, end: startOfThisWeek };
+      const startOfThisWeek = today.startOf('week');
+      const startOfLastWeek = startOfThisWeek.subtract(7, 'day');
+      return { start: startOfLastWeek.toDate(), end: startOfThisWeek.toDate() };
     }
     case 'thisMonth': {
-      const startOfMonth = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
-      return { start: startOfMonth, end: new Date(today.getTime() + oneDay) };
+      const startOfMonth = today.startOf('month');
+      return { start: startOfMonth.toDate(), end: today.add(1, 'day').toDate() };
     }
     case 'lastMonth': {
-      const startOfThisMonth = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
-      const startOfLastMonth = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() - 1, 1));
-      return { start: startOfLastMonth, end: startOfThisMonth };
+      const startOfThisMonth = today.startOf('month');
+      const startOfLastMonth = startOfThisMonth.subtract(1, 'month');
+      return { start: startOfLastMonth.toDate(), end: startOfThisMonth.toDate() };
     }
     case 'last3Months': {
-      const threeMonthsAgo = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() - 3, today.getUTCDate()));
-      return { start: threeMonthsAgo, end: new Date(today.getTime() + oneDay) };
+      const threeMonthsAgo = today.subtract(3, 'month');
+      return { start: threeMonthsAgo.toDate(), end: today.add(1, 'day').toDate() };
     }
     case 'last6Months': {
-      const sixMonthsAgo = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() - 6, today.getUTCDate()));
-      return { start: sixMonthsAgo, end: new Date(today.getTime() + oneDay) };
+      const sixMonthsAgo = today.subtract(6, 'month');
+      return { start: sixMonthsAgo.toDate(), end: today.add(1, 'day').toDate() };
     }
     case 'thisYear': {
-      const startOfYear = new Date(Date.UTC(today.getUTCFullYear(), 0, 1));
-      return { start: startOfYear, end: new Date(today.getTime() + oneDay) };
+      const startOfYear = today.startOf('year');
+      return { start: startOfYear.toDate(), end: today.add(1, 'day').toDate() };
     }
     case 'allTime': {
-      return { start: new Date(Date.UTC(2020, 0, 1)), end: new Date(today.getTime() + oneDay) };
+      return { start: dayjs('2020-01-01').tz(DEFAULT_TIMEZONE).toDate(), end: today.add(1, 'day').toDate() };
     }
     default:
-      return { start: today, end: new Date(today.getTime() + oneDay) };
+      return { start: today.toDate(), end: today.add(1, 'day').toDate() };
   }
 }
 
@@ -336,7 +327,6 @@ export async function getRoutineReport(period: string = 'thisWeek') {
       .lean();
     
     let currentStreak = 0;
-    const today = getTodayUTC();
     
     for (let i = 0; i < recentLogs.length; i++) {
       const log = recentLogs[i] as any;

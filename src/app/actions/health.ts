@@ -9,6 +9,15 @@ import MoodLog from '@/models/MoodLog';
 import Task from '@/models/Task';
 import DailyLog from '@/models/DailyLog';
 import { revalidatePath } from 'next/cache';
+import {
+  parseToISTMidnight,
+  getTodayISTMidnight,
+  getTodayDateString,
+  getDateRange,
+  getDayOfWeek,
+  getISTDateFromDate,
+  dayjs
+} from '@/lib/server-date-utils';
 
 const ALLOWED_MUSCLES = [
   'Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps', 'Forearms',
@@ -30,63 +39,6 @@ function refineMuscles(_title: string, muscles: string[]): string[] {
 
   // Enforce upper bound; lower bound is handled by the AI schema (minItems)
   return clean.slice(0, 6);
-}
-
-// --- Date Utilities for Robust Timezone Handling ---
-
-/**
- * Parse a date string (YYYY-MM-DD) to UTC midnight of that date.
- * This ensures consistent storage regardless of server timezone.
- * @param dateStr - Date string in YYYY-MM-DD format from client
- * @returns Date object set to midnight UTC of that date
- */
-function parseToUTCMidnight(dateStr: string): Date {
-  // Split the date string and create UTC date directly
-  const [year, month, day] = dateStr.split('-').map(Number);
-  return new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
-}
-
-/**
- * Get today's date as UTC midnight based on client timezone offset.
- * @param timezoneOffset - Client's timezone offset in minutes (from Date.getTimezoneOffset())
- * @returns Date object set to midnight UTC representing today in client's timezone
- */
-function getTodayUTCMidnight(timezoneOffset?: number): Date {
-  const now = new Date();
-  if (timezoneOffset !== undefined) {
-    // Adjust for client timezone to get their "today"
-    const clientNow = new Date(now.getTime() - timezoneOffset * 60 * 1000);
-    return new Date(Date.UTC(clientNow.getUTCFullYear(), clientNow.getUTCMonth(), clientNow.getUTCDate(), 0, 0, 0, 0));
-  }
-  // Fallback: use server's today
-  return new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0));
-}
-
-/**
- * Get the date range for a day, extended to handle timezone differences.
- * This finds records stored at either UTC midnight OR local midnight converted to UTC.
- * @param dateStr - Date string in YYYY-MM-DD format
- * @returns Object with startOfDay and endOfDay (extended range)
- */
-function getDateRange(dateStr: string): { startOfDay: Date; endOfDay: Date } {
-  const startOfDay = parseToUTCMidnight(dateStr);
-  const endOfDay = new Date(startOfDay);
-  endOfDay.setUTCDate(endOfDay.getUTCDate() + 1);
-  return { startOfDay, endOfDay };
-}
-
-/**
- * Get extended date range to find records that might have been stored with timezone offset.
- * This handles legacy data stored at local midnight (e.g., IST) converted to UTC.
- * For Jan 8: looks from Jan 7 12:00 UTC to Jan 9 12:00 UTC to catch all timezones.
- */
-function getExtendedDateRange(dateStr: string): { startOfDay: Date; endOfDay: Date } {
-  const [year, month, day] = dateStr.split('-').map(Number);
-  // Start from previous day noon UTC to catch dates stored at local midnight from UTC+12 or later
-  const startOfDay = new Date(Date.UTC(year, month - 1, day - 1, 12, 0, 0, 0));
-  // End at next day noon UTC to catch dates stored at local midnight from UTC-12 or earlier  
-  const endOfDay = new Date(Date.UTC(year, month - 1, day + 1, 12, 0, 0, 0));
-  return { startOfDay, endOfDay };
 }
 
 // --- Fetching ---
@@ -119,14 +71,10 @@ function shouldShowTaskOnDay(task: any, dayOfWeek: number): boolean {
 export async function getHealthDashboardData(dateStr?: string) {
   await connectDB();
   
-  // Use UTC midnight for consistent date handling
-  // dateStr should be in YYYY-MM-DD format from client
-  const { startOfDay: targetDate, endOfDay: nextDay } = dateStr 
-    ? getDateRange(dateStr)
-    : { startOfDay: getTodayUTCMidnight(), endOfDay: (() => { const d = getTodayUTCMidnight(); d.setUTCDate(d.getUTCDate() + 1); return d; })() };
-  
-  // Get day of week based on the UTC date
-  const dayOfWeek = targetDate.getUTCDay();
+  // Use IST for consistent date handling
+  const targetDateStr = dateStr || getTodayDateString();
+  const { startOfDay: targetDate, endOfDay: nextDay } = getDateRange(targetDateStr);
+  const dayOfWeek = getDayOfWeek(targetDateStr);
 
   // 0. User Profile for BMI
   const user = await User.findOne().lean();
@@ -160,16 +108,15 @@ export async function getHealthDashboardData(dateStr?: string) {
   // 2. Weight Stats (Current vs 30 days ago)
   const latestWeight = await WeightLog.findOne({ date: { $lt: nextDay } }).sort({ date: -1 }).lean();
   
-  // Check if there's a weight entry for the selected date (using extended range for timezone compatibility)
-  const weightDateRange = dateStr 
-    ? getExtendedDateRange(dateStr) 
-    : getExtendedDateRange(`${targetDate.getUTCFullYear()}-${String(targetDate.getUTCMonth() + 1).padStart(2, '0')}-${String(targetDate.getUTCDate()).padStart(2, '0')}`);
+  // Check if there's a weight entry for the selected date
+  const { startOfDay: weightStart, endOfDay: weightEnd } = getDateRange(targetDateStr);
   const todaysWeight = await WeightLog.findOne({ 
-    date: { $gte: weightDateRange.startOfDay, $lt: weightDateRange.endOfDay } 
+    date: { $gte: weightStart, $lt: weightEnd } 
   }).sort({ date: -1 }).lean();
   
-  const thirtyDaysAgo = new Date(targetDate);
-  thirtyDaysAgo.setDate(targetDate.getDate() - 30);
+  const thirtyDaysAgo = parseToISTMidnight(
+    dayjs(targetDate).tz('Asia/Kolkata').subtract(30, 'day').format('YYYY-MM-DD')
+  );
   const pastWeight = await WeightLog.findOne({ date: { $lte: thirtyDaysAgo } }).sort({ date: -1 }).lean();
 
   const currentWeight = latestWeight?.weight || 0;
@@ -221,12 +168,9 @@ export async function getHealthDashboardData(dateStr?: string) {
     ? (lastWorkoutPageIndex + 1) % pageIds.length 
     : 0;
 
-  // 5. Mood for that date - use extended range to handle timezone differences in legacy data
-  const extendedRange = dateStr 
-    ? getExtendedDateRange(dateStr) 
-    : getExtendedDateRange(`${targetDate.getUTCFullYear()}-${String(targetDate.getUTCMonth() + 1).padStart(2, '0')}-${String(targetDate.getUTCDate()).padStart(2, '0')}`);
+  // 5. Mood for that date
   const moodLog = await MoodLog.findOne({ 
-    date: { $gte: extendedRange.startOfDay, $lt: extendedRange.endOfDay } 
+    date: { $gte: targetDate, $lt: nextDay } 
   }).sort({ date: -1 }).lean();
 
   return {
@@ -250,10 +194,9 @@ export async function getHealthDashboardData(dateStr?: string) {
 export async function getHealthPageData(pageId: string, dateStr?: string) {
   await connectDB();
   
-  // Use UTC midnight for consistent date handling
-  const { startOfDay: targetDate, endOfDay: nextDay } = dateStr 
-    ? getDateRange(dateStr)
-    : { startOfDay: getTodayUTCMidnight(), endOfDay: (() => { const d = getTodayUTCMidnight(); d.setUTCDate(d.getUTCDate() + 1); return d; })() };
+  // Use IST for consistent date handling
+  const targetDateStr = dateStr || getTodayDateString();
+  const { startOfDay: targetDate, endOfDay: nextDay } = getDateRange(targetDateStr);
 
   const page = await HealthPage.findById(pageId).lean();
   if (!page) return null;
@@ -355,10 +298,10 @@ export async function updateSet(logId: string, setId: string, data: { weight: nu
 export async function logExerciseSet(exerciseId: string, data: { weight?: number; reps?: number; duration?: number; distance?: number; notes?: string }, dateStr?: string) {
   await connectDB();
   
-  // Use UTC midnight for consistent date handling
+  // Use IST midnight for consistent date handling
   const targetDate = dateStr 
-    ? parseToUTCMidnight(dateStr)
-    : getTodayUTCMidnight();
+    ? parseToISTMidnight(dateStr)
+    : getTodayISTMidnight();
   
   await ExerciseLog.findOneAndUpdate(
     { exerciseId, date: targetDate },
@@ -381,8 +324,8 @@ export async function logExerciseSet(exerciseId: string, data: { weight?: number
 export async function logWeight(weight: number, dateStr: string) {
   await connectDB();
   
-  // Parse date as UTC midnight for consistent storage
-  const logDate = parseToUTCMidnight(dateStr);
+  // Parse date as IST midnight for consistent storage
+  const logDate = parseToISTMidnight(dateStr);
   
   // Use upsert to update existing entry or create new one for this date
   await WeightLog.findOneAndUpdate(
@@ -412,13 +355,13 @@ export async function updateWeight(weightId: string, weight: number) {
 export async function getTodaysWeightData(dateStr?: string) {
   await connectDB();
   
-  // Use provided date or today
-  const targetDateStr = dateStr || `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`;
-  const extendedRange = getExtendedDateRange(targetDateStr);
+  // Use provided date or today in IST
+  const targetDateStr = dateStr || getTodayDateString();
+  const { startOfDay, endOfDay } = getDateRange(targetDateStr);
   
   // Get today's weight entry
   const todaysWeight = await WeightLog.findOne({ 
-    date: { $gte: extendedRange.startOfDay, $lt: extendedRange.endOfDay } 
+    date: { $gte: startOfDay, $lt: endOfDay } 
   }).sort({ date: -1 }).lean();
   
   return todaysWeight ? {
@@ -758,10 +701,8 @@ export async function bulkCreateExercises(pageId: string, csvData: string) {
 export async function logExercise(date: Date, exerciseId: string, sets: any[]) {
   await connectDB();
   
-  // Normalize date to midnight for grouping? Or keep precise?
-  // "until today's not loged show yesterdays' reps" -> implies daily buckets.
-  const logDate = new Date(date);
-  logDate.setHours(0, 0, 0, 0);
+  // Normalize date to IST midnight for grouping
+  const logDate = parseToISTMidnight(getISTDateFromDate(date));
 
   await ExerciseLog.findOneAndUpdate(
     { date: logDate, exerciseId },
@@ -776,11 +717,11 @@ export async function logExercise(date: Date, exerciseId: string, sets: any[]) {
 export async function saveMood(dateStr: string, mood: 'great' | 'good' | 'okay' | 'low' | 'bad', note?: string) {
   await connectDB();
   
-  // Use UTC midnight for consistent date handling
+  // Use IST midnight for consistent date handling
   // dateStr should be YYYY-MM-DD from client
   const logDate = dateStr.includes('T') 
-    ? parseToUTCMidnight(dateStr.split('T')[0])
-    : parseToUTCMidnight(dateStr);
+    ? parseToISTMidnight(dateStr.split('T')[0])
+    : parseToISTMidnight(dateStr);
 
   await MoodLog.findOneAndUpdate(
     { date: logDate },

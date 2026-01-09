@@ -1,25 +1,32 @@
 /**
- * Client-side date utilities for timezone-safe date handling
+ * Client-side date utilities for timezone-safe date handling using dayjs
  * 
  * IMPORTANT: All dates sent to the server should be in YYYY-MM-DD format
- * The server will interpret these as UTC midnight dates for consistent storage.
+ * The server will interpret these in the user's timezone (IST) for consistent storage.
  * 
  * This approach ensures that:
  * 1. A user in any timezone sees the correct date for their location
- * 2. The server stores dates consistently as UTC midnight
+ * 2. The server stores dates consistently at IST midnight
  * 3. Date queries work correctly regardless of server timezone
  */
+
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
+
+// Extend dayjs with timezone support
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
+// Default timezone - India Standard Time
+export const DEFAULT_TIMEZONE = 'Asia/Kolkata';
 
 /**
  * Gets today's date as YYYY-MM-DD string in user's local timezone
  * Use this when you need to send the current date to the server
  */
 export function getLocalDateString(): string {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+  return dayjs().tz(DEFAULT_TIMEZONE).format('YYYY-MM-DD');
 }
 
 /**
@@ -27,10 +34,7 @@ export function getLocalDateString(): string {
  * Use this when converting a Date picker value to send to server
  */
 export function formatDateToString(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+  return dayjs(date).tz(DEFAULT_TIMEZONE).format('YYYY-MM-DD');
 }
 
 /**
@@ -38,51 +42,62 @@ export function formatDateToString(date: Date): string {
  * Use this when displaying a date from the server in the UI
  */
 export function parseLocalDate(dateStr: string): Date {
-  const [year, month, day] = dateStr.split('-').map(Number);
-  return new Date(year, month - 1, day);
+  return dayjs.tz(dateStr, DEFAULT_TIMEZONE).toDate();
 }
 
 /**
- * Formats a date string for display (e.g., "Mon, Jan 8")
+ * Parses an ISO string or Date from MongoDB and returns the local date string
+ * Handles timezone conversion properly
+ */
+export function parseServerDate(date: string | Date): string {
+  return dayjs(date).tz(DEFAULT_TIMEZONE).format('YYYY-MM-DD');
+}
+
+/**
+ * Formats a date string or Date object for display (e.g., "Mon, Jan 8")
  * Shows "Today" or "Yesterday" for recent dates
  */
-export function formatDateForDisplay(dateStr: string, options?: {
+export function formatDateForDisplay(dateInput: string | Date, options?: {
   showTodayYesterday?: boolean;
   format?: 'short' | 'long';
+  month?: 'short' | 'long' | 'numeric';
+  day?: 'numeric' | '2-digit';
 }): string {
-  const { showTodayYesterday = true, format = 'short' } = options || {};
+  const { showTodayYesterday = true, format = 'short', month, day } = options || {};
   
-  const date = parseLocalDate(dateStr);
+  const date = dayjs(dateInput).tz(DEFAULT_TIMEZONE);
+  const dateStr = date.format('YYYY-MM-DD');
   
   if (showTodayYesterday) {
     const today = getLocalDateString();
-    const yesterday = formatDateToString(new Date(Date.now() - 86400000));
+    const yesterday = dayjs().tz(DEFAULT_TIMEZONE).subtract(1, 'day').format('YYYY-MM-DD');
     
     if (dateStr === today) return 'Today';
     if (dateStr === yesterday) return 'Yesterday';
   }
   
-  if (format === 'long') {
-    return date.toLocaleDateString('en-US', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric'
-    });
+  // Support custom format options
+  if (month || day) {
+    if (month === 'short' && day === 'numeric') {
+      return date.format('MMM D');
+    }
+    if (month === 'long' && day === 'numeric') {
+      return date.format('MMMM D');
+    }
   }
   
-  return date.toLocaleDateString('en-US', {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short'
-  });
+  if (format === 'long') {
+    return date.format('dddd, MMMM D, YYYY');
+  }
+  
+  return date.format('ddd, MMM D');
 }
 
 /**
  * Gets the day of week (0-6, Sun-Sat) from a date string
  */
 export function getDayOfWeek(dateStr: string): number {
-  return parseLocalDate(dateStr).getDay();
+  return dayjs.tz(dateStr, DEFAULT_TIMEZONE).day();
 }
 
 /**
@@ -90,9 +105,7 @@ export function getDayOfWeek(dateStr: string): number {
  * Returns new date string in YYYY-MM-DD format
  */
 export function addDays(dateStr: string, days: number): string {
-  const date = parseLocalDate(dateStr);
-  date.setDate(date.getDate() + days);
-  return formatDateToString(date);
+  return dayjs.tz(dateStr, DEFAULT_TIMEZONE).add(days, 'day').format('YYYY-MM-DD');
 }
 
 /**
@@ -120,24 +133,45 @@ export function isFutureDate(dateStr: string): boolean {
  * Gets the start of the current week (Sunday) as YYYY-MM-DD
  */
 export function getStartOfWeek(dateStr?: string): string {
-  const date = dateStr ? parseLocalDate(dateStr) : new Date();
-  const day = date.getDay();
-  date.setDate(date.getDate() - day);
-  return formatDateToString(date);
+  const date = dateStr ? dayjs.tz(dateStr, DEFAULT_TIMEZONE) : dayjs().tz(DEFAULT_TIMEZONE);
+  return date.startOf('week').format('YYYY-MM-DD');
 }
 
 /**
  * Gets the start of the current month as YYYY-MM-DD
  */
 export function getStartOfMonth(dateStr?: string): string {
-  const date = dateStr ? parseLocalDate(dateStr) : new Date();
-  date.setDate(1);
-  return formatDateToString(date);
+  const date = dateStr ? dayjs.tz(dateStr, DEFAULT_TIMEZONE) : dayjs().tz(DEFAULT_TIMEZONE);
+  return date.startOf('month').format('YYYY-MM-DD');
 }
 
 /**
  * Returns the user's timezone identifier (e.g., "America/New_York")
  */
 export function getUserTimezone(): string {
-  return Intl.DateTimeFormat().resolvedOptions().timeZone;
+  return DEFAULT_TIMEZONE;
 }
+
+/**
+ * Format a server date/time for display with time
+ */
+export function formatDateTime(date: string | Date): string {
+  return dayjs(date).tz(DEFAULT_TIMEZONE).format('MMM D, YYYY h:mm A');
+}
+
+/**
+ * Get the current dayjs instance in the default timezone
+ */
+export function now(): dayjs.Dayjs {
+  return dayjs().tz(DEFAULT_TIMEZONE);
+}
+
+/**
+ * Create a dayjs instance from a date string in the default timezone
+ */
+export function fromDateString(dateStr: string): dayjs.Dayjs {
+  return dayjs.tz(dateStr, DEFAULT_TIMEZONE);
+}
+
+// Re-export dayjs for direct use when needed
+export { dayjs };

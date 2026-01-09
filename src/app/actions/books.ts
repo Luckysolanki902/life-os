@@ -7,28 +7,15 @@ import BookLog from '@/models/BookLog';
 import Task from '@/models/Task';
 import DailyLog from '@/models/DailyLog';
 import { revalidatePath } from 'next/cache';
-
-// ============ DATE UTILITIES FOR TIMEZONE-SAFE HANDLING ============
-// All dates are stored as UTC midnight (00:00:00.000Z) of the user's local date
-// Client sends dates as YYYY-MM-DD strings, server converts to UTC midnight
-
-/**
- * Parses a YYYY-MM-DD date string to UTC midnight Date object
- * This ensures the date is stored consistently regardless of server timezone
- */
-function parseToUTCMidnight(dateStr: string): Date {
-  const [year, month, day] = dateStr.split('-').map(Number);
-  return new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
-}
-
-/**
- * Gets today's date as UTC midnight based on the current UTC time
- * Used as fallback when no date is provided
- */
-function getTodayUTCMidnight(): Date {
-  const now = new Date();
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0));
-}
+import {
+  parseToISTMidnight,
+  getTodayISTMidnight,
+  getTodayDateString,
+  getDateRange,
+  getDayOfWeek,
+  getTodayDayOfWeek,
+  dayjs
+} from '@/lib/server-date-utils';
 
 // Helper function to check if a task should appear on a given day
 function shouldShowTaskOnDay(task: any, dayOfWeek: number): boolean {
@@ -50,8 +37,8 @@ function shouldShowTaskOnDay(task: any, dayOfWeek: number): boolean {
 
 // Auto-pause logic: if a book hasn't been read for 7 days, mark as paused
 async function autoUpdateBookStatuses() {
-  const today = getTodayUTCMidnight();
-  const sevenDaysAgo = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() - 7, 0, 0, 0, 0));
+  const today = getTodayISTMidnight();
+  const sevenDaysAgo = dayjs(today).tz('Asia/Kolkata').subtract(7, 'day').startOf('day').toDate();
   
   // Auto-pause books that haven't been read in 7 days and are still "reading"
   await Book.updateMany(
@@ -159,8 +146,8 @@ export async function getBooksDashboardData(page: number = 1, limit: number = 20
   const enrichedRecent = enrichedRecentLogs.filter(log => log !== null);
 
   // Get today's learning tasks (since books is part of learning)
-  const today = getTodayUTCMidnight();
-  const dayOfWeek = today.getUTCDay();
+  const today = getTodayISTMidnight();
+  const dayOfWeek = getTodayDayOfWeek();
   
   const learningTasks = await Task.find({
     domainId: 'learning',
@@ -171,10 +158,10 @@ export async function getBooksDashboardData(page: number = 1, limit: number = 20
   const todaysTasks = learningTasks.filter((task: any) => shouldShowTaskOnDay(task, dayOfWeek));
 
   const taskIds = todaysTasks.map((t: any) => t._id);
-  const endOfDay = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate(), 23, 59, 59, 999));
+  const { startOfDay, endOfDay } = getDateRange(getTodayDateString());
   const taskLogs = await DailyLog.find({
     taskId: { $in: taskIds },
-    date: { $gte: today, $lt: endOfDay }
+    date: { $gte: startOfDay, $lt: endOfDay }
   }).lean();
 
   const routine = todaysTasks.map((task: any) => {
@@ -258,9 +245,9 @@ export async function createBook(data: {
     order: ((maxOrder as any)?.order || 0) + 1 
   };
   
-  // Only set startDate if explicitly provided - parse as UTC midnight
+  // Only set startDate if explicitly provided - parse as IST midnight
   if (data.startDate) {
-    bookData.startDate = parseToUTCMidnight(data.startDate);
+    bookData.startDate = parseToISTMidnight(data.startDate);
   }
   
   // Default to 'to-read' unless explicitly set
@@ -289,13 +276,13 @@ export async function updateBook(bookId: string, data: {
   
   const updateData: any = { ...data };
   
-  // Handle date conversions - parse as UTC midnight
-  if (data.startDate) updateData.startDate = parseToUTCMidnight(data.startDate);
-  if (data.completedDate) updateData.completedDate = parseToUTCMidnight(data.completedDate);
+  // Handle date conversions - parse as IST midnight
+  if (data.startDate) updateData.startDate = parseToISTMidnight(data.startDate);
+  if (data.completedDate) updateData.completedDate = parseToISTMidnight(data.completedDate);
   
-  // If marking as completed, set completedDate to today UTC midnight
+  // If marking as completed, set completedDate to today IST midnight
   if (data.status === 'completed' && !data.completedDate) {
-    updateData.completedDate = getTodayUTCMidnight();
+    updateData.completedDate = getTodayISTMidnight();
   }
   
   await Book.findByIdAndUpdate(bookId, updateData);
@@ -319,8 +306,8 @@ export async function checkInBook(bookId: string, currentPage?: number, notes?: 
   const book = await Book.findById(bookId);
   if (!book) return { error: 'Book not found' };
   
-  // Use client-provided date or today's UTC midnight
-  const logDate = dateStr ? parseToUTCMidnight(dateStr) : getTodayUTCMidnight();
+  // Use client-provided date or today's IST midnight
+  const logDate = dateStr ? parseToISTMidnight(dateStr) : getTodayISTMidnight();
   
   const updateData: any = {
     lastReadDate: logDate,
@@ -526,7 +513,7 @@ export async function bulkImportBooks(booksData: Array<{
       }
       
       // Create book
-      const today = getTodayUTCMidnight();
+      const today = getTodayISTMidnight();
       await Book.create({
         domainId: (domain as any)._id,
         title: bookData.title,
@@ -534,7 +521,7 @@ export async function bulkImportBooks(booksData: Array<{
         subcategory: bookData.subcategory,
         totalPages: bookData.totalPages || 0,
         status: bookData.status || 'reading',
-        startDate: bookData.startDate ? parseToUTCMidnight(bookData.startDate) : today,
+        startDate: bookData.startDate ? parseToISTMidnight(bookData.startDate) : today,
         notes: bookData.notes || '',
         lastReadDate: today
       });

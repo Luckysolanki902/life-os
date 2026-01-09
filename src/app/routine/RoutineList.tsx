@@ -22,6 +22,7 @@ import { GripVertical, CalendarDays, ChevronLeft, ChevronRight } from 'lucide-re
 import TaskItem from './TaskItem';
 import { updateTaskOrder, getRoutine, getRoutineForDate } from '@/app/actions/routine';
 import { cn } from '@/lib/utils';
+import { getLocalDateString, addDays, formatDateForDisplay, getDayOfWeek } from '@/lib/date-utils';
 
 const DAYS_OF_WEEK = [
   { value: 0, label: 'Sun' },
@@ -105,55 +106,21 @@ export default function RoutineList({ initialTasks, allTasks = [] }: RoutineList
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [isLoadingCustom, setIsLoadingCustom] = useState(false);
   
-  // Get today's date in user's local timezone as YYYY-MM-DD
-  const getLocalDateString = () => {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
-  
+  // Get today's date in user's local timezone as YYYY-MM-DD using dayjs
   const todayIST = getLocalDateString();
   
-  // Get current day of week in client timezone
-  const todayDayOfWeek = new Date().getDay();
+  // Get current day of week in client timezone using dayjs
+  const todayDayOfWeek = getDayOfWeek(todayIST);
 
-  // Format date for display
+  // Format date for display using dayjs-based utility
   const formatDateDisplay = (dateStr: string) => {
-    // Parse date components to avoid timezone issues
-    const [year, month, day] = dateStr.split('-').map(Number);
-    const date = new Date(year, month - 1, day);
-    
-    const todayStr = getLocalDateString();
-    const [tYear, tMonth, tDay] = todayStr.split('-').map(Number);
-    const today = new Date(tYear, tMonth - 1, tDay);
-    
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
-    
-    if (dateStr === todayStr) return 'Today';
-    if (dateStr === yesterdayStr) return 'Yesterday';
-    
-    return date.toLocaleDateString('en-IN', { 
-      weekday: 'short',
-      day: 'numeric', 
-      month: 'short'
-    });
+    return formatDateForDisplay(dateStr, { showTodayYesterday: true, format: 'short' });
   };
 
-  // Navigate to previous/next day
+  // Navigate to previous/next day using dayjs-based utility
   const navigateDay = (direction: 'prev' | 'next') => {
     const currentDateStr = customDate || todayIST;
-    const [year, month, day] = currentDateStr.split('-').map(Number);
-    const date = new Date(year, month - 1, day);
-    date.setDate(date.getDate() + (direction === 'next' ? 1 : -1));
-    
-    const newYear = date.getFullYear();
-    const newMonth = String(date.getMonth() + 1).padStart(2, '0');
-    const newDay = String(date.getDate()).padStart(2, '0');
-    const newDateStr = `${newYear}-${newMonth}-${newDay}`;
+    const newDateStr = addDays(currentDateStr, direction === 'next' ? 1 : -1);
     
     // Don't allow future dates
     if (newDateStr > todayIST) return;
@@ -187,10 +154,8 @@ export default function RoutineList({ initialTasks, allTasks = [] }: RoutineList
   const switchToCustom = () => {
     setViewMode('custom');
     if (!customDate) {
-      // Default to yesterday
-      const yesterday = new Date(todayIST + 'T00:00:00');
-      yesterday.setDate(yesterday.getDate() - 1);
-      const yesterdayStr = yesterday.toISOString().split('T')[0];
+      // Default to yesterday using dayjs-based utility
+      const yesterdayStr = addDays(todayIST, -1);
       setCustomDate(yesterdayStr);
       fetchCustomDate(yesterdayStr);
     }

@@ -4,30 +4,22 @@ import LearningClient from './LearningClient-new';
 export default async function LearningPage() {
   const data = await getLearningDashboardData();
   
-  // Transform recentLogs for the new client
-  const recentActivity = data.recentLogs.map((log: {
-    _id: string;
-    date: Date;
-    duration: number;
-    activities?: string;
-    difficulty?: string;
-    notes?: string;
-    rating?: number;
-    medium: { title: string; icon?: string };
-    area: { title: string; color?: string };
-  }) => ({
-    _id: log._id,
-    date: log.date,
-    duration: log.duration,
-    activities: log.activities,
-    difficulty: log.difficulty,
-    notes: log.notes,
-    rating: log.rating,
-    mediumTitle: log.medium.title,
-    mediumIcon: log.medium.icon,
-    areaTitle: log.area.title,
-    areaColor: log.area.color
-  }));
+  // Transform recentLogs for the new client - filter out nulls first
+  const recentActivity = data.recentLogs
+    .filter((log): log is NonNullable<typeof log> => log !== null)
+    .map((log) => ({
+      _id: log._id,
+      date: log.date,
+      duration: log.duration,
+      activities: log.activities,
+      difficulty: log.difficulty,
+      notes: log.notes,
+      rating: log.rating,
+      mediumTitle: log.medium.title,
+      mediumIcon: log.medium.icon,
+      areaTitle: log.area.title,
+      areaColor: log.area.color
+    }));
   
   return (
     <LearningClient 

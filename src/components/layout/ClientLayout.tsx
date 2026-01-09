@@ -7,7 +7,6 @@ import { RootState } from '@/lib/store';
 import Sidebar from './Sidebar';
 import MobileNav from './MobileNav';
 import { cn } from '@/lib/utils';
-import { initializePushNotifications, setupNotificationListeners, isNativeApp } from '@/lib/push-notifications';
 
 export default function ClientLayout({
   children,
@@ -18,7 +17,6 @@ export default function ClientLayout({
   const isLoginPage = pathname === '/login';
   const { isSidebarOpen, theme } = useSelector((state: RootState) => state.ui);
   const previousPathname = useRef(pathname);
-  const pushInitialized = useRef(false);
 
   // Theme Sync
   useEffect(() => {
@@ -34,22 +32,6 @@ export default function ClientLayout({
       root.classList.add(theme);
     }
   }, [theme]);
-
-  // Initialize Push Notifications
-  useEffect(() => {
-    if (pushInitialized.current) return;
-    pushInitialized.current = true;
-    
-    const initPush = async () => {
-      if (isNativeApp()) {
-        console.log('Initializing push notifications for native app...');
-        await initializePushNotifications();
-        await setupNotificationListeners();
-      }
-    };
-    
-    initPush();
-  }, []);
 
   // Page Transition Animation
   useEffect(() => {

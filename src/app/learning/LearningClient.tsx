@@ -15,6 +15,7 @@ import {
 import TaskItem from '@/app/routine/TaskItem';
 import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
+import { getLocalDateString, dayjs } from '@/lib/date-utils';
 
 interface Task {
   _id: string;
@@ -125,15 +126,15 @@ function formatDuration(minutes: number): string {
 }
 
 function formatRelativeDate(dateStr: string): string {
-  const date = new Date(dateStr);
-  const now = new Date();
-  const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+  const date = dayjs(dateStr).tz('Asia/Kolkata');
+  const now = dayjs().tz('Asia/Kolkata');
+  const diffDays = now.startOf('day').diff(date.startOf('day'), 'day');
   
   if (diffDays === 0) return 'Today';
   if (diffDays === 1) return 'Yesterday';
   if (diffDays < 7) return `${diffDays}d ago`;
   if (diffDays < 30) return `${Math.floor(diffDays / 7)}w ago`;
-  return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+  return date.format('D MMM');
 }
 
 function getColorClasses(colorName: string) {
@@ -185,7 +186,7 @@ export default function LearningClient({ initialData }: LearningClientProps) {
   const [newMedium, setNewMedium] = useState({ skillId: '', title: '', description: '', icon: '' });
   const [newLog, setNewLog] = useState({ 
     mediumId: '', 
-    date: new Date().toISOString().split('T')[0], 
+    date: getLocalDateString(), 
     duration: 30, 
     activities: '', 
     difficulty: 'moderate',
@@ -262,7 +263,7 @@ export default function LearningClient({ initialData }: LearningClientProps) {
     await createLog(newLog);
     setNewLog({ 
       mediumId: '', 
-      date: new Date().toISOString().split('T')[0], 
+      date: getLocalDateString(), 
       duration: 30, 
       activities: '', 
       difficulty: 'moderate',

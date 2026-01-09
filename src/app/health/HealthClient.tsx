@@ -23,6 +23,7 @@ import TaskItem from "@/app/routine/TaskItem";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
+import { getLocalDateString, parseServerDate, formatDateForDisplay } from "@/lib/date-utils";
 
 interface Task {
   _id: string;
@@ -117,9 +118,8 @@ export default function HealthClient({ initialData }: HealthClientProps) {
   const router = useRouter();
   const { routine, weightStats, pages, mood, date } = initialData;
   
-  // Parse date and format as YYYY-MM-DD in local timezone
-  const parsedDate = new Date(date);
-  const currentDate = `${parsedDate.getFullYear()}-${String(parsedDate.getMonth() + 1).padStart(2, '0')}-${String(parsedDate.getDate()).padStart(2, '0')}`;
+  // Parse server date and get YYYY-MM-DD in local timezone (IST)
+  const currentDate = parseServerDate(date);
 
   const [isWeightModalOpen, setIsWeightModalOpen] = useState(false);
   const [isPageModalOpen, setIsPageModalOpen] = useState(false);
@@ -209,17 +209,11 @@ export default function HealthClient({ initialData }: HealthClientProps) {
     router.refresh();
   }
 
-  // Format date for display in IST
-  const displayDate = new Date(date).toLocaleDateString("en-IN", {
-    weekday: "long",
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    timeZone: "Asia/Kolkata",
-  });
+  // Format date for display using dayjs-based utility
+  const displayDate = formatDateForDisplay(currentDate, { showTodayYesterday: false, format: 'long' });
 
-  // Check if current date is today using local date comparison
-  const todayStr = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`;
+  // Check if current date is today using dayjs-based utility
+  const todayStr = getLocalDateString();
   const isToday = currentDate === todayStr;
 
   return (
