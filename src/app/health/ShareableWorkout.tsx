@@ -280,8 +280,8 @@ export default function ShareableWorkout({ canShare, hasWeight }: ShareableWorko
                               borderRadius: '9999px', 
                               fontSize: '14px', 
                               fontWeight: '500',
-                              background: summary.weightDelta < 0 ? '#d1fae5' : '#fee2e2',
-                              color: summary.weightDelta < 0 ? '#047857' : '#dc2626'
+                              background: summary.weightDelta > 0 ? '#d1fae5' : '#fee2e2',
+                              color: summary.weightDelta > 0 ? '#047857' : '#dc2626'
                             }}>
                               {summary.weightDelta < 0 ? (
                                 <TrendingDown size={14} />
