@@ -139,9 +139,12 @@ export default function ReportsClient({ initialData, initialPeriod }: ReportsCli
 
   const { summary, domainBreakdown, dailyBreakdown } = data;
 
-  // Process daily data for charts
-  const chartData = dailyBreakdown?.map((day) => ({
-    date: new Date(day.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }),
+  // Process daily data for charts - only include days with some activity
+  const firstActivityIndex = dailyBreakdown?.findIndex((day) => day.completed > 0 || day.rate > 0) ?? -1;
+  const relevantDays = firstActivityIndex >= 0 ? dailyBreakdown?.slice(firstActivityIndex) : dailyBreakdown;
+  
+  const chartData = relevantDays?.map((day) => ({
+    date: new Date(day.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
     shortDate: new Date(day.date).getDate().toString().padStart(2, '0'),
     rate: day.rate,
     completed: day.completed,

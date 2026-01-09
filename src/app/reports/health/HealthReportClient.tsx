@@ -125,11 +125,14 @@ function WeightTrendChart({ data }: { data: any[] }) {
   const minWeight = Math.min(...weights) - 0.5;
   const maxWeight = Math.max(...weights) + 0.5;
   
-  const chartData = data.map(d => ({
-    date: d.date.slice(5),
-    weight: d.weight,
-    fullDate: d.date,
-  }));
+  const chartData = data.map(d => {
+    const dateObj = new Date(d.date);
+    return {
+      date: dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      weight: d.weight,
+      fullDate: d.date,
+    };
+  });
   
   return (
     <div className="bg-card border border-border/50 rounded-2xl p-4 md:p-5">
@@ -178,12 +181,19 @@ function WeightTrendChart({ data }: { data: any[] }) {
 }
 
 function ExerciseSessionsChart({ data }: { data: any[] }) {
-  const chartData = data.map(d => ({
-    day: d.dayName,
-    sessions: d.sessions,
-    sets: d.sets,
-    date: d.date,
-  }));
+  // Only show days that have at least some activity in the period
+  const filteredData = data.filter(d => d.sessions > 0);
+  if (filteredData.length === 0) return null;
+  
+  const chartData = filteredData.map(d => {
+    const dateObj = new Date(d.date);
+    return {
+      day: dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      sessions: d.sessions,
+      sets: d.sets,
+      date: d.date,
+    };
+  });
   
   return (
     <div className="bg-card border border-border/50 rounded-2xl p-4 md:p-5">
@@ -298,8 +308,12 @@ function MoodChart({ data, distribution }: { data: any[]; distribution: Record<s
 }
 
 function WorkoutStreakCard({ dailyExercise }: { dailyExercise: any[] }) {
+  // Only consider days from first activity
+  const firstActivityIndex = dailyExercise.findIndex(d => d.sessions > 0);
+  const relevantDays = firstActivityIndex >= 0 ? dailyExercise.slice(firstActivityIndex) : [];
+  
   let currentStreak = 0;
-  const reversedData = [...dailyExercise].reverse();
+  const reversedData = [...relevantDays].reverse();
   
   for (const day of reversedData) {
     if (day.sessions > 0) {
@@ -309,8 +323,8 @@ function WorkoutStreakCard({ dailyExercise }: { dailyExercise: any[] }) {
     }
   }
   
-  const totalWorkoutDays = dailyExercise.filter(d => d.sessions > 0).length;
-  const totalDays = dailyExercise.length;
+  const totalWorkoutDays = relevantDays.filter(d => d.sessions > 0).length;
+  const totalDays = relevantDays.length;
   const workoutPercentage = totalDays > 0 ? Math.round((totalWorkoutDays / totalDays) * 100) : 0;
   
   return (
@@ -333,7 +347,7 @@ function WorkoutStreakCard({ dailyExercise }: { dailyExercise: any[] }) {
       </div>
       
       <div className="flex flex-wrap gap-1">
-        {dailyExercise.slice(-21).map((day, i) => (
+        {relevantDays.slice(-21).map((day, i) => (
           <div
             key={i}
             className={cn(
@@ -494,27 +508,6 @@ export default function HealthReportClient({ initialData, initialPeriod }: Healt
         <MoodChart data={moodLogs || []} distribution={moodDistribution || {}} />
       </div>
 
-      {/* Top Exercises */}
-      {exercisesByType && exercisesByType.length > 0 && (
-        <div className="bg-card border border-border/50 rounded-2xl p-4 md:p-5">
-          <h3 className="font-semibold mb-4">Top Exercises</h3>
-          <div className="space-y-3">
-            {exercisesByType.map((exercise: any, i: number) => (
-              <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-secondary/30">
-                <div className="w-8 h-8 rounded-lg bg-rose-500/20 flex items-center justify-center text-sm font-bold text-rose-500">
-                  {i + 1}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium truncate">{exercise.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {exercise.count} sessions • {exercise.totalSets} sets • {exercise.totalReps} reps
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
