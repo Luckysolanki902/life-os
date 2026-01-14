@@ -362,6 +362,40 @@ export default function BooksClient({ initialData, tableData }: BooksClientProps
                 </div>
               )}
             </div>
+
+            {/* Latest Read Books - Quick Access */}
+            {recentLogs.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground px-1">Recently Read</p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {recentLogs.slice(0, 2).map((log: any) => {
+                    const book = books.find((b: any) => b._id === log.bookId);
+                    if (!book) return null;
+                    
+                    const colorClasses = log.domain ? getColorClasses(log.domain.color) : DOMAIN_COLORS[0];
+                    
+                    return (
+                      <button
+                        key={log._id}
+                        onClick={() => handleCheckIn(book._id)}
+                        className="flex items-center gap-3 p-3 rounded-xl bg-card border border-border/50 hover:border-primary/30 hover:bg-primary/5 transition-all text-left group"
+                      >
+                        <div className={cn("w-1 h-10 rounded-full", colorClasses.accent)} />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm truncate">{log.book.title}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {log.domain?.name} • {formatRelativeDate(log.date)}
+                          </p>
+                        </div>
+                        <div className="px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                          Log
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </section>
 
           {/* Currently Reading - Only show if has books */}
