@@ -11,7 +11,6 @@ import {
   Settings,
   LogOut,
   BookOpen,
-  Library,
 } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import { RootState } from '@/lib/store';

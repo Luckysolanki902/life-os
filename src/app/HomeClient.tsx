@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation';
 import {
   Heart,
   Library,
-  Brain,
   CheckCircle2,
   Circle,
   Scale,
@@ -14,14 +13,12 @@ import {
   ChevronRight,
   ArrowRight,
   Loader2,
-  Plus,
-  Minus,
   SkipForward,
   Pencil,
+  BarChart3,
 } from 'lucide-react';
 import { toggleTaskStatus, skipTask, unskipTask } from './actions/routine';
 import { logWeight, updateWeight } from './actions/health';
-import { createLog } from './actions/learning';
 import { getLocalDateString } from '@/lib/date-utils';
 
 const iconMap: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
@@ -37,14 +34,6 @@ interface Task {
   timeOfDay?: string;
   points: number;
   status?: 'pending' | 'completed' | 'skipped';
-}
-
-interface Medium {
-  id: string;
-  title: string;
-  skill: string;
-  area: string;
-  areaColor: string;
 }
 
 interface Domain {
@@ -65,12 +54,11 @@ interface TodaysWeight {
 
 interface Props {
   incompleteTasks: Task[];
-  allMediums: Medium[];
   domains: Domain[];
   todaysWeight: TodaysWeight | null;
 }
 
-export default function HomeClient({ incompleteTasks, allMediums, domains, todaysWeight }: Props) {
+export default function HomeClient({ incompleteTasks, domains, todaysWeight }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);
@@ -81,12 +69,7 @@ export default function HomeClient({ incompleteTasks, allMediums, domains, today
   const [weightLoading, setWeightLoading] = useState(false);
   const [weightSuccess, setWeightSuccess] = useState(false);
   const [isEditingWeight, setIsEditingWeight] = useState(false);
-  
-  // Learning logging state
-  const [selectedMedium, setSelectedMedium] = useState<string>('');
-  const [duration, setDuration] = useState<number>(30);
-  const [learningLoading, setLearningLoading] = useState(false);
-  const [learningSuccess, setLearningSuccess] = useState(false);
+
 
   const handleToggleTask = async (taskId: string) => {
     setCompletingTaskId(taskId);
@@ -141,34 +124,9 @@ export default function HomeClient({ incompleteTasks, allMediums, domains, today
     }
   };
 
-  const handleLogLearning = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedMedium || duration <= 0) return;
-    
-    setLearningLoading(true);
-    try {
-      // Use dayjs-based date utility for consistent date handling
-      await createLog({
-        mediumId: selectedMedium,
-        date: getLocalDateString(),
-        duration,
-      });
-      setLearningSuccess(true);
-      setSelectedMedium('');
-      setDuration(30);
-      setTimeout(() => setLearningSuccess(false), 2000);
-      router.refresh();
-    } catch (error) {
-      console.error('Error logging learning:', error);
-    } finally {
-      setLearningLoading(false);
-    }
-  };
-
   const getDomainColor = (domainId: string) => {
     const colors: Record<string, string> = {
       health: 'text-rose-500',
-      learning: 'text-amber-500',
       discipline: 'text-violet-500',
       personality: 'text-emerald-500',
       startups: 'text-blue-500',
@@ -180,7 +138,6 @@ export default function HomeClient({ incompleteTasks, allMediums, domains, today
   const getDomainBg = (domainId: string) => {
     const bgs: Record<string, string> = {
       health: 'bg-rose-500/10',
-      learning: 'bg-amber-500/10',
       discipline: 'bg-violet-500/10',
       personality: 'bg-emerald-500/10',
       startups: 'bg-blue-500/10',
@@ -320,10 +277,8 @@ export default function HomeClient({ incompleteTasks, allMediums, domains, today
         </div>
       </section>
 
-      {/* Quick Actions Grid */}
-      <div className="grid gap-4 md:grid-cols-2">
-        {/* Weight Logging */}
-        <section className="bg-card rounded-2xl border border-border/50 p-4">
+      {/* Quick Actions */}
+      <section className="bg-card rounded-2xl border border-border/50 p-4">
           <div className="flex items-center gap-2 mb-4">
             <div className="p-2 rounded-xl bg-rose-500/10">
               <Scale size={18} className="text-rose-500" />
@@ -394,73 +349,6 @@ export default function HomeClient({ incompleteTasks, allMediums, domains, today
             </form>
           )}
         </section>
-
-        {/* Learning Quick Log */}
-        <section className="bg-card rounded-2xl border border-border/50 p-4">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="p-2 rounded-xl bg-amber-500/10">
-              <Brain size={18} className="text-amber-500" />
-            </div>
-            <h3 className="font-semibold">Log Practice</h3>
-          </div>
-
-          <form onSubmit={handleLogLearning} className="space-y-3">
-            <select
-              value={selectedMedium}
-              onChange={(e) => setSelectedMedium(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl bg-secondary/50 border border-border/50 
-                focus:outline-none focus:border-primary/50 text-sm appearance-none"
-            >
-              <option value="">Select what you practiced...</option>
-              {allMediums.map((medium) => (
-                <option key={medium.id} value={medium.id}>
-                  {medium.area} → {medium.skill} → {medium.title}
-                </option>
-              ))}
-            </select>
-
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 flex-1">
-                <button
-                  type="button"
-                  onClick={() => setDuration(Math.max(5, duration - 5))}
-                  className="p-2 rounded-lg bg-secondary hover:bg-secondary/80 transition-colors"
-                >
-                  <Minus size={16} />
-                </button>
-                <div className="flex-1 text-center">
-                  <span className="text-2xl font-bold">{duration}</span>
-                  <span className="text-sm text-muted-foreground ml-1">min</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setDuration(duration + 5)}
-                  className="p-2 rounded-lg bg-secondary hover:bg-secondary/80 transition-colors"
-                >
-                  <Plus size={16} />
-                </button>
-              </div>
-              
-              <button
-                type="submit"
-                disabled={!selectedMedium || duration <= 0 || learningLoading}
-                className={`px-6 py-3 rounded-xl font-medium text-sm transition-all
-                  ${learningSuccess 
-                    ? 'bg-emerald-500 text-white' 
-                    : 'bg-primary text-primary-foreground hover:bg-primary/90'}
-                  disabled:opacity-50 disabled:cursor-not-allowed`}
-              >
-                {learningLoading ? (
-                  <Loader2 size={18} className="animate-spin" />
-                ) : learningSuccess ? (
-                  <CheckCircle2 size={18} />
-                ) : (
-                  'Log'
-                )}
-              </button>
-            </div>
-          </form>
-        </section>
       </div>
 
       {/* Domain Cards */}
@@ -515,9 +403,9 @@ export default function HomeClient({ incompleteTasks, allMediums, domains, today
         <Link 
           href="/reports"
           className="flex items-center gap-3 p-4 bg-card rounded-2xl border border-border/50 
-            hover:border-amber-500/30 hover:bg-amber-500/5 transition-all group"
+            hover:border-primary/30 hover:bg-primary/5 transition-all group"
         >
-          <Brain size={20} className="text-amber-500" />
+          <BarChart3 size={20} className="text-primary" />
           <div className="flex-1 min-w-0">
             <p className="font-medium text-sm">Reports</p>
             <p className="text-xs text-muted-foreground truncate">View analytics</p>

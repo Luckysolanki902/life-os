@@ -1,13 +1,11 @@
 import { getIdentityMetric } from "./actions/stats";
 import { getRoutine } from "./actions/routine";
-import { getLearningDashboardData } from "./actions/learning";
 import { getTodaysWeightData } from "./actions/health";
 import Link from "next/link";
 import {
   Heart,
   ArrowRight,
   Library,
-  Brain,
 } from "lucide-react";
 import HomeClient from "./HomeClient";
 
@@ -15,10 +13,9 @@ import HomeClient from "./HomeClient";
 export const dynamic = 'force-dynamic';
 
 export default async function Dashboard() {
-  const [stats, routine, learningData, todaysWeight] = await Promise.all([
+  const [stats, routine, todaysWeight] = await Promise.all([
     getIdentityMetric(),
     getRoutine(),
-    getLearningDashboardData(),
     getTodaysWeightData()
   ]);
 
@@ -40,22 +37,6 @@ export default async function Dashboard() {
     status: t.log?.status || 'pending'
   }));
 
-  // Get all mediums for quick learning log
-  const allMediums: any[] = [];
-  learningData.areas.forEach((area: any) => {
-    area.skills.forEach((skill: any) => {
-      skill.mediums.forEach((medium: any) => {
-        allMediums.push({
-          id: medium._id,
-          title: medium.title,
-          skill: skill.title,
-          area: area.title,
-          areaColor: area.color || '#8B5CF6'
-        });
-      });
-    });
-  });
-
   const domains = [
     {
       id: "health",
@@ -65,15 +46,6 @@ export default async function Dashboard() {
       color: "text-rose-500",
       bg: "bg-rose-500/10",
       border: "border-rose-500/20",
-    },
-    {
-      id: "learning",
-      name: "Learning",
-      icon: "Brain",
-      points: stats.domains.learning,
-      color: "text-amber-500",
-      bg: "bg-amber-500/10",
-      border: "border-amber-500/20",
     },
     {
       id: "books",
@@ -108,7 +80,6 @@ export default async function Dashboard() {
       {/* Client component for interactive features */}
       <HomeClient 
         incompleteTasks={incompleteTasks}
-        allMediums={allMediums}
         domains={domains}
         todaysWeight={todaysWeight}
       />

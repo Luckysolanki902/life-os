@@ -9,7 +9,6 @@ import {
   LayoutGrid,
   BarChart3,
   Settings,
-  BookOpen,
 } from 'lucide-react';
 
 const navItems = [
