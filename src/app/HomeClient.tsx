@@ -16,6 +16,7 @@ import {
   SkipForward,
   Pencil,
   BarChart3,
+  Brain,
 } from 'lucide-react';
 import { toggleTaskStatus, skipTask, unskipTask } from './actions/routine';
 import { logWeight, updateWeight } from './actions/health';
@@ -148,6 +149,7 @@ export default function HomeClient({ incompleteTasks, domains, todaysWeight }: P
 
   return (
     <>
+      <div className="space-y-6">
       {/* Next 3 Tasks Section */}
       <section className="space-y-3">
         <div className="flex items-center justify-between">
@@ -348,7 +350,7 @@ export default function HomeClient({ incompleteTasks, domains, todaysWeight }: P
               )}
             </form>
           )}
-        </section>
+      </section>
 
       {/* Domain Cards */}
       <section className="space-y-3">
@@ -412,6 +414,7 @@ export default function HomeClient({ incompleteTasks, domains, todaysWeight }: P
           <ChevronRight size={14} className="text-muted-foreground group-hover:translate-x-1 transition-all" />
         </Link>
       </section>
+      </div>
     </>
   );
 }
