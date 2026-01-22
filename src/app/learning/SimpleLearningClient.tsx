@@ -228,7 +228,7 @@ export default function SimpleLearningClient({ initialData }: SimpleLearningClie
                 >
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm truncate">{stat.skillIcon} {stat.skillName}</p>
+                      <p className="font-medium text-sm truncate">{stat.categoryIcon} {stat.skillName}</p>
                       <p className="text-xs text-muted-foreground truncate">
                         {stat.categoryTitle} • {formatDuration(stat.totalMinutes)} total
                       </p>
