@@ -294,6 +294,7 @@ export async function deleteBook(bookId: string) {
   await connectDB();
   await Book.findByIdAndDelete(bookId);
   revalidatePath('/books');
+  revalidatePath('/');
   return { success: true };
 }
 
@@ -308,6 +309,7 @@ export async function checkInBook(bookId: string, currentPage?: number, notes?: 
   
   // Use client-provided date or today's IST midnight
   const logDate = dateStr ? parseToISTMidnight(dateStr) : getTodayISTMidnight();
+  const logDateStr = dateStr || getTodayDateString();
   
   const updateData: any = {
     lastReadDate: logDate,
@@ -320,6 +322,10 @@ export async function checkInBook(bookId: string, currentPage?: number, notes?: 
       updateData.startDate = logDate;
     }
   }
+  
+  // Calculate pages read this session
+  const previousPage = book.currentPage || 0;
+  const pagesRead = currentPage !== undefined ? Math.max(0, currentPage - previousPage) : 0;
   
   if (currentPage !== undefined) {
     updateData.currentPage = currentPage;
@@ -337,11 +343,17 @@ export async function checkInBook(bookId: string, currentPage?: number, notes?: 
   await BookLog.create({
     bookId,
     date: logDate,
-    currentPage: currentPage || 0,
-    notes: notes || ''
+    currentPage: currentPage || book.currentPage || 0,
+    pagesRead,
+    notes: notes || '',
   });
   
+  // Update streak for this date (book reading contributes to special tasks)
+  const { updateStreakForDate } = await import('./streak');
+  await updateStreakForDate(logDateStr);
+  
   revalidatePath('/books');
+  revalidatePath('/');
   return { success: true };
 }
 

@@ -1,22 +1,28 @@
 import { getIdentityMetric } from "./actions/stats";
 import { getRoutine } from "./actions/routine";
 import { getTodaysWeightData } from "./actions/health";
+import { getStreakData, getSpecialTasks, getTotalPointsWithBonuses } from "./actions/streak";
 import Link from "next/link";
 import {
   Heart,
   ArrowRight,
   Library,
+  Brain,
+  BookMarked,
 } from "lucide-react";
-import HomeClient from "./HomeClient";
+import HomeClient from "./NewHomeClient";
 
 // Force dynamic rendering since dashboard depends on current date/time
 export const dynamic = 'force-dynamic';
 
 export default async function Dashboard() {
-  const [stats, routine, todaysWeight] = await Promise.all([
+  const [stats, routine, todaysWeight, streakData, specialTasks, pointsData] = await Promise.all([
     getIdentityMetric(),
     getRoutine(),
-    getTodaysWeightData()
+    getTodaysWeightData(),
+    getStreakData(),
+    getSpecialTasks(),
+    getTotalPointsWithBonuses()
   ]);
 
   // Get next tasks: incomplete first (not completed, not skipped), then skipped
@@ -50,11 +56,20 @@ export default async function Dashboard() {
     {
       id: "books",
       name: "Books",
-      icon: "Library",
+      icon: "BookMarked",
       points: 0,
-      color: "text-cyan-500",
-      bg: "bg-cyan-500/10",
-      border: "border-cyan-500/20",
+      color: "text-amber-500",
+      bg: "bg-amber-500/10",
+      border: "border-amber-500/20",
+    },
+    {
+      id: "learning",
+      name: "Learning",
+      icon: "Brain",
+      points: stats.domains.learning || 0,
+      color: "text-violet-500",
+      bg: "bg-violet-500/10",
+      border: "border-violet-500/20",
     },
   ];
 
@@ -65,7 +80,7 @@ export default async function Dashboard() {
         <div className="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent pointer-events-none" />
 
         <h1 className="relative text-3xl md:text-5xl font-bold tracking-tight text-foreground">
-          You are <span className="text-primary">{stats.percentage}%</span> better
+          You are <span className="text-primary">{Math.floor(pointsData.totalPoints / 100)}%</span> better
           <br />
           <span className="text-xl md:text-2xl font-normal text-muted-foreground mt-2 block">
             version of yourself
@@ -73,7 +88,7 @@ export default async function Dashboard() {
         </h1>
 
         <div className="relative inline-flex items-center gap-2 px-4 py-2 rounded-full bg-secondary/50 text-sm font-medium text-secondary-foreground backdrop-blur-sm">
-          <span>Total Points: {stats.totalPoints.toLocaleString()}</span>
+          <span>Total Points: {pointsData.totalPoints.toLocaleString()}</span>
         </div>
       </section>
 
@@ -82,6 +97,9 @@ export default async function Dashboard() {
         incompleteTasks={incompleteTasks}
         domains={domains}
         todaysWeight={todaysWeight}
+        streakData={streakData}
+        specialTasks={specialTasks}
+        totalPoints={pointsData.totalPoints}
       />
     </div>
   );

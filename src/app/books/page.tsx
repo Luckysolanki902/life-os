@@ -1,9 +1,10 @@
-import { getBooksDashboardData, getBooksTableData } from '@/app/actions/books';
-import BooksClient from './BooksClient-new';
+import { getBooksDashboardData } from '@/app/actions/books';
+import SimpleBooksClient from './SimpleBooksClient';
+
+export const dynamic = 'force-dynamic';
 
 export default async function BooksPage() {
   const data = await getBooksDashboardData();
-  const tableData = await getBooksTableData();
   
-  return <BooksClient initialData={data} tableData={tableData} />;
+  return <SimpleBooksClient initialData={data} />;
 }

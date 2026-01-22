@@ -2,17 +2,20 @@ import mongoose, { Schema } from "mongoose";
 
 const LearningSkillSchema = new Schema(
   {
-    areaId: {
+    categoryId: {
       type: Schema.Types.ObjectId,
-      ref: "LearningArea",
+      ref: "LearningCategory",
       required: true,
     },
-    title: { type: String, required: true },
-    description: { type: String },
+    name: { type: String, required: true },
     order: { type: Number, default: 0 },
   },
   { timestamps: true }
 );
+
+// Index for efficient queries
+LearningSkillSchema.index({ categoryId: 1, order: 1 });
+LearningSkillSchema.index({ name: 1 });
 
 export default mongoose.models.LearningSkill ||
   mongoose.model("LearningSkill", LearningSkillSchema);

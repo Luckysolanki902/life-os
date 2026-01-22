@@ -218,7 +218,8 @@ export async function completeTask(taskId: string, dateStr?: string) {
   await connectDB();
   
   // Use client-provided date or today's date, always as IST midnight
-  const today = dateStr ? parseToISTMidnight(dateStr) : getTodayISTMidnight();
+  const targetDateStr = dateStr || getTodayDateString();
+  const today = parseToISTMidnight(targetDateStr);
 
   const task = await Task.findById(taskId);
   if (!task) return { error: 'Task not found' };
@@ -240,6 +241,10 @@ export async function completeTask(taskId: string, dateStr?: string) {
     { upsert: true, new: true }
   );
 
+  // Update streak for this date
+  const { updateStreakForDate } = await import('./streak');
+  await updateStreakForDate(targetDateStr);
+
   revalidatePath('/routine');
   revalidatePath('/');
   return { success: true };
@@ -249,11 +254,16 @@ export async function uncompleteTask(taskId: string, dateStr?: string) {
   await connectDB();
   
   // Use client-provided date or today's date, always as IST midnight
-  const today = dateStr ? parseToISTMidnight(dateStr) : getTodayISTMidnight();
+  const targetDateStr = dateStr || getTodayDateString();
+  const today = parseToISTMidnight(targetDateStr);
 
   // Remove the log - points will be recalculated via aggregation
   // DailyLog is the single source of truth
   await DailyLog.deleteOne({ taskId, date: today });
+
+  // Update streak for this date
+  const { updateStreakForDate } = await import('./streak');
+  await updateStreakForDate(targetDateStr);
 
   revalidatePath('/routine');
   revalidatePath('/');

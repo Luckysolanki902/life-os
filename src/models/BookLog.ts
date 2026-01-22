@@ -4,8 +4,8 @@ const BookLogSchema = new mongoose.Schema({
   bookId: { type: mongoose.Schema.Types.ObjectId, ref: 'Book', required: true },
   date: { type: Date, required: true },
   currentPage: { type: Number, default: 0 },
+  pagesRead: { type: Number, default: 0 }, // pages read this session
   notes: { type: String },
-  duration: { type: Number }, // minutes spent reading
 }, { timestamps: true });
 
 // Indexes for efficient queries

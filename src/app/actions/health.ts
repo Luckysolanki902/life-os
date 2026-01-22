@@ -330,9 +330,8 @@ export async function logExerciseSet(exerciseId: string, data: { weight?: number
   await connectDB();
   
   // Use IST midnight for consistent date handling
-  const targetDate = dateStr 
-    ? parseToISTMidnight(dateStr)
-    : getTodayISTMidnight();
+  const targetDateStr = dateStr || getTodayDateString();
+  const targetDate = parseToISTMidnight(targetDateStr);
   
   await ExerciseLog.findOneAndUpdate(
     { exerciseId, date: targetDate },
@@ -340,11 +339,16 @@ export async function logExerciseSet(exerciseId: string, data: { weight?: number
     { upsert: true, new: true }
   );
 
+  // Update streak for this date
+  const { updateStreakForDate } = await import('./streak');
+  await updateStreakForDate(targetDateStr);
+
   // Revalidate the health page
   const exercise = await ExerciseDefinition.findById(exerciseId);
   if (exercise) {
     revalidatePath(`/health/${exercise.pageId}`);
     revalidatePath('/health');
+    revalidatePath('/');
   }
   
   return { success: true };
@@ -733,7 +737,8 @@ export async function logExercise(date: Date, exerciseId: string, sets: any[]) {
   await connectDB();
   
   // Normalize date to IST midnight for grouping
-  const logDate = parseToISTMidnight(getISTDateFromDate(date));
+  const dateStr = getISTDateFromDate(date);
+  const logDate = parseToISTMidnight(dateStr);
 
   await ExerciseLog.findOneAndUpdate(
     { date: logDate, exerciseId },
@@ -741,7 +746,12 @@ export async function logExercise(date: Date, exerciseId: string, sets: any[]) {
     { upsert: true, new: true }
   );
 
+  // Update streak for this date
+  const { updateStreakForDate } = await import('./streak');
+  await updateStreakForDate(dateStr);
+
   revalidatePath('/health');
+  revalidatePath('/');
   return { success: true };
 }
 

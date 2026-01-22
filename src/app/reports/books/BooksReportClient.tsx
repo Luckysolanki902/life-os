@@ -9,7 +9,6 @@ import {
   TrendingDown,
   BookOpen,
   BookMarked,
-  Clock,
   FileText,
   Star,
   Library,
@@ -36,24 +35,24 @@ interface BooksReportClientProps {
 }
 
 function ReadingChart({ data }: { data: any[] }) {
-  const maxMinutes = Math.max(...data.map(d => d.minutes), 1);
+  const maxPages = Math.max(...data.map(d => d.pagesRead || 0), 1);
   
   return (
     <div className="bg-card border border-border/50 rounded-2xl p-4 md:p-6">
-      <h3 className="font-semibold mb-4">Daily Reading Time</h3>
+      <h3 className="font-semibold mb-4">Daily Pages Read</h3>
       <div className="flex items-end gap-1 h-32">
         {data.map((day, i) => (
           <div key={i} className="flex-1 flex flex-col items-center gap-1 group">
             <div 
               className="w-full bg-secondary rounded-t relative cursor-pointer"
-              style={{ height: `${Math.max((day.minutes / maxMinutes) * 100, 2)}%` }}
+              style={{ height: `${Math.max(((day.pagesRead || 0) / maxPages) * 100, 2)}%` }}
             >
               <div className={cn(
                 'absolute inset-0 rounded-t transition-colors',
-                day.sessions > 0 ? 'bg-cyan-500' : 'bg-muted'
+                (day.pagesRead || 0) > 0 ? 'bg-cyan-500' : 'bg-muted'
               )} />
               <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-popover border border-border px-2 py-1 rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 shadow-lg">
-                <p className="font-medium">{day.minutes} min</p>
+                <p className="font-medium">{day.pagesRead || 0} pages</p>
                 <p className="text-muted-foreground">{day.sessions} sessions</p>
               </div>
             </div>
@@ -187,13 +186,6 @@ export default function BooksReportClient({ initialData, initialPeriod }: BooksR
 
   const { summary, booksCompleted, byDomain, currentlyReadingWithProgress, dailyReading } = data;
 
-  const formatTime = (minutes: number) => {
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    if (hours > 0) return `${hours}h ${mins}m`;
-    return `${mins}m`;
-  };
-
   return (
     <div className={cn('space-y-6 pb-24', isPending && 'opacity-60 pointer-events-none')}>
       {/* Header */}
@@ -274,10 +266,10 @@ export default function BooksReportClient({ initialData, initialPeriod }: BooksR
         
         <div className="bg-card border border-border/50 rounded-2xl p-4">
           <div className="flex items-center gap-2 mb-2">
-            <Clock size={16} className="text-amber-500" />
-            <span className="text-sm text-muted-foreground">Time Reading</span>
+            <FileText size={16} className="text-amber-500" />
+            <span className="text-sm text-muted-foreground">Pages Read</span>
           </div>
-          <p className="text-2xl font-bold">{formatTime(summary.totalReadingMinutes)}</p>
+          <p className="text-2xl font-bold">{summary.totalPagesRead || 0}</p>
         </div>
         
         <div className="bg-card border border-border/50 rounded-2xl p-4">
