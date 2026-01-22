@@ -349,7 +349,6 @@ export default function HomeClient({ incompleteTasks, domains, todaysWeight }: P
             </form>
           )}
         </section>
-      </div>
 
       {/* Domain Cards */}
       <section className="space-y-3">
