@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { Scale, X, Flame, Leaf, Share2, Check, Dumbbell } from 'lucide-react';
+import { Scale, X, Flame, Leaf, Share2, Dumbbell } from 'lucide-react';
 import { getTodaysWorkoutSummary } from '@/app/actions/health';
 import { cn } from '@/lib/utils';
 import { shareImage } from '@/lib/share';
@@ -112,38 +112,32 @@ export default function ShareableWorkout({ canShare, hasWeight }: ShareableWorko
     
     setIsExporting(true);
     try {
-      const html2canvas = (await import('html2canvas')).default;
+      const { toPng } = await import('html-to-image');
       
-      // Create a fixed-width container for portrait export
-      const container = document.createElement('div');
-      container.style.position = 'absolute';
-      container.style.left = '-9999px';
-      container.style.top = '0';
-      container.style.width = '600px'; // Fixed width for portrait
-      container.style.padding = '0';
-      container.style.margin = '0';
-      container.style.background = 'linear-gradient(135deg, #fff1f2 0%, #fce7f3 50%, #fae8ff 100%)';
-      
-      const clone = cardRef.current.cloneNode(true) as HTMLElement;
-      clone.style.width = '600px';
-      clone.style.margin = '0';
-      clone.style.padding = '24px';
-      clone.style.boxSizing = 'border-box';
-      
-      container.appendChild(clone);
-      document.body.appendChild(container);
-      
-      const canvas = await html2canvas(container, {
-        backgroundColor: null,
-        scale: 3,
+      // Export directly with high quality settings
+      const dataUrl = await toPng(cardRef.current, {
+        quality: 1,
+        pixelRatio: 3,
         width: 600,
-        useCORS: true,
-        logging: false,
-        allowTaint: true,
-        imageTimeout: 0
+        style: {
+          width: '600px',
+          transform: 'scale(1)',
+          transformOrigin: 'top left'
+        }
       });
       
-      document.body.removeChild(container);
+      // Create canvas from blob for sharing
+      const img = new Image();
+      img.src = dataUrl;
+      await new Promise((resolve) => { img.onload = resolve; });
+      
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(img, 0, 0);
+      }
       
       const filename = `lifeos-${new Date().toLocaleDateString('en-CA')}`;
       const result = await shareImage(canvas, filename);
