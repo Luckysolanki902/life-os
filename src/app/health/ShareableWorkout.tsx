@@ -101,6 +101,7 @@ export default function ShareableWorkout({ canShare, hasWeight }: ShareableWorko
     try {
       const data = await getTodaysWorkoutSummary();
       setSummary(data as WorkoutSummary);
+      console.log(data.weight);
     } catch (error) {
       console.error('Failed to load workout summary:', error);
     }
@@ -228,6 +229,8 @@ export default function ShareableWorkout({ canShare, hasWeight }: ShareableWorko
                     {/* Weight Card */}
                     {summary.weight.current && (
                       <div style={{ 
+                        width: '100%',
+                        boxSizing: 'border-box',
                         background: 'white', 
                         borderRadius: '20px', 
                         padding: '20px',
@@ -268,7 +271,7 @@ export default function ShareableWorkout({ canShare, hasWeight }: ShareableWorko
                         </div>
                         
                         <div>
-                          {summary.weight.deltaFromLast !== null && (
+                          {summary.weight.deltaFromLast !== null && summary.weight.deltaFromLast !== 0 && (
                             <span style={{ 
                               display: 'inline-block',
                               padding: '6px 12px',
@@ -283,7 +286,8 @@ export default function ShareableWorkout({ canShare, hasWeight }: ShareableWorko
                               {summary.weight.deltaFromLast > 0 ? '+' : ''}{summary.weight.deltaFromLast} from last
                             </span>
                           )}
-                          {summary.weight.deltaFromFirst !== null && summary.weight.firstWeight && (
+                          {summary.weight.deltaFromFirst !== null && summary.weight.deltaFromFirst !== 0 && (
+                            
                             <span style={{ 
                               display: 'inline-block',
                               padding: '6px 12px',
@@ -318,6 +322,8 @@ export default function ShareableWorkout({ canShare, hasWeight }: ShareableWorko
 
                     {/* Streak Card */}
                     <div style={{ 
+                      width: '100%',
+                      boxSizing: 'border-box',
                       background: 'white', 
                       borderRadius: '20px', 
                       padding: '20px',
@@ -392,6 +398,8 @@ export default function ShareableWorkout({ canShare, hasWeight }: ShareableWorko
 
                     {/* X% Better Card */}
                     <div style={{ 
+                      width: '100%',
+                      boxSizing: 'border-box',
                       background: 'linear-gradient(135deg, #fdf2f8, #fce7f3)', 
                       borderRadius: '20px', 
                       padding: '24px',
@@ -454,6 +462,8 @@ export default function ShareableWorkout({ canShare, hasWeight }: ShareableWorko
                       
                       return (
                         <div key={pageName} style={{ 
+                          width: '100%',
+                          boxSizing: 'border-box',
                           background: 'white', 
                           borderRadius: '18px', 
                           padding: '16px 18px',
