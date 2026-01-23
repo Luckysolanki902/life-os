@@ -52,15 +52,40 @@ export default function ShareableHealthReport({ data, period, periodLabel }: Sha
     
     setIsExporting(true);
     try {
-      // Dynamically import html2canvas to avoid SSR issues
-      const html2canvas = (await import('html2canvas')).default;
+      const { toPng } = await import('html-to-image');
       
-      const canvas = await html2canvas(cardRef.current, {
-        backgroundColor: '#fff',
-        scale: 2,
-        useCORS: true,
-        logging: false
+      // Temporarily set fixed width on the original element
+      const originalWidth = cardRef.current.style.width;
+      const originalMaxWidth = cardRef.current.style.maxWidth;
+      cardRef.current.style.width = '600px';
+      cardRef.current.style.maxWidth = '600px';
+      
+      // Wait for layout to update
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Export with fixed dimensions
+      const dataUrl = await toPng(cardRef.current, {
+        quality: 1,
+        pixelRatio: 3,
+        width: 600
       });
+      
+      // Restore original styles
+      cardRef.current.style.width = originalWidth;
+      cardRef.current.style.maxWidth = originalMaxWidth;
+      
+      // Create canvas from blob for sharing
+      const img = new Image();
+      img.src = dataUrl;
+      await new Promise((resolve) => { img.onload = resolve; });
+      
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(img, 0, 0);
+      }
       
       // Use cross-platform share utility
       const filename = `health-report-${period}-${new Date().toLocaleDateString('en-CA')}`;
@@ -71,6 +96,7 @@ export default function ShareableHealthReport({ data, period, periodLabel }: Sha
       }
     } catch (error) {
       console.error('Export failed:', error);
+      alert('Export failed. Please try again.');
     }
     setIsExporting(false);
   }
