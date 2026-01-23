@@ -115,24 +115,25 @@ export default function ShareableWorkout({ canShare, hasWeight }: ShareableWorko
     try {
       const { toPng } = await import('html-to-image');
       
-      // Create a fixed-width clone for export
-      const clone = cardRef.current.cloneNode(true) as HTMLElement;
-      clone.style.width = '600px';
-      clone.style.maxWidth = '600px';
-      clone.style.minWidth = '600px';
-      clone.style.position = 'absolute';
-      clone.style.left = '-9999px';
-      clone.style.top = '0';
-      document.body.appendChild(clone);
+      // Temporarily set fixed width on the original element
+      const originalWidth = cardRef.current.style.width;
+      const originalMaxWidth = cardRef.current.style.maxWidth;
+      cardRef.current.style.width = '600px';
+      cardRef.current.style.maxWidth = '600px';
       
-      // Export the clone with fixed dimensions
-      const dataUrl = await toPng(clone, {
+      // Wait for layout to update
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Export with fixed dimensions
+      const dataUrl = await toPng(cardRef.current, {
         quality: 1,
         pixelRatio: 3,
         width: 600
       });
       
-      document.body.removeChild(clone);
+      // Restore original styles
+      cardRef.current.style.width = originalWidth;
+      cardRef.current.style.maxWidth = originalMaxWidth;
       
       // Create canvas from blob for sharing
       const img = new Image();
