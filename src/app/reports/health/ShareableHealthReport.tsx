@@ -2,11 +2,11 @@
 
 import { useState, useRef } from 'react';
 import { 
-  Share2, Download, X, Activity, Scale, Smile, Target, Flame, 
+  Share2, X, Activity, Scale, Smile, Target, Flame, 
   TrendingUp, TrendingDown, Dumbbell, Calendar
 } from 'lucide-react';
-import html2canvas from 'html2canvas';
 import { cn } from '@/lib/utils';
+import { shareImage } from '@/lib/share';
 
 interface ShareableReportProps {
   data: any;
@@ -52,6 +52,9 @@ export default function ShareableHealthReport({ data, period, periodLabel }: Sha
     
     setIsExporting(true);
     try {
+      // Dynamically import html2canvas to avoid SSR issues
+      const html2canvas = (await import('html2canvas')).default;
+      
       const canvas = await html2canvas(cardRef.current, {
         backgroundColor: '#fff',
         scale: 2,
@@ -59,10 +62,13 @@ export default function ShareableHealthReport({ data, period, periodLabel }: Sha
         logging: false
       });
       
-      const link = document.createElement('a');
-      link.download = `health-report-${period}-${new Date().toLocaleDateString('en-CA')}.png`;
-      link.href = canvas.toDataURL('image/png');
-      link.click();
+      // Use cross-platform share utility
+      const filename = `health-report-${period}-${new Date().toLocaleDateString('en-CA')}`;
+      const result = await shareImage(canvas, filename);
+      
+      if (!result.success && result.error !== 'Share cancelled') {
+        alert('Export failed. Please try again.');
+      }
     } catch (error) {
       console.error('Export failed:', error);
     }
@@ -242,8 +248,8 @@ export default function ShareableHealthReport({ data, period, periodLabel }: Sha
                   isExporting && 'opacity-50 cursor-not-allowed'
                 )}
               >
-                <Download size={18} />
-                {isExporting ? 'Exporting...' : 'Save as Image'}
+                <Share2 size={18} />
+                {isExporting ? 'Exporting...' : 'Share Image'}
               </button>
             </div>
           </div>

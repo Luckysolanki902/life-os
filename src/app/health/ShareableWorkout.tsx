@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { Heart, Sparkles, Dumbbell, Scale, TrendingDown, TrendingUp, Download, X, Flame, Leaf, Activity } from 'lucide-react';
+import { Heart, Sparkles, Dumbbell, Scale, TrendingDown, TrendingUp, X, Flame, Leaf, Activity, Share2 } from 'lucide-react';
 import { getTodaysWorkoutSummary } from '@/app/actions/health';
 import { cn } from '@/lib/utils';
+import { shareImage } from '@/lib/share';
 
 interface WorkoutSummary {
   date: string;
@@ -133,10 +134,13 @@ export default function ShareableWorkout({ canShare, hasWeight }: ShareableWorko
       
       document.body.removeChild(clone);
       
-      const link = document.createElement('a');
-      link.download = `workout-${new Date().toLocaleDateString('en-CA')}.png`;
-      link.href = canvas.toDataURL('image/png');
-      link.click();
+      // Use cross-platform share utility
+      const filename = `workout-${new Date().toLocaleDateString('en-CA')}`;
+      const result = await shareImage(canvas, filename);
+      
+      if (!result.success && result.error !== 'Share cancelled') {
+        alert('Export failed. Please try again.');
+      }
     } catch (error) {
       console.error('Export failed:', error);
       alert('Export failed. Please try again.');
@@ -429,13 +433,13 @@ export default function ShareableWorkout({ canShare, hasWeight }: ShareableWorko
                       </>
                     ) : (
                       <>
-                        <Download size={18} />
-                        Download & Share with Bae 💕
+                        <Share2 size={18} />
+                        Share with Bae 💕
                       </>
                     )}
                   </button>
                   <p className="text-xs text-center text-zinc-500 mt-2">
-                    Downloads as a beautiful PNG image
+                    Opens native share sheet
                   </p>
                 </div>
               </>
