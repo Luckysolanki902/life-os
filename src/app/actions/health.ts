@@ -1035,7 +1035,7 @@ export async function getTodaysWorkoutSummary() {
       bmi: bmi ? Number(bmi) : null,
       firstWeight: firstWeight ? Number(firstWeight.weight.toFixed(2)) : null,
     },
-    mood: moodLog?.mood || null,
+    mood: moodLog ? { mood: moodLog.mood, note: moodLog.note } : null,
     meditationDone,
     streakData: {
       currentStreak: streakData.currentStreak,

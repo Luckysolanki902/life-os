@@ -373,9 +373,9 @@ export default function ShareableWorkout({ canShare, hasWeight }: ShareableWorko
                     </div>
 
                     {/* Mood Card */}
-                    {summary.mood && (
+                    {summary.mood && summary.mood.mood && moodConfig[summary.mood.mood] && (
                       <div style={{ 
-                        background: `linear-gradient(135deg, ${moodConfig[summary.mood.mood].bgColor}, #18181b)`,
+                        background: `linear-gradient(135deg, #18181b)`,
                         borderRadius: '14px', 
                         padding: '16px',
                         marginBottom: '16px',
