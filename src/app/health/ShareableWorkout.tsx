@@ -114,21 +114,36 @@ export default function ShareableWorkout({ canShare, hasWeight }: ShareableWorko
     try {
       const html2canvas = (await import('html2canvas')).default;
       
-      const clone = cardRef.current.cloneNode(true) as HTMLElement;
-      clone.style.position = 'absolute';
-      clone.style.left = '-9999px';
-      clone.style.top = '0';
-      document.body.appendChild(clone);
+      // Create a fixed-width container for portrait export
+      const container = document.createElement('div');
+      container.style.position = 'absolute';
+      container.style.left = '-9999px';
+      container.style.top = '0';
+      container.style.width = '600px'; // Fixed width for portrait
+      container.style.padding = '0';
+      container.style.margin = '0';
+      container.style.background = 'linear-gradient(135deg, #fff1f2 0%, #fce7f3 50%, #fae8ff 100%)';
       
-      const canvas = await html2canvas(clone, {
-        backgroundColor: '#ffffff',
-        scale: 2,
+      const clone = cardRef.current.cloneNode(true) as HTMLElement;
+      clone.style.width = '600px';
+      clone.style.margin = '0';
+      clone.style.padding = '24px';
+      clone.style.boxSizing = 'border-box';
+      
+      container.appendChild(clone);
+      document.body.appendChild(container);
+      
+      const canvas = await html2canvas(container, {
+        backgroundColor: null,
+        scale: 3,
+        width: 600,
         useCORS: true,
         logging: false,
-        allowTaint: true
+        allowTaint: true,
+        imageTimeout: 0
       });
       
-      document.body.removeChild(clone);
+      document.body.removeChild(container);
       
       const filename = `lifeos-${new Date().toLocaleDateString('en-CA')}`;
       const result = await shareImage(canvas, filename);
@@ -231,11 +246,13 @@ export default function ShareableWorkout({ canShare, hasWeight }: ShareableWorko
                               height: '42px', 
                               borderRadius: '12px', 
                               background: 'linear-gradient(135deg, #ec4899, #f43f5e)', 
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center'
+                              textAlign: 'center',
+                              lineHeight: '42px',
+                              position: 'relative'
                             }}>
-                              <Scale size={20} style={{ color: 'white' }} />
+                              <span style={{ display: 'inline-block', verticalAlign: 'middle', lineHeight: 'normal' }}>
+                                <Scale size={20} style={{ color: 'white', display: 'block' }} />
+                              </span>
                             </div>
                           </div>
                           <div style={{ display: 'table-cell', verticalAlign: 'middle' }}>
@@ -322,11 +339,13 @@ export default function ShareableWorkout({ canShare, hasWeight }: ShareableWorko
                             height: '44px', 
                             borderRadius: '12px', 
                             background: summary.streakData.currentStreak > 0 ? 'linear-gradient(135deg, #f97316, #fb923c)' : '#f3f4f6',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
+                            textAlign: 'center',
+                            lineHeight: '44px',
+                            position: 'relative'
                           }}>
-                            <Flame size={22} style={{ color: summary.streakData.currentStreak > 0 ? 'white' : '#9ca3af' }} />
+                            <span style={{ display: 'inline-block', verticalAlign: 'middle', lineHeight: 'normal' }}>
+                              <Flame size={22} style={{ color: summary.streakData.currentStreak > 0 ? 'white' : '#9ca3af', display: 'block' }} />
+                            </span>
                           </div>
                         </div>
                         <div style={{ display: 'table-cell', verticalAlign: 'middle' }}>
@@ -414,9 +433,8 @@ export default function ShareableWorkout({ canShare, hasWeight }: ShareableWorko
                             height: '50px', 
                             borderRadius: '14px', 
                             background: moodConfig[summary.mood.mood].bgColor,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
+                            textAlign: 'center',
+                            lineHeight: '50px',
                             fontSize: '28px'
                           }}>
                             {moodConfig[summary.mood.mood].emoji}
@@ -460,11 +478,13 @@ export default function ShareableWorkout({ canShare, hasWeight }: ShareableWorko
                                 height: '32px', 
                                 borderRadius: '10px', 
                                 background: `${color}25`,
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center'
+                                textAlign: 'center',
+                                lineHeight: '32px',
+                                position: 'relative'
                               }}>
-                                <Dumbbell size={16} style={{ color }} />
+                                <span style={{ display: 'inline-block', verticalAlign: 'middle', lineHeight: 'normal' }}>
+                                  <Dumbbell size={16} style={{ color, display: 'block' }} />
+                                </span>
                               </div>
                             </div>
                             <div style={{ display: 'table-cell', verticalAlign: 'middle' }}>
@@ -524,11 +544,13 @@ export default function ShareableWorkout({ canShare, hasWeight }: ShareableWorko
                           height: '32px', 
                           borderRadius: '10px', 
                           background: summary.meditationDone ? '#d1fae5' : '#f3f4f6',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center'
+                          textAlign: 'center',
+                          lineHeight: '32px',
+                          position: 'relative'
                         }}>
-                          <Leaf size={16} style={{ color: summary.meditationDone ? '#059669' : '#9ca3af' }} />
+                          <span style={{ display: 'inline-block', verticalAlign: 'middle', lineHeight: 'normal' }}>
+                            <Leaf size={16} style={{ color: summary.meditationDone ? '#059669' : '#9ca3af', display: 'block' }} />
+                          </span>
                         </div>
                       </div>
                       <div style={{ display: 'table-cell', verticalAlign: 'middle' }}>
