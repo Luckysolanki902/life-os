@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { Scale, X, Flame, Leaf, Share2, Check, TrendingDown, TrendingUp, Dumbbell } from 'lucide-react';
+import { Scale, X, Flame, Leaf, Share2, Check, TrendingDown, TrendingUp, Dumbbell, Smile, Sparkles, Frown, Meh, Heart, Sun } from 'lucide-react';
 import { getTodaysWorkoutSummary } from '@/app/actions/health';
 import { cn } from '@/lib/utils';
 import { shareImage } from '@/lib/share';
@@ -44,7 +44,7 @@ interface WorkoutSummary {
     bmi: number | null;
     firstWeight: number | null;
   };
-  mood: string | null;
+  mood: { mood: 'great' | 'good' | 'okay' | 'low' | 'bad'; note?: string } | null;
   meditationDone: boolean;
   streakData: {
     currentStreak: number;
@@ -78,6 +78,15 @@ function formatExercise(ex: { title: string; type: string; sets: Array<{ weight:
 function getDayAbbr(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('en-US', { weekday: 'short' })[0];
 }
+
+// Mood configurations
+const moodConfig = {
+  great: { label: 'Feeling Great', color: '#22c55e', bgColor: 'rgba(34, 197, 94, 0.15)', emoji: '🔥' },
+  good: { label: 'Feeling Good', color: '#3b82f6', bgColor: 'rgba(59, 130, 246, 0.15)', emoji: '😊' },
+  okay: { label: 'Doing Okay', color: '#f59e0b', bgColor: 'rgba(245, 158, 11, 0.15)', emoji: '😐' },
+  low: { label: 'Feeling Low', color: '#f97316', bgColor: 'rgba(249, 115, 22, 0.15)', emoji: '😔' },
+  bad: { label: 'Rough Day', color: '#ef4444', bgColor: 'rgba(239, 68, 68, 0.15)', emoji: '😞' }
+};
 
 export default function ShareableWorkout({ canShare, hasWeight }: ShareableWorkoutProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -358,34 +367,114 @@ export default function ShareableWorkout({ canShare, hasWeight }: ShareableWorko
                       textAlign: 'center'
                     }}>
                       <p style={{ fontSize: '32px', fontWeight: '700', color: '#ffffff', margin: 0, lineHeight: 1.2 }}>
-                        {summary.userName.split(' ')[0]} is {improvementPercent}% better
+                        Lucky is {improvementPercent}% better
                       </p>
                       <p style={{ fontSize: '13px', color: '#71717a', marginTop: '4px' }}>version of themselves</p>
                     </div>
 
-                    {/* Today's Workout by Page */}
-                    {Object.entries(summary.exercisesByPage).map(([pageName, exercises]) => (
-                      <div key={pageName} style={{ 
-                        background: '#18181b', 
+                    {/* Mood Card */}
+                    {summary.mood && (
+                      <div style={{ 
+                        background: `linear-gradient(135deg, ${moodConfig[summary.mood.mood].bgColor}, #18181b)`,
                         borderRadius: '14px', 
-                        padding: '14px 16px',
-                        marginBottom: '10px',
-                        border: '1px solid #27272a'
+                        padding: '16px',
+                        marginBottom: '16px',
+                        border: '1px solid #27272a',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '14px'
                       }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <Dumbbell size={14} style={{ color: '#f43f5e' }} />
-                            <span style={{ fontSize: '13px', fontWeight: '600', color: '#ffffff' }}>{pageName}</span>
-                          </div>
-                          <span style={{ fontSize: '11px', color: '#71717a' }}>
-                            {exercises.length} ex • {exercises.reduce((a, e) => a + e.sets.length, 0)} sets • {exercises.reduce((a, e) => a + e.sets.reduce((acc, s) => acc + s.reps, 0), 0)} reps
-                          </span>
+                        <div style={{ 
+                          width: '44px', 
+                          height: '44px', 
+                          borderRadius: '12px', 
+                          background: moodConfig[summary.mood.mood].bgColor,
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'center',
+                          fontSize: '24px'
+                        }}>
+                          {moodConfig[summary.mood.mood].emoji}
                         </div>
-                        <p style={{ fontSize: '12px', color: '#a1a1aa', margin: 0, lineHeight: 1.5 }}>
-                          {exercises.map(ex => formatExercise(ex)).join(', ')}
-                        </p>
+                        <div style={{ flex: 1 }}>
+                          <p style={{ fontSize: '15px', fontWeight: '600', color: moodConfig[summary.mood.mood].color, margin: 0 }}>
+                            {moodConfig[summary.mood.mood].label}
+                          </p>
+                          {summary.mood.note && (
+                            <p style={{ fontSize: '12px', color: '#71717a', margin: '4px 0 0 0', fontStyle: 'italic' }}>
+                              "{summary.mood.note}"
+                            </p>
+                          )}
+                        </div>
                       </div>
-                    ))}
+                    )}
+
+                    {/* Today's Workout by Page */}
+                    {Object.entries(summary.exercisesByPage).map(([pageName, exercises], pageIndex) => {
+                      const pageColors = ['#f43f5e', '#8b5cf6', '#3b82f6', '#10b981', '#f59e0b'];
+                      const color = pageColors[pageIndex % pageColors.length];
+                      const totalSets = exercises.reduce((a, e) => a + e.sets.length, 0);
+                      const totalReps = exercises.reduce((a, e) => a + e.sets.reduce((acc, s) => acc + s.reps, 0), 0);
+                      
+                      return (
+                        <div key={pageName} style={{ 
+                          background: '#18181b', 
+                          borderRadius: '14px', 
+                          padding: '14px 16px',
+                          marginBottom: '10px',
+                          border: '1px solid #27272a',
+                          borderLeft: `3px solid ${color}`
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <div style={{ 
+                                width: '28px', 
+                                height: '28px', 
+                                borderRadius: '8px', 
+                                background: `${color}20`,
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                justifyContent: 'center' 
+                              }}>
+                                <Dumbbell size={14} style={{ color }} />
+                              </div>
+                              <span style={{ fontSize: '13px', fontWeight: '600', color: '#ffffff', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                {pageName}
+                              </span>
+                            </div>
+                          </div>
+                          
+                          {/* Stats Pills */}
+                          <div style={{ display: 'flex', gap: '6px', marginBottom: '10px' }}>
+                            <div style={{ padding: '4px 10px', borderRadius: '6px', background: '#27272a', fontSize: '11px', color: '#a1a1aa' }}>
+                              {exercises.length} exercises
+                            </div>
+                            <div style={{ padding: '4px 10px', borderRadius: '6px', background: '#27272a', fontSize: '11px', color: '#a1a1aa' }}>
+                              {totalSets} sets
+                            </div>
+                            <div style={{ padding: '4px 10px', borderRadius: '6px', background: '#27272a', fontSize: '11px', color: '#a1a1aa' }}>
+                              {totalReps} reps
+                            </div>
+                          </div>
+                          
+                          {/* Exercise List */}
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                            {exercises.map((ex, i) => (
+                              <span key={i} style={{ 
+                                fontSize: '11px', 
+                                color: '#d4d4d8',
+                                background: '#0a0a0a',
+                                padding: '4px 8px',
+                                borderRadius: '6px',
+                                border: '1px solid #27272a'
+                              }}>
+                                {formatExercise(ex)}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
 
                     {/* Meditation */}
                     <div style={{ 
