@@ -115,17 +115,24 @@ export default function ShareableWorkout({ canShare, hasWeight }: ShareableWorko
     try {
       const { toPng } = await import('html-to-image');
       
-      // Export directly with high quality settings
-      const dataUrl = await toPng(cardRef.current, {
+      // Create a fixed-width clone for export
+      const clone = cardRef.current.cloneNode(true) as HTMLElement;
+      clone.style.width = '600px';
+      clone.style.maxWidth = '600px';
+      clone.style.minWidth = '600px';
+      clone.style.position = 'absolute';
+      clone.style.left = '-9999px';
+      clone.style.top = '0';
+      document.body.appendChild(clone);
+      
+      // Export the clone with fixed dimensions
+      const dataUrl = await toPng(clone, {
         quality: 1,
         pixelRatio: 3,
-        width: 600,
-        style: {
-          width: '600px',
-          transform: 'scale(1)',
-          transformOrigin: 'top left'
-        }
+        width: 600
       });
+      
+      document.body.removeChild(clone);
       
       // Create canvas from blob for sharing
       const img = new Image();
@@ -183,7 +190,7 @@ export default function ShareableWorkout({ canShare, hasWeight }: ShareableWorko
 
       {/* Modal */}
       {isOpen && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto ">
           <div className="bg-card w-full max-w-md rounded-2xl shadow-2xl animate-in zoom-in-95 max-h-[90vh] overflow-y-auto border border-border">
             {/* Modal Header */}
             <div className="flex items-center justify-between p-4 border-b border-border">
