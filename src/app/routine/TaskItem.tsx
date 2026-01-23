@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Check, Clock, Edit2, Trash2, X, CalendarDays, Bell, SkipForward } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { completeTask, uncompleteTask, updateTask, deleteTask, skipTask, unskipTask } from '@/app/actions/routine';
 import { getLocalDateString } from '@/lib/date-utils';
+import { hapticTaskComplete, hapticTaskSkip, hapticTaskUnskip, hapticTaskUncomplete } from '@/lib/haptics';
 
 const DAYS_OF_WEEK = [
   { value: 0, label: 'S', fullLabel: 'Sunday' },
@@ -34,8 +35,6 @@ interface TaskItemProps {
 }
 
 export default function TaskItem({ task, onOptimisticToggle, dateStr }: TaskItemProps) {
-  const [isCompleting, setIsCompleting] = useState(false);
-  const [isSkipping, setIsSkipping] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isPending, setIsPending] = useState(false);
   // Optimistic state for completion
@@ -68,13 +67,19 @@ export default function TaskItem({ task, onOptimisticToggle, dateStr }: TaskItem
     ? optimisticSkipped
     : task.log?.status === 'skipped';
 
-  const handleToggle = async () => {
+  const handleToggle = useCallback(async () => {
     const newStatus = !isCompleted;
     
-    // Optimistic update
+    // INSTANT haptic feedback - before anything else
+    if (newStatus) {
+      hapticTaskComplete();
+    } else {
+      hapticTaskUncomplete();
+    }
+    
+    // Optimistic update - instant UI change
     setOptimisticCompleted(newStatus);
     setOptimisticSkipped(false); // Clear skipped state when completing
-    setIsCompleting(true);
     
     // Notify parent for list-level optimistic update
     onOptimisticToggle?.(task._id, newStatus);
@@ -92,18 +97,22 @@ export default function TaskItem({ task, onOptimisticToggle, dateStr }: TaskItem
       // Revert on error
       setOptimisticCompleted(!newStatus);
       console.error('Failed to toggle task:', error);
-    } finally {
-      setIsCompleting(false);
     }
-  };
+  }, [isCompleted, task._id, targetDate, onOptimisticToggle]);
 
-  const handleSkip = async () => {
+  const handleSkip = useCallback(async () => {
     const newSkipStatus = !isSkipped;
     
-    // Optimistic update
+    // INSTANT haptic feedback - before anything else
+    if (newSkipStatus) {
+      hapticTaskSkip();
+    } else {
+      hapticTaskUnskip();
+    }
+    
+    // Optimistic update - instant UI change
     setOptimisticSkipped(newSkipStatus);
     setOptimisticCompleted(false); // Clear completed state when skipping
-    setIsSkipping(true);
     
     try {
       if (newSkipStatus) {
@@ -118,10 +127,8 @@ export default function TaskItem({ task, onOptimisticToggle, dateStr }: TaskItem
       // Revert on error
       setOptimisticSkipped(!newSkipStatus);
       console.error('Failed to skip task:', error);
-    } finally {
-      setIsSkipping(false);
     }
-  };
+  }, [isSkipped, task._id, targetDate]);
 
   const toggleDay = (day: number) => {
     setCustomDays(prev => 
@@ -370,9 +377,8 @@ export default function TaskItem({ task, onOptimisticToggle, dateStr }: TaskItem
         {/* Checkbox / Status */}
         <button
           onClick={handleToggle}
-          disabled={isCompleting}
           className={cn(
-            "w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all",
+            "w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all active:scale-90",
             isCompleted
               ? "bg-primary border-primary text-primary-foreground"
               : isSkipped
@@ -425,9 +431,8 @@ export default function TaskItem({ task, onOptimisticToggle, dateStr }: TaskItem
         {!isCompleted && (
           <button
             onClick={handleSkip}
-            disabled={isSkipping}
             className={cn(
-              "p-2 rounded-lg transition-all",
+              "p-2 rounded-lg transition-all active:scale-90",
               isSkipped
                 ? "text-amber-500 bg-amber-500/10 hover:bg-amber-500/20"
                 : "text-muted-foreground/50 hover:text-amber-500 hover:bg-amber-500/10 opacity-0 group-hover:opacity-100"

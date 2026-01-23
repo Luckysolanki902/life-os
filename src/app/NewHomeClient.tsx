@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useOptimistic, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -12,18 +12,20 @@ import {
   Clock,
   ChevronRight,
   ArrowRight,
-  Loader2,
   SkipForward,
   Pencil,
   BarChart3,
   Brain,
   Flame,
   BookMarked,
+  Loader2,
+  RotateCcw,
 } from 'lucide-react';
 import { toggleTaskStatus, skipTask, unskipTask } from './actions/routine';
 import { logWeight, updateWeight } from './actions/health';
 import { getLocalDateString, dayjs } from '@/lib/date-utils';
 import { cn } from '@/lib/utils';
+import { hapticTaskComplete, hapticTaskSkip, hapticTaskUnskip } from '@/lib/haptics';
 
 const iconMap: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
   Heart,
@@ -97,8 +99,39 @@ export default function HomeClient({
 }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);
-  const [skippingTaskId, setSkippingTaskId] = useState<string | null>(null);
+  
+  // Optimistic state for tasks - instant UI updates
+  type TaskAction = 
+    | { type: 'complete'; taskId: string }
+    | { type: 'uncomplete'; taskId: string }
+    | { type: 'skip'; taskId: string }
+    | { type: 'unskip'; taskId: string };
+  
+  const [optimisticTasks, updateOptimisticTasks] = useOptimistic(
+    incompleteTasks,
+    (currentTasks, action: TaskAction) => {
+      switch (action.type) {
+        case 'complete':
+          return currentTasks.map(task => 
+            task._id === action.taskId ? { ...task, status: 'completed' as const } : task
+          );
+        case 'uncomplete':
+          return currentTasks.map(task => 
+            task._id === action.taskId ? { ...task, status: 'pending' as const } : task
+          );
+        case 'skip':
+          return currentTasks.map(task => 
+            task._id === action.taskId ? { ...task, status: 'skipped' as const } : task
+          );
+        case 'unskip':
+          return currentTasks.map(task => 
+            task._id === action.taskId ? { ...task, status: 'pending' as const } : task
+          );
+        default:
+          return currentTasks;
+      }
+    }
+  );
   
   // Weight logging state
   const [weight, setWeight] = useState<string>('');
@@ -106,25 +139,42 @@ export default function HomeClient({
   const [weightSuccess, setWeightSuccess] = useState(false);
   const [isEditingWeight, setIsEditingWeight] = useState(false);
 
-  const handleToggleTask = async (taskId: string) => {
-    setCompletingTaskId(taskId);
+  const handleToggleTask = useCallback(async (taskId: string) => {
+    // Instant haptic feedback
+    hapticTaskComplete();
+    
     startTransition(async () => {
+      // Optimistic update - instant UI change
+      updateOptimisticTasks({ type: 'complete', taskId });
+      
+      // Server action in background
       await toggleTaskStatus(taskId, true);
-      setCompletingTaskId(null);
     });
-  };
+  }, [updateOptimisticTasks]);
 
-  const handleSkipTask = async (taskId: string, isCurrentlySkipped: boolean) => {
-    setSkippingTaskId(taskId);
+  const handleSkipTask = useCallback(async (taskId: string, isCurrentlySkipped: boolean) => {
+    // Instant haptic feedback
+    if (isCurrentlySkipped) {
+      hapticTaskUnskip();
+    } else {
+      hapticTaskSkip();
+    }
+    
     startTransition(async () => {
+      // Optimistic update - instant UI change
+      updateOptimisticTasks({ 
+        type: isCurrentlySkipped ? 'unskip' : 'skip', 
+        taskId 
+      });
+      
+      // Server action in background
       if (isCurrentlySkipped) {
         await unskipTask(taskId);
       } else {
         await skipTask(taskId);
       }
-      setSkippingTaskId(null);
     });
-  };
+  }, [updateOptimisticTasks]);
 
   const handleLogWeight = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -213,7 +263,7 @@ export default function HomeClient({
               <div className="text-right">
                 <p className="text-xs text-muted-foreground">Next milestone</p>
                 <p className="text-sm font-medium text-orange-400">
-                  {streakData.nextTarget.days - streakData.currentStreak} more days
+                  {streakData.nextTarget.days - streakData.currentStreak}  more days
                 </p>
               </div>
             )}
@@ -264,62 +314,106 @@ export default function HomeClient({
           </div>
 
           <div className="space-y-2">
-            {incompleteTasks.length === 0 ? (
-              <div className="bg-card rounded-2xl border border-emerald-500/30 p-6 text-center">
-                <CheckCircle2 className="mx-auto mb-2 text-emerald-500" size={32} />
-                <p className="font-medium text-emerald-500">All done for today! 🎉</p>
-                <p className="text-sm text-muted-foreground mt-1">You&apos;ve completed all your tasks</p>
-              </div>
-            ) : (
-              <>
-                {incompleteTasks.filter(t => t.status !== 'skipped').map((task) => (
-                  <div
-                    key={task._id}
-                    className={`w-full flex items-center gap-3 p-4 rounded-2xl bg-card border border-border/50 
-                      hover:border-primary/30 hover:bg-primary/5 transition-all text-left group
-                      ${completingTaskId === task._id || skippingTaskId === task._id ? 'opacity-50' : ''}`}
-                  >
-                    <button
-                      onClick={() => handleToggleTask(task._id)}
-                      disabled={completingTaskId === task._id || isPending}
-                      className={`p-2 rounded-xl ${getDomainBg(task.domainId)}`}
-                    >
-                      {completingTaskId === task._id ? (
-                        <Loader2 size={20} className="animate-spin text-primary" />
-                      ) : (
-                        <Circle size={20} className={getDomainColor(task.domainId)} />
-                      )}
-                    </button>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">{task.title}</p>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <span className="capitalize">{task.domainId}</span>
-                        {task.timeOfDay && (
-                          <>
-                            <span>•</span>
-                            <span className="capitalize">{task.timeOfDay}</span>
-                          </>
-                        )}
-                        <span>•</span>
-                        <span>{task.points} pts</span>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => handleSkipTask(task._id, false)}
-                      disabled={skippingTaskId === task._id || isPending}
-                      className="p-2 rounded-lg text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10 transition-all"
-                      title="Skip task"
-                    >
-                      {skippingTaskId === task._id ? (
-                        <Loader2 size={18} className="animate-spin" />
-                      ) : (
-                        <SkipForward size={18} />
-                      )}
-                    </button>
+            {(() => {
+              // Filter and show only pending tasks (not completed, not skipped)
+              const pendingTasks = optimisticTasks.filter(t => t.status !== 'skipped' && t.status !== 'completed');
+              const skippedTasks = optimisticTasks.filter(t => t.status === 'skipped');
+              const completedTasks = optimisticTasks.filter(t => t.status === 'completed');
+              // Show first 3 pending tasks
+              const displayTasks = pendingTasks.slice(0, 3);
+              const remainingCount = pendingTasks.length - 3;
+              
+              if (pendingTasks.length === 0 && skippedTasks.length === 0) {
+                return (
+                  <div className="bg-card rounded-2xl border border-emerald-500/30 p-6 text-center">
+                    <CheckCircle2 className="mx-auto mb-2 text-emerald-500" size={32} />
+                    <p className="font-medium text-emerald-500">All done for today! 🎉</p>
+                    <p className="text-sm text-muted-foreground mt-1">You&apos;ve completed all your tasks</p>
                   </div>
-                ))}
-              </>
-            )}
+                );
+              }
+              
+              return (
+                <>
+                  {displayTasks.map((task) => (
+                    <div
+                      key={task._id}
+                      className="w-full flex items-center gap-3 p-4 rounded-2xl bg-card border border-border/50 
+                        hover:border-primary/30 hover:bg-primary/5 transition-all text-left group
+                        animate-in fade-in-0 slide-in-from-bottom-2 duration-200"
+                    >
+                      <button
+                        onClick={() => handleToggleTask(task._id)}
+                        className={`p-2 rounded-xl ${getDomainBg(task.domainId)} active:scale-90 transition-transform`}
+                      >
+                        <Circle size={20} className={getDomainColor(task.domainId)} />
+                      </button>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate">{task.title}</p>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <span className="capitalize">{task.domainId}</span>
+                          {task.timeOfDay && (
+                            <>
+                              <span>•</span>
+                              <span className="capitalize">{task.timeOfDay}</span>
+                            </>
+                          )}
+                          <span>•</span>
+                          <span>{task.points} pts</span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleSkipTask(task._id, false)}
+                        className="p-2 rounded-lg text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10 
+                          transition-all active:scale-90"
+                        title="Skip task"
+                      >
+                        <SkipForward size={18} />
+                      </button>
+                    </div>
+                  ))}
+                  
+                  {/* Show remaining count */}
+                  {remainingCount > 0 && (
+                    <Link 
+                      href="/routine"
+                      className="block text-center py-3 rounded-2xl bg-secondary/30 border border-border/30 
+                        text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-all"
+                    >
+                      +{remainingCount} more task{remainingCount > 1 ? 's' : ''}
+                    </Link>
+                  )}
+                  
+                  {/* Skipped tasks - collapsible */}
+                  {skippedTasks.length > 0 && (
+                    <div className="pt-2 border-t border-amber-500/20 mt-2">
+                      <p className="text-xs text-amber-500 mb-2 flex items-center gap-1">
+                        <SkipForward size={12} /> {skippedTasks.length} skipped
+                      </p>
+                      {skippedTasks.slice(0, 2).map((task) => (
+                        <div
+                          key={task._id}
+                          className="w-full flex items-center gap-3 p-3 rounded-xl bg-amber-500/5 border border-amber-500/10 
+                            mb-1 text-left group opacity-70 animate-in fade-in-0 duration-200"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium truncate text-sm text-amber-500/80">{task.title}</p>
+                          </div>
+                          <button
+                            onClick={() => handleSkipTask(task._id, true)}
+                            className="p-1.5 rounded-lg text-amber-500 hover:bg-amber-500/10 
+                              transition-all active:scale-90"
+                            title="Unskip task"
+                          >
+                            <RotateCcw size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </div>
         </section>
 
