@@ -223,10 +223,11 @@ export default function ShareableWorkout({ canShare, hasWeight }: ShareableWorko
                       color: '#ffffff',
                       fontFamily: 'system-ui, -apple-system, sans-serif',
                       border: '1px solid #27272a',
-                      width: '100%'
+                      width: '100%',
+                      boxSizing: 'border-box'
                     }}
                   >
-                    {/* Weight Card - Full Width at Top */}
+                    {/* Weight Card */}
                     {summary.weight.current && (
                       <div style={{ 
                         background: '#18181b', 
@@ -235,37 +236,53 @@ export default function ShareableWorkout({ canShare, hasWeight }: ShareableWorko
                         marginBottom: '16px',
                         border: '1px solid #27272a'
                       }}>
-                        <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '12px' }}>
-                          <tbody>
-                            <tr>
-                              <td style={{ width: '48px', verticalAlign: 'middle' }}>
-                                <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(59, 130, 246, 0.15)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-                                  <Scale size={18} style={{ color: '#3b82f6' }} />
-                                </div>
-                              </td>
-                              <td style={{ verticalAlign: 'middle' }}>
-                                <span style={{ fontSize: '28px', fontWeight: '700', color: '#ffffff', lineHeight: 1 }}>
-                                  {summary.weight.current}
-                                </span>
-                                <span style={{ fontSize: '14px', fontWeight: '400', color: '#71717a', marginLeft: '4px' }}>kg</span>
-                              </td>
-                            </tr>
-                          </tbody>
-                        </table>
+                        <div style={{ marginBottom: '12px' }}>
+                          <div style={{ 
+                            display: 'inline-block',
+                            width: '36px', 
+                            height: '36px', 
+                            borderRadius: '10px', 
+                            background: 'rgba(59, 130, 246, 0.15)', 
+                            textAlign: 'center',
+                            lineHeight: '36px',
+                            verticalAlign: 'middle',
+                            marginRight: '12px'
+                          }}>
+                            <Scale size={18} style={{ color: '#3b82f6', verticalAlign: 'middle' }} />
+                          </div>
+                          <span style={{ 
+                            display: 'inline-block',
+                            fontSize: '28px', 
+                            fontWeight: '700', 
+                            color: '#ffffff', 
+                            verticalAlign: 'middle',
+                            lineHeight: '36px'
+                          }}>
+                            {summary.weight.current}
+                          </span>
+                          <span style={{ 
+                            display: 'inline-block',
+                            fontSize: '14px', 
+                            fontWeight: '400', 
+                            color: '#71717a', 
+                            marginLeft: '4px',
+                            verticalAlign: 'middle',
+                            lineHeight: '36px'
+                          }}>kg</span>
+                        </div>
                         
-                        {/* Weight Stats Row */}
-                        <div>
+                        <div style={{ lineHeight: '26px' }}>
                           {summary.weight.deltaFromLast !== null && (
                             <span style={{ 
                               display: 'inline-block',
                               padding: '4px 10px',
                               borderRadius: '6px',
                               marginRight: '8px',
-                              marginBottom: '4px',
                               background: summary.weight.deltaFromLast < 0 ? 'rgba(16, 185, 129, 0.15)' : summary.weight.deltaFromLast > 0 ? 'rgba(239, 68, 68, 0.15)' : 'rgba(113, 113, 122, 0.15)',
                               fontSize: '11px',
                               fontWeight: '500',
-                              color: summary.weight.deltaFromLast < 0 ? '#10b981' : summary.weight.deltaFromLast > 0 ? '#ef4444' : '#71717a'
+                              color: summary.weight.deltaFromLast < 0 ? '#10b981' : summary.weight.deltaFromLast > 0 ? '#ef4444' : '#71717a',
+                              verticalAlign: 'middle'
                             }}>
                               {summary.weight.deltaFromLast > 0 ? '+' : ''}{summary.weight.deltaFromLast} from last
                             </span>
@@ -276,11 +293,11 @@ export default function ShareableWorkout({ canShare, hasWeight }: ShareableWorko
                               padding: '4px 10px',
                               borderRadius: '6px',
                               marginRight: '8px',
-                              marginBottom: '4px',
                               background: summary.weight.deltaFromFirst < 0 ? 'rgba(16, 185, 129, 0.15)' : summary.weight.deltaFromFirst > 0 ? 'rgba(239, 68, 68, 0.15)' : 'rgba(113, 113, 122, 0.15)',
                               fontSize: '11px',
                               fontWeight: '500',
-                              color: summary.weight.deltaFromFirst < 0 ? '#10b981' : summary.weight.deltaFromFirst > 0 ? '#ef4444' : '#71717a'
+                              color: summary.weight.deltaFromFirst < 0 ? '#10b981' : summary.weight.deltaFromFirst > 0 ? '#ef4444' : '#71717a',
+                              verticalAlign: 'middle'
                             }}>
                               {summary.weight.deltaFromFirst > 0 ? '+' : ''}{summary.weight.deltaFromFirst} total
                             </span>
@@ -293,7 +310,8 @@ export default function ShareableWorkout({ canShare, hasWeight }: ShareableWorko
                               background: 'rgba(168, 85, 247, 0.15)',
                               fontSize: '11px',
                               fontWeight: '500',
-                              color: '#a855f7'
+                              color: '#a855f7',
+                              verticalAlign: 'middle'
                             }}>
                               BMI {summary.weight.bmi}
                             </span>
@@ -310,70 +328,69 @@ export default function ShareableWorkout({ canShare, hasWeight }: ShareableWorko
                       marginBottom: '16px',
                       border: '1px solid #27272a'
                     }}>
-                      <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '14px' }}>
-                        <tbody>
-                          <tr>
-                            <td style={{ width: '52px', verticalAlign: 'middle' }}>
-                              <div style={{ 
-                                width: '40px', 
-                                height: '40px', 
-                                borderRadius: '10px', 
-                                background: summary.streakData.currentStreak > 0 ? '#f97316' : '#27272a',
-                                display: 'inline-flex', 
-                                alignItems: 'center', 
-                                justifyContent: 'center' 
-                              }}>
-                                <Flame size={20} style={{ color: summary.streakData.currentStreak > 0 ? '#ffffff' : '#71717a' }} />
-                              </div>
-                            </td>
-                            <td style={{ verticalAlign: 'middle' }}>
-                              <div style={{ fontSize: '22px', fontWeight: '700', color: '#ffffff', lineHeight: 1 }}>
-                                {summary.streakData.currentStreak}
-                              </div>
-                              <div style={{ fontSize: '11px', color: '#71717a' }}>day streak</div>
-                            </td>
-                            <td style={{ verticalAlign: 'middle', textAlign: 'right' }}>
-                              <span style={{ 
-                                display: 'inline-block',
-                                padding: '4px 10px',
-                                borderRadius: '9999px',
-                                background: summary.streakData.todayValid ? 'rgba(16, 185, 129, 0.15)' : 'rgba(249, 115, 22, 0.15)',
-                                fontSize: '11px',
-                                fontWeight: '500',
-                                color: summary.streakData.todayValid ? '#10b981' : '#f97316'
-                              }}>
-                                {summary.streakData.todayValid ? 'Complete ✓' : `${summary.streakData.todayRoutineTasks}/10`}
-                              </span>
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
+                      {/* Streak Header */}
+                      <div style={{ marginBottom: '14px', position: 'relative', height: '40px' }}>
+                        <div style={{ 
+                          display: 'inline-block',
+                          width: '40px', 
+                          height: '40px', 
+                          borderRadius: '10px', 
+                          background: summary.streakData.currentStreak > 0 ? '#f97316' : '#27272a',
+                          textAlign: 'center',
+                          lineHeight: '40px',
+                          verticalAlign: 'top',
+                          marginRight: '12px'
+                        }}>
+                          <Flame size={20} style={{ color: summary.streakData.currentStreak > 0 ? '#ffffff' : '#71717a', verticalAlign: 'middle' }} />
+                        </div>
+                        <div style={{ display: 'inline-block', verticalAlign: 'top' }}>
+                          <div style={{ fontSize: '22px', fontWeight: '700', color: '#ffffff', lineHeight: '22px' }}>
+                            {summary.streakData.currentStreak}
+                          </div>
+                          <div style={{ fontSize: '11px', color: '#71717a', lineHeight: '16px' }}>day streak</div>
+                        </div>
+                        <span style={{ 
+                          position: 'absolute',
+                          right: '0',
+                          top: '8px',
+                          display: 'inline-block',
+                          padding: '4px 10px',
+                          borderRadius: '9999px',
+                          background: summary.streakData.todayValid ? 'rgba(16, 185, 129, 0.15)' : 'rgba(249, 115, 22, 0.15)',
+                          fontSize: '11px',
+                          fontWeight: '500',
+                          color: summary.streakData.todayValid ? '#10b981' : '#f97316'
+                        }}>
+                          {summary.streakData.todayValid ? 'Complete ✓' : `${summary.streakData.todayRoutineTasks}/10`}
+                        </span>
+                      </div>
                       
                       {/* Last 7 Days */}
-                      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                        <tbody>
-                          <tr>
-                            {summary.streakData.last7Days.map((day, index) => (
-                              <td key={day.date} style={{ textAlign: 'center', padding: '0 2px' }}>
-                                <div style={{ 
-                                  width: '28px', 
-                                  height: '28px', 
-                                  borderRadius: '50%', 
-                                  display: 'inline-flex', 
-                                  alignItems: 'center', 
-                                  justifyContent: 'center',
-                                  background: day.valid ? '#f97316' : index === 6 ? 'transparent' : '#27272a',
-                                  border: index === 6 && !day.valid ? '2px dashed rgba(249, 115, 22, 0.4)' : 'none',
-                                  margin: '0 auto'
-                                }}>
-                                  {day.valid && <Flame size={12} style={{ color: '#ffffff' }} />}
-                                </div>
-                                <div style={{ fontSize: '9px', color: '#52525b', marginTop: '4px' }}>{getDayAbbr(day.date)}</div>
-                              </td>
-                            ))}
-                          </tr>
-                        </tbody>
-                      </table>
+                      <div style={{ textAlign: 'center' }}>
+                        {summary.streakData.last7Days.map((day, index) => (
+                          <div key={day.date} style={{ 
+                            display: 'inline-block', 
+                            width: 'calc(100% / 7)', 
+                            textAlign: 'center',
+                            verticalAlign: 'top'
+                          }}>
+                            <div style={{ 
+                              display: 'inline-block',
+                              width: '28px', 
+                              height: '28px', 
+                              borderRadius: '50%', 
+                              textAlign: 'center',
+                              lineHeight: '28px',
+                              background: day.valid ? '#f97316' : index === 6 ? 'transparent' : '#27272a',
+                              border: index === 6 && !day.valid ? '2px dashed rgba(249, 115, 22, 0.4)' : 'none',
+                              boxSizing: 'border-box'
+                            }}>
+                              {day.valid && <Flame size={12} style={{ color: '#ffffff', verticalAlign: 'middle' }} />}
+                            </div>
+                            <div style={{ fontSize: '9px', color: '#52525b', marginTop: '4px' }}>{getDayAbbr(day.date)}</div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
 
                     {/* X% Better Card */}
@@ -385,7 +402,7 @@ export default function ShareableWorkout({ canShare, hasWeight }: ShareableWorko
                       border: '1px solid #27272a',
                       textAlign: 'center'
                     }}>
-                      <div style={{ fontSize: '28px', fontWeight: '700', color: '#ffffff', lineHeight: 1.2 }}>
+                      <div style={{ fontSize: '28px', fontWeight: '700', color: '#ffffff', lineHeight: '1.2' }}>
                         {summary.userName?.split(' ')[0] || 'Lucky'} is {improvementPercent}% better
                       </div>
                       <div style={{ fontSize: '13px', color: '#71717a', marginTop: '4px' }}>version of themselves</div>
@@ -400,36 +417,30 @@ export default function ShareableWorkout({ canShare, hasWeight }: ShareableWorko
                         marginBottom: '16px',
                         border: '1px solid #27272a'
                       }}>
-                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                          <tbody>
-                            <tr>
-                              <td style={{ width: '58px', verticalAlign: 'middle' }}>
-                                <div style={{ 
-                                  width: '44px', 
-                                  height: '44px', 
-                                  borderRadius: '12px', 
-                                  background: moodConfig[summary.mood.mood].bgColor,
-                                  display: 'inline-flex', 
-                                  alignItems: 'center', 
-                                  justifyContent: 'center',
-                                  fontSize: '24px'
-                                }}>
-                                  {moodConfig[summary.mood.mood].emoji}
-                                </div>
-                              </td>
-                              <td style={{ verticalAlign: 'middle' }}>
-                                <div style={{ fontSize: '15px', fontWeight: '600', color: moodConfig[summary.mood.mood].color }}>
-                                  {moodConfig[summary.mood.mood].label}
-                                </div>
-                                {summary.mood.note && (
-                                  <div style={{ fontSize: '12px', color: '#71717a', marginTop: '4px', fontStyle: 'italic' }}>
-                                    &quot;{summary.mood.note}&quot;
-                                  </div>
-                                )}
-                              </td>
-                            </tr>
-                          </tbody>
-                        </table>
+                        <div style={{ 
+                          display: 'inline-block',
+                          width: '44px', 
+                          height: '44px', 
+                          borderRadius: '12px', 
+                          background: moodConfig[summary.mood.mood].bgColor,
+                          textAlign: 'center',
+                          lineHeight: '44px',
+                          fontSize: '24px',
+                          verticalAlign: 'middle',
+                          marginRight: '14px'
+                        }}>
+                          {moodConfig[summary.mood.mood].emoji}
+                        </div>
+                        <div style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+                          <div style={{ fontSize: '15px', fontWeight: '600', color: moodConfig[summary.mood.mood].color, lineHeight: '20px' }}>
+                            {moodConfig[summary.mood.mood].label}
+                          </div>
+                          {summary.mood.note && (
+                            <div style={{ fontSize: '12px', color: '#71717a', marginTop: '2px', fontStyle: 'italic', lineHeight: '16px' }}>
+                              &quot;{summary.mood.note}&quot;
+                            </div>
+                          )}
+                        </div>
                       </div>
                     )}
 
@@ -447,49 +458,78 @@ export default function ShareableWorkout({ canShare, hasWeight }: ShareableWorko
                           padding: '14px 16px',
                           marginBottom: '10px',
                           border: '1px solid #27272a',
-                          borderLeftWidth: '3px',
-                          borderLeftColor: color
+                          borderLeft: `3px solid ${color}`
                         }}>
-                          <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '10px' }}>
-                            <tbody>
-                              <tr>
-                                <td style={{ width: '38px', verticalAlign: 'middle' }}>
-                                  <div style={{ 
-                                    width: '28px', 
-                                    height: '28px', 
-                                    borderRadius: '8px', 
-                                    background: `${color}20`,
-                                    display: 'inline-flex', 
-                                    alignItems: 'center', 
-                                    justifyContent: 'center' 
-                                  }}>
-                                    <Dumbbell size={14} style={{ color }} />
-                                  </div>
-                                </td>
-                                <td style={{ verticalAlign: 'middle' }}>
-                                  <span style={{ fontSize: '13px', fontWeight: '600', color: '#ffffff', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                    {pageName}
-                                  </span>
-                                </td>
-                              </tr>
-                            </tbody>
-                          </table>
+                          {/* Page Header */}
+                          <div style={{ marginBottom: '10px' }}>
+                            <div style={{ 
+                              display: 'inline-block',
+                              width: '28px', 
+                              height: '28px', 
+                              borderRadius: '8px', 
+                              background: `${color}20`,
+                              textAlign: 'center',
+                              lineHeight: '28px',
+                              verticalAlign: 'middle',
+                              marginRight: '10px'
+                            }}>
+                              <Dumbbell size={14} style={{ color, verticalAlign: 'middle' }} />
+                            </div>
+                            <span style={{ 
+                              display: 'inline-block',
+                              fontSize: '13px', 
+                              fontWeight: '600', 
+                              color: '#ffffff', 
+                              textTransform: 'uppercase', 
+                              letterSpacing: '0.5px',
+                              verticalAlign: 'middle',
+                              lineHeight: '28px'
+                            }}>
+                              {pageName}
+                            </span>
+                          </div>
                           
                           {/* Stats Pills */}
-                          <div style={{ marginBottom: '10px' }}>
-                            <span style={{ display: 'inline-block', padding: '4px 10px', borderRadius: '6px', background: '#27272a', fontSize: '11px', color: '#a1a1aa', marginRight: '6px', marginBottom: '4px' }}>
+                          <div style={{ marginBottom: '10px', lineHeight: '26px' }}>
+                            <span style={{ 
+                              display: 'inline-block', 
+                              padding: '4px 10px', 
+                              borderRadius: '6px', 
+                              background: '#27272a', 
+                              fontSize: '11px', 
+                              color: '#a1a1aa', 
+                              marginRight: '6px',
+                              verticalAlign: 'middle'
+                            }}>
                               {exercises.length} exercises
                             </span>
-                            <span style={{ display: 'inline-block', padding: '4px 10px', borderRadius: '6px', background: '#27272a', fontSize: '11px', color: '#a1a1aa', marginRight: '6px', marginBottom: '4px' }}>
+                            <span style={{ 
+                              display: 'inline-block', 
+                              padding: '4px 10px', 
+                              borderRadius: '6px', 
+                              background: '#27272a', 
+                              fontSize: '11px', 
+                              color: '#a1a1aa', 
+                              marginRight: '6px',
+                              verticalAlign: 'middle'
+                            }}>
                               {totalSets} sets
                             </span>
-                            <span style={{ display: 'inline-block', padding: '4px 10px', borderRadius: '6px', background: '#27272a', fontSize: '11px', color: '#a1a1aa', marginBottom: '4px' }}>
+                            <span style={{ 
+                              display: 'inline-block', 
+                              padding: '4px 10px', 
+                              borderRadius: '6px', 
+                              background: '#27272a', 
+                              fontSize: '11px', 
+                              color: '#a1a1aa',
+                              verticalAlign: 'middle'
+                            }}>
                               {totalReps} reps
                             </span>
                           </div>
                           
                           {/* Exercise List */}
-                          <div>
+                          <div style={{ lineHeight: '28px' }}>
                             {exercises.map((ex, i) => (
                               <span key={i} style={{ 
                                 display: 'inline-block',
@@ -500,7 +540,8 @@ export default function ShareableWorkout({ canShare, hasWeight }: ShareableWorko
                                 borderRadius: '6px',
                                 border: '1px solid #27272a',
                                 marginRight: '6px',
-                                marginBottom: '6px'
+                                marginBottom: '6px',
+                                verticalAlign: 'middle'
                               }}>
                                 {formatExercise(ex)}
                               </span>
@@ -516,48 +557,35 @@ export default function ShareableWorkout({ canShare, hasWeight }: ShareableWorko
                       borderRadius: '10px', 
                       padding: '12px 14px',
                       marginBottom: '16px',
-                      border: '1px solid #27272a'
+                      border: '1px solid #27272a',
+                      position: 'relative',
+                      height: '20px'
                     }}>
-                      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                        <tbody>
-                          <tr>
-                            <td style={{ width: '28px', verticalAlign: 'middle' }}>
-                              <Leaf size={14} style={{ color: summary.meditationDone ? '#10b981' : '#71717a' }} />
-                            </td>
-                            <td style={{ verticalAlign: 'middle' }}>
-                              <span style={{ fontSize: '13px', color: '#a1a1aa' }}>Meditation</span>
-                            </td>
-                            <td style={{ verticalAlign: 'middle', textAlign: 'right' }}>
-                              <span style={{ 
-                                display: 'inline-block',
-                                padding: '3px 10px', 
-                                borderRadius: '9999px', 
-                                background: summary.meditationDone ? 'rgba(16, 185, 129, 0.15)' : 'rgba(113, 113, 122, 0.15)',
-                                color: summary.meditationDone ? '#10b981' : '#71717a',
-                                fontSize: '11px',
-                                fontWeight: '500'
-                              }}>
-                                {summary.meditationDone ? '✓ Done' : 'Not done'}
-                              </span>
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
+                      <div style={{ display: 'inline-block', verticalAlign: 'middle', lineHeight: '20px' }}>
+                        <Leaf size={14} style={{ color: summary.meditationDone ? '#10b981' : '#71717a', verticalAlign: 'middle', marginRight: '10px' }} />
+                        <span style={{ fontSize: '13px', color: '#a1a1aa', verticalAlign: 'middle' }}>Meditation</span>
+                      </div>
+                      <span style={{ 
+                        position: 'absolute',
+                        right: '14px',
+                        top: '12px',
+                        display: 'inline-block',
+                        padding: '3px 10px', 
+                        borderRadius: '9999px', 
+                        background: summary.meditationDone ? 'rgba(16, 185, 129, 0.15)' : 'rgba(113, 113, 122, 0.15)',
+                        color: summary.meditationDone ? '#10b981' : '#71717a',
+                        fontSize: '11px',
+                        fontWeight: '500'
+                      }}>
+                        {summary.meditationDone ? '✓ Done' : 'Not done'}
+                      </span>
                     </div>
 
                     {/* Footer */}
-                    <table style={{ width: '100%', borderCollapse: 'collapse', paddingTop: '12px', borderTop: '1px solid #27272a' }}>
-                      <tbody>
-                        <tr>
-                          <td style={{ borderTop: '1px solid #27272a', paddingTop: '12px' }}>
-                            <span style={{ fontSize: '11px', color: '#52525b' }}>LifeOS</span>
-                          </td>
-                          <td style={{ borderTop: '1px solid #27272a', paddingTop: '12px', textAlign: 'right' }}>
-                            <span style={{ fontSize: '10px', color: '#3f3f46' }}>{formattedDate}</span>
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
+                    <div style={{ borderTop: '1px solid #27272a', paddingTop: '12px', position: 'relative', height: '14px' }}>
+                      <span style={{ fontSize: '11px', color: '#52525b' }}>LifeOS</span>
+                      <span style={{ position: 'absolute', right: '0', fontSize: '10px', color: '#3f3f46' }}>{formattedDate}</span>
+                    </div>
                   </div>
                 </div>
 
