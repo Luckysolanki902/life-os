@@ -81,11 +81,11 @@ function getDayAbbr(dateStr: string): string {
 
 // Mood configurations
 const moodConfig = {
-  great: { label: 'Feeling Great', color: '#22c55e', bgColor: 'rgba(34, 197, 94, 0.15)', emoji: '😁' },
+  great: { label: 'Feeling Great', color: '#22c55e', bgColor: 'rgba(34, 197, 94, 0.15)', emoji: '�' },
   good: { label: 'Feeling Good', color: '#3b82f6', bgColor: 'rgba(59, 130, 246, 0.15)', emoji: '😊' },
-  okay: { label: 'Doing Okay', color: '#f59e0b', bgColor: 'rgba(245, 158, 11, 0.15)', emoji: '😐' },
+  okay: { label: 'Doing Okay', color: '#f59e0b', bgColor: 'rgba(245, 158, 11, 0.15)', emoji: '�' },
   low: { label: 'Feeling Low', color: '#f97316', bgColor: 'rgba(249, 115, 22, 0.15)', emoji: '😔' },
-  bad: { label: 'Rough Day', color: '#ef4444', bgColor: 'rgba(239, 68, 68, 0.15)', emoji: '😞' }
+  bad: { label: 'Rough Day', color: '#ef4444', bgColor: 'rgba(239, 68, 68, 0.15)', emoji: '�' }
 };
 
 export default function ShareableWorkout({ canShare, hasWeight }: ShareableWorkoutProps) {
@@ -121,25 +121,11 @@ export default function ShareableWorkout({ canShare, hasWeight }: ShareableWorko
       document.body.appendChild(clone);
       
       const canvas = await html2canvas(clone, {
-        backgroundColor: '#0a0a0a',
+        backgroundColor: '#ffffff',
         scale: 2,
         useCORS: true,
         logging: false,
-        allowTaint: true,
-        onclone: (clonedDoc) => {
-          const allElements = clonedDoc.querySelectorAll('*');
-          allElements.forEach((el) => {
-            const style = window.getComputedStyle(el as Element);
-            const bgColor = style.backgroundColor;
-            const color = style.color;
-            if (bgColor.includes('lab') || bgColor.includes('oklab')) {
-              (el as HTMLElement).style.backgroundColor = '#0a0a0a';
-            }
-            if (color.includes('lab') || color.includes('oklab')) {
-              (el as HTMLElement).style.color = '#ffffff';
-            }
-          });
-        }
+        allowTaint: true
       });
       
       document.body.removeChild(clone);
@@ -217,72 +203,71 @@ export default function ShareableWorkout({ canShare, hasWeight }: ShareableWorko
                   <div 
                     ref={cardRef}
                     style={{
-                      background: '#0a0a0a',
-                      borderRadius: '16px',
-                      padding: '20px',
-                      color: '#ffffff',
+                      background: 'linear-gradient(135deg, #fff1f2 0%, #fce7f3 50%, #fae8ff 100%)',
+                      borderRadius: '24px',
+                      padding: '24px',
+                      color: '#1f2937',
                       fontFamily: 'system-ui, -apple-system, sans-serif',
-                      border: '1px solid #27272a',
+                      border: '2px solid #fbcfe8',
                       width: '100%',
-                      boxSizing: 'border-box'
+                      boxSizing: 'border-box',
+                      boxShadow: '0 8px 32px rgba(236, 72, 153, 0.15)'
                     }}
                   >
                     {/* Weight Card */}
                     {summary.weight.current && (
                       <div style={{ 
-                        background: '#18181b', 
-                        borderRadius: '14px', 
-                        padding: '16px',
+                        background: 'white', 
+                        borderRadius: '20px', 
+                        padding: '20px',
                         marginBottom: '16px',
-                        border: '1px solid #27272a'
+                        border: '2px solid #fbcfe8',
+                        boxShadow: '0 4px 12px rgba(236, 72, 153, 0.08)'
                       }}>
-                        <div style={{ marginBottom: '12px' }}>
-                          <div style={{ 
+                        <div style={{ marginBottom: '14px', overflow: 'hidden' }}>
+                          <span style={{ 
                             display: 'inline-block',
-                            width: '36px', 
-                            height: '36px', 
-                            borderRadius: '10px', 
-                            background: 'rgba(59, 130, 246, 0.15)', 
+                            width: '42px', 
+                            height: '42px', 
+                            borderRadius: '12px', 
+                            background: 'linear-gradient(135deg, #ec4899, #f43f5e)', 
                             textAlign: 'center',
-                            lineHeight: '36px',
-                            verticalAlign: 'middle',
+                            lineHeight: '42px',
+                            float: 'left',
                             marginRight: '12px'
                           }}>
-                            <Scale size={18} style={{ color: '#3b82f6', verticalAlign: 'middle' }} />
-                          </div>
-                          <span style={{ 
-                            display: 'inline-block',
-                            fontSize: '28px', 
-                            fontWeight: '700', 
-                            color: '#ffffff', 
-                            verticalAlign: 'middle',
-                            lineHeight: '36px'
-                          }}>
-                            {summary.weight.current}
+                            <Scale size={20} style={{ color: 'white', verticalAlign: 'middle' }} />
                           </span>
-                          <span style={{ 
-                            display: 'inline-block',
-                            fontSize: '14px', 
-                            fontWeight: '400', 
-                            color: '#71717a', 
-                            marginLeft: '4px',
-                            verticalAlign: 'middle',
-                            lineHeight: '36px'
-                          }}>kg</span>
+                          <div>
+                            <span style={{ 
+                              fontSize: '32px', 
+                              fontWeight: '800', 
+                              color: '#ec4899',
+                              letterSpacing: '-0.5px'
+                            }}>
+                              {summary.weight.current}
+                            </span>
+                            <span style={{ 
+                              fontSize: '16px', 
+                              fontWeight: '500', 
+                              color: '#9ca3af', 
+                              marginLeft: '6px'
+                            }}>kg</span>
+                          </div>
                         </div>
                         
-                        <div style={{ lineHeight: '26px' }}>
+                        <div>
                           {summary.weight.deltaFromLast !== null && (
                             <span style={{ 
                               display: 'inline-block',
-                              padding: '4px 10px',
-                              borderRadius: '6px',
+                              padding: '6px 12px',
+                              borderRadius: '12px',
                               marginRight: '8px',
-                              background: summary.weight.deltaFromLast < 0 ? 'rgba(16, 185, 129, 0.15)' : summary.weight.deltaFromLast > 0 ? 'rgba(239, 68, 68, 0.15)' : 'rgba(113, 113, 122, 0.15)',
-                              fontSize: '11px',
-                              fontWeight: '500',
-                              color: summary.weight.deltaFromLast < 0 ? '#10b981' : summary.weight.deltaFromLast > 0 ? '#ef4444' : '#71717a',
-                              verticalAlign: 'middle'
+                              marginBottom: '8px',
+                              background: summary.weight.deltaFromLast < 0 ? '#d1fae5' : summary.weight.deltaFromLast > 0 ? '#fee2e2' : '#f3f4f6',
+                              fontSize: '12px',
+                              fontWeight: '600',
+                              color: summary.weight.deltaFromLast < 0 ? '#059669' : summary.weight.deltaFromLast > 0 ? '#dc2626' : '#6b7280'
                             }}>
                               {summary.weight.deltaFromLast > 0 ? '+' : ''}{summary.weight.deltaFromLast} from last
                             </span>
@@ -290,14 +275,14 @@ export default function ShareableWorkout({ canShare, hasWeight }: ShareableWorko
                           {summary.weight.deltaFromFirst !== null && summary.weight.firstWeight && (
                             <span style={{ 
                               display: 'inline-block',
-                              padding: '4px 10px',
-                              borderRadius: '6px',
+                              padding: '6px 12px',
+                              borderRadius: '12px',
                               marginRight: '8px',
-                              background: summary.weight.deltaFromFirst < 0 ? 'rgba(16, 185, 129, 0.15)' : summary.weight.deltaFromFirst > 0 ? 'rgba(239, 68, 68, 0.15)' : 'rgba(113, 113, 122, 0.15)',
-                              fontSize: '11px',
-                              fontWeight: '500',
-                              color: summary.weight.deltaFromFirst < 0 ? '#10b981' : summary.weight.deltaFromFirst > 0 ? '#ef4444' : '#71717a',
-                              verticalAlign: 'middle'
+                              marginBottom: '8px',
+                              background: summary.weight.deltaFromFirst < 0 ? '#d1fae5' : summary.weight.deltaFromFirst > 0 ? '#fee2e2' : '#f3f4f6',
+                              fontSize: '12px',
+                              fontWeight: '600',
+                              color: summary.weight.deltaFromFirst < 0 ? '#059669' : summary.weight.deltaFromFirst > 0 ? '#dc2626' : '#6b7280'
                             }}>
                               {summary.weight.deltaFromFirst > 0 ? '+' : ''}{summary.weight.deltaFromFirst} total
                             </span>
@@ -305,13 +290,13 @@ export default function ShareableWorkout({ canShare, hasWeight }: ShareableWorko
                           {summary.weight.bmi && (
                             <span style={{ 
                               display: 'inline-block',
-                              padding: '4px 10px',
-                              borderRadius: '6px',
-                              background: 'rgba(168, 85, 247, 0.15)',
-                              fontSize: '11px',
-                              fontWeight: '500',
-                              color: '#a855f7',
-                              verticalAlign: 'middle'
+                              padding: '6px 12px',
+                              borderRadius: '12px',
+                              marginBottom: '8px',
+                              background: '#fae8ff',
+                              fontSize: '12px',
+                              fontWeight: '600',
+                              color: '#a855f7'
                             }}>
                               BMI {summary.weight.bmi}
                             </span>
@@ -322,72 +307,72 @@ export default function ShareableWorkout({ canShare, hasWeight }: ShareableWorko
 
                     {/* Streak Card */}
                     <div style={{ 
-                      background: '#18181b', 
-                      borderRadius: '14px', 
-                      padding: '16px',
+                      background: 'white', 
+                      borderRadius: '20px', 
+                      padding: '20px',
                       marginBottom: '16px',
-                      border: '1px solid #27272a'
+                      border: '2px solid #fbcfe8',
+                      boxShadow: '0 4px 12px rgba(236, 72, 153, 0.08)'
                     }}>
                       {/* Streak Header */}
-                      <div style={{ marginBottom: '14px', position: 'relative', height: '40px' }}>
-                        <div style={{ 
+                      <div style={{ marginBottom: '16px', overflow: 'hidden' }}>
+                        <span style={{ 
                           display: 'inline-block',
-                          width: '40px', 
-                          height: '40px', 
-                          borderRadius: '10px', 
-                          background: summary.streakData.currentStreak > 0 ? '#f97316' : '#27272a',
+                          width: '44px', 
+                          height: '44px', 
+                          borderRadius: '12px', 
+                          background: summary.streakData.currentStreak > 0 ? 'linear-gradient(135deg, #f97316, #fb923c)' : '#f3f4f6',
                           textAlign: 'center',
-                          lineHeight: '40px',
-                          verticalAlign: 'top',
+                          lineHeight: '44px',
+                          float: 'left',
                           marginRight: '12px'
                         }}>
-                          <Flame size={20} style={{ color: summary.streakData.currentStreak > 0 ? '#ffffff' : '#71717a', verticalAlign: 'middle' }} />
-                        </div>
-                        <div style={{ display: 'inline-block', verticalAlign: 'top' }}>
-                          <div style={{ fontSize: '22px', fontWeight: '700', color: '#ffffff', lineHeight: '22px' }}>
+                          <Flame size={22} style={{ color: summary.streakData.currentStreak > 0 ? 'white' : '#9ca3af', verticalAlign: 'middle' }} />
+                        </span>
+                        <div>
+                          <div style={{ fontSize: '26px', fontWeight: '800', color: '#ec4899', lineHeight: '26px' }}>
                             {summary.streakData.currentStreak}
                           </div>
-                          <div style={{ fontSize: '11px', color: '#71717a', lineHeight: '16px' }}>day streak</div>
+                          <div style={{ fontSize: '13px', color: '#9ca3af', lineHeight: '18px', fontWeight: '500' }}>day streak</div>
                         </div>
                         <span style={{ 
-                          position: 'absolute',
-                          right: '0',
-                          top: '8px',
-                          display: 'inline-block',
-                          padding: '4px 10px',
-                          borderRadius: '9999px',
-                          background: summary.streakData.todayValid ? 'rgba(16, 185, 129, 0.15)' : 'rgba(249, 115, 22, 0.15)',
-                          fontSize: '11px',
-                          fontWeight: '500',
-                          color: summary.streakData.todayValid ? '#10b981' : '#f97316'
+                          float: 'right',
+                          padding: '6px 12px',
+                          borderRadius: '12px',
+                          background: summary.streakData.todayValid ? '#d1fae5' : '#fed7aa',
+                          fontSize: '12px',
+                          fontWeight: '600',
+                          color: summary.streakData.todayValid ? '#059669' : '#ea580c',
+                          marginTop: '8px'
                         }}>
-                          {summary.streakData.todayValid ? 'Complete ✓' : `${summary.streakData.todayRoutineTasks}/10`}
+                          {summary.streakData.todayValid ? '✓ Done' : `${summary.streakData.todayRoutineTasks}/10`}
                         </span>
                       </div>
                       
                       {/* Last 7 Days */}
-                      <div style={{ textAlign: 'center' }}>
+                      <div style={{ textAlign: 'center', overflow: 'hidden' }}>
                         {summary.streakData.last7Days.map((day, index) => (
                           <div key={day.date} style={{ 
                             display: 'inline-block', 
                             width: 'calc(100% / 7)', 
                             textAlign: 'center',
-                            verticalAlign: 'top'
+                            float: 'left',
+                            boxSizing: 'border-box'
                           }}>
                             <div style={{ 
                               display: 'inline-block',
-                              width: '28px', 
-                              height: '28px', 
+                              width: '32px', 
+                              height: '32px', 
                               borderRadius: '50%', 
                               textAlign: 'center',
-                              lineHeight: '28px',
-                              background: day.valid ? '#f97316' : index === 6 ? 'transparent' : '#27272a',
-                              border: index === 6 && !day.valid ? '2px dashed rgba(249, 115, 22, 0.4)' : 'none',
+                              lineHeight: '32px',
+                              background: day.valid ? 'linear-gradient(135deg, #f97316, #fb923c)' : index === 6 ? 'transparent' : '#f3f4f6',
+                              border: index === 6 && !day.valid ? '2px dashed #fbcfe8' : 'none',
                               boxSizing: 'border-box'
                             }}>
-                              {day.valid && <Flame size={12} style={{ color: '#ffffff', verticalAlign: 'middle' }} />}
+                              {day.valid && <Flame size={14} style={{ color: 'white', verticalAlign: 'middle' }} />}
                             </div>
-                            <div style={{ fontSize: '9px', color: '#52525b', marginTop: '4px' }}>{getDayAbbr(day.date)}</div>
+                            <div style={{ fontSize: '10px', color: '#9ca3af', marginTop: '6px', fontWeight: '500' }}>{getDayAbbr(day.date)}</div>
                           </div>
                         ))}
                       </div>
@@ -395,48 +380,51 @@ export default function ShareableWorkout({ canShare, hasWeight }: ShareableWorko
 
                     {/* X% Better Card */}
                     <div style={{ 
-                      background: '#18181b', 
-                      borderRadius: '14px', 
-                      padding: '20px',
+                      background: 'linear-gradient(135deg, #fdf2f8, #fce7f3)', 
+                      borderRadius: '20px', 
+                      padding: '24px',
                       marginBottom: '16px',
-                      border: '1px solid #27272a',
-                      textAlign: 'center'
+                      border: '2px solid #fbcfe8',
+                      textAlign: 'center',
+                      boxShadow: '0 4px 12px rgba(236, 72, 153, 0.08)'
                     }}>
-                      <div style={{ fontSize: '28px', fontWeight: '700', color: '#ffffff', lineHeight: '1.2' }}>
-                        {summary.userName?.split(' ')[0] || 'Lucky'} is {improvementPercent}% better
+                      <div style={{ fontSize: '26px', fontWeight: '800', color: '#ec4899', lineHeight: '1.3', letterSpacing: '-0.5px' }}>
+                        {summary.userName?.split(' ')[0] || 'Lucky'} is {improvementPercent}% better ✨
                       </div>
-                      <div style={{ fontSize: '13px', color: '#71717a', marginTop: '4px' }}>version of themselves</div>
+                      <div style={{ fontSize: '14px', color: '#9ca3af', marginTop: '6px', fontWeight: '500' }}>version of themselves</div>
                     </div>
 
                     {/* Mood Card */}
                     {summary.mood && summary.mood.mood && moodConfig[summary.mood.mood] && (
                       <div style={{ 
-                        background: '#18181b',
-                        borderRadius: '14px', 
-                        padding: '16px',
+                        background: 'white',
+                        borderRadius: '20px', 
+                        padding: '20px',
                         marginBottom: '16px',
-                        border: '1px solid #27272a'
+                        border: '2px solid #fbcfe8',
+                        boxShadow: '0 4px 12px rgba(236, 72, 153, 0.08)',
+                        overflow: 'hidden'
                       }}>
-                        <div style={{ 
+                        <span style={{ 
                           display: 'inline-block',
-                          width: '44px', 
-                          height: '44px', 
-                          borderRadius: '12px', 
+                          width: '50px', 
+                          height: '50px', 
+                          borderRadius: '14px', 
                           background: moodConfig[summary.mood.mood].bgColor,
                           textAlign: 'center',
-                          lineHeight: '44px',
-                          fontSize: '24px',
-                          verticalAlign: 'middle',
+                          lineHeight: '50px',
+                          fontSize: '28px',
+                          float: 'left',
                           marginRight: '14px'
                         }}>
                           {moodConfig[summary.mood.mood].emoji}
-                        </div>
-                        <div style={{ display: 'inline-block', verticalAlign: 'middle' }}>
-                          <div style={{ fontSize: '15px', fontWeight: '600', color: moodConfig[summary.mood.mood].color, lineHeight: '20px' }}>
+                        </span>
+                        <div>
+                          <div style={{ fontSize: '17px', fontWeight: '700', color: moodConfig[summary.mood.mood].color, lineHeight: '24px' }}>
                             {moodConfig[summary.mood.mood].label}
                           </div>
                           {summary.mood.note && (
-                            <div style={{ fontSize: '12px', color: '#71717a', marginTop: '2px', fontStyle: 'italic', lineHeight: '16px' }}>
+                            <div style={{ fontSize: '13px', color: '#6b7280', marginTop: '4px', fontStyle: 'italic', lineHeight: '18px' }}>
                               &quot;{summary.mood.note}&quot;
                             </div>
                           )}
@@ -453,95 +441,60 @@ export default function ShareableWorkout({ canShare, hasWeight }: ShareableWorko
                       
                       return (
                         <div key={pageName} style={{ 
-                          background: '#18181b', 
-                          borderRadius: '14px', 
-                          padding: '14px 16px',
-                          marginBottom: '10px',
-                          border: '1px solid #27272a',
-                          borderLeft: `3px solid ${color}`
+                          background: 'white', 
+                          borderRadius: '18px', 
+                          padding: '16px 18px',
+                          marginBottom: '12px',
+                          border: '2px solid #fbcfe8',
+                          borderLeft: `4px solid ${color}`,
+                          boxShadow: '0 4px 12px rgba(236, 72, 153, 0.08)'
                         }}>
                           {/* Page Header */}
-                          <div style={{ marginBottom: '10px' }}>
-                            <div style={{ 
+                          <div style={{ marginBottom: '12px', overflow: 'hidden' }}>
+                            <span style={{ 
                               display: 'inline-block',
-                              width: '28px', 
-                              height: '28px', 
-                              borderRadius: '8px', 
-                              background: `${color}20`,
+                              width: '32px', 
+                              height: '32px', 
+                              borderRadius: '10px', 
+                              background: `${color}25`,
                               textAlign: 'center',
-                              lineHeight: '28px',
-                              verticalAlign: 'middle',
+                              lineHeight: '32px',
+                              float: 'left',
                               marginRight: '10px'
                             }}>
-                              <Dumbbell size={14} style={{ color, verticalAlign: 'middle' }} />
+                              <Dumbbell size={16} style={{ color, verticalAlign: 'middle' }} />
+                            </span>
+                            <div>
+                              <div style={{ 
+                                fontSize: '14px', 
+                                fontWeight: '700', 
+                                color: '#1f2937', 
+                                textTransform: 'uppercase', 
+                                letterSpacing: '0.5px',
+                                lineHeight: '20px'
+                              }}>
+                                {pageName}
+                              </div>
+                              <div style={{ fontSize: '11px', color: '#9ca3af', lineHeight: '16px', fontWeight: '500' }}>
+                                {exercises.length} exercises • {totalSets} sets • {totalReps} reps
+                              </div>
                             </div>
-                            <span style={{ 
-                              display: 'inline-block',
-                              fontSize: '13px', 
-                              fontWeight: '600', 
-                              color: '#ffffff', 
-                              textTransform: 'uppercase', 
-                              letterSpacing: '0.5px',
-                              verticalAlign: 'middle',
-                              lineHeight: '28px'
-                            }}>
-                              {pageName}
-                            </span>
-                          </div>
-                          
-                          {/* Stats Pills */}
-                          <div style={{ marginBottom: '10px', lineHeight: '26px' }}>
-                            <span style={{ 
-                              display: 'inline-block', 
-                              padding: '4px 10px', 
-                              borderRadius: '6px', 
-                              background: '#27272a', 
-                              fontSize: '11px', 
-                              color: '#a1a1aa', 
-                              marginRight: '6px',
-                              verticalAlign: 'middle'
-                            }}>
-                              {exercises.length} exercises
-                            </span>
-                            <span style={{ 
-                              display: 'inline-block', 
-                              padding: '4px 10px', 
-                              borderRadius: '6px', 
-                              background: '#27272a', 
-                              fontSize: '11px', 
-                              color: '#a1a1aa', 
-                              marginRight: '6px',
-                              verticalAlign: 'middle'
-                            }}>
-                              {totalSets} sets
-                            </span>
-                            <span style={{ 
-                              display: 'inline-block', 
-                              padding: '4px 10px', 
-                              borderRadius: '6px', 
-                              background: '#27272a', 
-                              fontSize: '11px', 
-                              color: '#a1a1aa',
-                              verticalAlign: 'middle'
-                            }}>
-                              {totalReps} reps
-                            </span>
                           </div>
                           
                           {/* Exercise List */}
-                          <div style={{ lineHeight: '28px' }}>
+                          <div>
                             {exercises.map((ex, i) => (
                               <span key={i} style={{ 
                                 display: 'inline-block',
-                                fontSize: '11px', 
-                                color: '#d4d4d8',
-                                background: '#0a0a0a',
-                                padding: '4px 8px',
-                                borderRadius: '6px',
-                                border: '1px solid #27272a',
+                                fontSize: '12px', 
+                                color: '#4b5563',
+                                background: '#fdf2f8',
+                                padding: '6px 10px',
+                                borderRadius: '10px',
+                                border: '1px solid #fbcfe8',
                                 marginRight: '6px',
-                                marginBottom: '6px',
-                                verticalAlign: 'middle'
+                                marginBottom: '8px',
+                                fontWeight: '500'
                               }}>
                                 {formatExercise(ex)}
                               </span>
@@ -553,38 +506,39 @@ export default function ShareableWorkout({ canShare, hasWeight }: ShareableWorko
 
                     {/* Meditation */}
                     <div style={{ 
-                      background: '#18181b', 
-                      borderRadius: '10px', 
-                      padding: '12px 14px',
-                      marginBottom: '16px',
-                      border: '1px solid #27272a',
-                      position: 'relative',
-                      height: '20px'
+                      background: 'white', 
+                      borderRadius: '16px', 
+                      padding: '16px 18px',
+                      marginBottom: '20px',
+                      border: '2px solid #fbcfe8',
+                      boxShadow: '0 4px 12px rgba(236, 72, 153, 0.08)',
+                      overflow: 'hidden'
                     }}>
-                      <div style={{ display: 'inline-block', verticalAlign: 'middle', lineHeight: '20px' }}>
-                        <Leaf size={14} style={{ color: summary.meditationDone ? '#10b981' : '#71717a', verticalAlign: 'middle', marginRight: '10px' }} />
-                        <span style={{ fontSize: '13px', color: '#a1a1aa', verticalAlign: 'middle' }}>Meditation</span>
-                      </div>
                       <span style={{ 
-                        position: 'absolute',
-                        right: '14px',
-                        top: '12px',
                         display: 'inline-block',
-                        padding: '3px 10px', 
-                        borderRadius: '9999px', 
-                        background: summary.meditationDone ? 'rgba(16, 185, 129, 0.15)' : 'rgba(113, 113, 122, 0.15)',
-                        color: summary.meditationDone ? '#10b981' : '#71717a',
-                        fontSize: '11px',
-                        fontWeight: '500'
+                        width: '32px', 
+                        height: '32px', 
+                        borderRadius: '10px', 
+                        background: summary.meditationDone ? '#d1fae5' : '#f3f4f6',
+                        textAlign: 'center',
+                        lineHeight: '32px',
+                        float: 'left',
+                        marginRight: '12px'
                       }}>
-                        {summary.meditationDone ? '✓ Done' : 'Not done'}
+                        <Leaf size={16} style={{ color: summary.meditationDone ? '#059669' : '#9ca3af', verticalAlign: 'middle' }} />
                       </span>
+                      <div>
+                        <div style={{ fontSize: '14px', color: '#1f2937', fontWeight: '600', lineHeight: '20px' }}>Meditation</div>
+                        <div style={{ fontSize: '12px', color: summary.meditationDone ? '#059669' : '#9ca3af', fontWeight: '500', lineHeight: '16px' }}>
+                          {summary.meditationDone ? '✓ Completed today' : 'Not done today'}
+                        </div>
+                      </div>
                     </div>
 
                     {/* Footer */}
-                    <div style={{ borderTop: '1px solid #27272a', paddingTop: '12px', position: 'relative', height: '14px' }}>
-                      <span style={{ fontSize: '11px', color: '#52525b' }}>LifeOS</span>
-                      <span style={{ position: 'absolute', right: '0', fontSize: '10px', color: '#3f3f46' }}>{formattedDate}</span>
+                    <div style={{ borderTop: '2px solid #fbcfe8', paddingTop: '16px', overflow: 'hidden' }}>
+                      <span style={{ fontSize: '12px', color: '#ec4899', fontWeight: '700', float: 'left' }}>LifeOS ✨</span>
+                      <span style={{ fontSize: '11px', color: '#9ca3af', float: 'right', fontWeight: '500' }}>{formattedDate}</span>
                     </div>
                   </div>
                 </div>
