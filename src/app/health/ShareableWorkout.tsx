@@ -1,13 +1,14 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { Dumbbell, Scale, X, Flame, Leaf, Share2, Check } from 'lucide-react';
+import { Scale, X, Flame, Leaf, Share2, Check, TrendingDown, TrendingUp, Dumbbell } from 'lucide-react';
 import { getTodaysWorkoutSummary } from '@/app/actions/health';
 import { cn } from '@/lib/utils';
 import { shareImage } from '@/lib/share';
 
 interface WorkoutSummary {
   date: string;
+  userName: string;
   exercises: Array<{
     _id: string;
     title: string;
@@ -35,15 +36,47 @@ interface WorkoutSummary {
   muscleCount: Record<string, number>;
   totalExercises: number;
   totalSets: number;
-  weight: number | null;
-  weightDelta: number | null;
+  totalReps: number;
+  weight: {
+    current: number | null;
+    deltaFromLast: number | null;
+    deltaFromFirst: number | null;
+    bmi: number | null;
+    firstWeight: number | null;
+  };
   mood: string | null;
   meditationDone: boolean;
+  streakData: {
+    currentStreak: number;
+    last7Days: { date: string; valid: boolean }[];
+    todayValid: boolean;
+    todayRoutineTasks: number;
+  };
 }
 
 interface ShareableWorkoutProps {
   canShare: boolean;
   hasWeight: boolean;
+}
+
+// Format exercise for display: "Pushups (3x12x4kg)" or "Headstand (120s)"
+function formatExercise(ex: { title: string; type: string; sets: Array<{ weight: number; reps: number; duration?: number }> }): string {
+  const sets = ex.sets.length;
+  if (ex.type === 'duration') {
+    const totalDuration = ex.sets.reduce((acc, s) => acc + (s.duration || s.reps || 0), 0);
+    return `${ex.title} (${totalDuration}s)`;
+  }
+  const avgReps = Math.round(ex.sets.reduce((acc, s) => acc + s.reps, 0) / sets);
+  const maxWeight = Math.max(...ex.sets.map(s => s.weight || 0));
+  if (maxWeight > 0) {
+    return `${ex.title} (${sets}x${avgReps}x${maxWeight}kg)`;
+  }
+  return `${ex.title} (${sets}x${avgReps})`;
+}
+
+// Get day abbreviation
+function getDayAbbr(dateStr: string): string {
+  return new Date(dateStr).toLocaleDateString('en-US', { weekday: 'short' })[0];
 }
 
 export default function ShareableWorkout({ canShare, hasWeight }: ShareableWorkoutProps) {
@@ -122,10 +155,8 @@ export default function ShareableWorkout({ canShare, hasWeight }: ShareableWorko
     year: 'numeric'
   }) : '';
 
-  // Calculate total reps
-  const totalReps = summary?.exercises.reduce((acc, ex) => 
-    acc + ex.sets.reduce((setAcc, s) => setAcc + s.reps, 0), 0
-  ) || 0;
+  // Calculate improvement percentage (based on streak days as a simple metric)
+  const improvementPercent = summary ? Math.min(summary.streakData.currentStreak * 2, 100) : 0;
 
   return (
     <>
@@ -170,7 +201,7 @@ export default function ShareableWorkout({ canShare, hasWeight }: ShareableWorko
               </div>
             )}
 
-            {/* Shareable Card Preview - Dark Minimal Theme */}
+            {/* Shareable Card Preview */}
             {!isLoading && summary && (
               <>
                 <div className="p-4">
@@ -179,168 +210,218 @@ export default function ShareableWorkout({ canShare, hasWeight }: ShareableWorko
                     style={{
                       background: '#0a0a0a',
                       borderRadius: '16px',
-                      padding: '24px',
+                      padding: '20px',
                       color: '#ffffff',
                       fontFamily: 'system-ui, -apple-system, sans-serif',
-                      border: '1px solid #27272a'
+                      border: '1px solid #27272a',
+                      width: '100%'
                     }}
                   >
-                    {/* Header */}
-                    <div style={{ marginBottom: '24px' }}>
-                      <p style={{ fontSize: '11px', color: '#71717a', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px' }}>
-                        {formattedDate}
-                      </p>
-                      <h2 style={{ fontSize: '22px', fontWeight: '700', color: '#ffffff', margin: 0 }}>
-                        Daily Summary
-                      </h2>
+                    {/* Weight Card - Full Width at Top */}
+                    {summary.weight.current && (
+                      <div style={{ 
+                        background: '#18181b', 
+                        borderRadius: '14px', 
+                        padding: '16px',
+                        marginBottom: '16px',
+                        border: '1px solid #27272a'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                          <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(59, 130, 246, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <Scale size={18} style={{ color: '#3b82f6' }} />
+                          </div>
+                          <div>
+                            <p style={{ fontSize: '28px', fontWeight: '700', color: '#ffffff', margin: 0, lineHeight: 1 }}>
+                              {summary.weight.current} <span style={{ fontSize: '14px', fontWeight: '400', color: '#71717a' }}>kg</span>
+                            </p>
+                          </div>
+                        </div>
+                        
+                        {/* Weight Stats Row */}
+                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                          {summary.weight.deltaFromLast !== null && (
+                            <div style={{ 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: '4px',
+                              padding: '4px 10px',
+                              borderRadius: '6px',
+                              background: summary.weight.deltaFromLast < 0 ? 'rgba(16, 185, 129, 0.15)' : summary.weight.deltaFromLast > 0 ? 'rgba(239, 68, 68, 0.15)' : 'rgba(113, 113, 122, 0.15)',
+                              fontSize: '11px',
+                              fontWeight: '500',
+                              color: summary.weight.deltaFromLast < 0 ? '#10b981' : summary.weight.deltaFromLast > 0 ? '#ef4444' : '#71717a'
+                            }}>
+                              {summary.weight.deltaFromLast < 0 ? <TrendingDown size={12} /> : summary.weight.deltaFromLast > 0 ? <TrendingUp size={12} /> : null}
+                              {summary.weight.deltaFromLast > 0 ? '+' : ''}{summary.weight.deltaFromLast} from last
+                            </div>
+                          )}
+                          {summary.weight.deltaFromFirst !== null && summary.weight.firstWeight && (
+                            <div style={{ 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: '4px',
+                              padding: '4px 10px',
+                              borderRadius: '6px',
+                              background: summary.weight.deltaFromFirst < 0 ? 'rgba(16, 185, 129, 0.15)' : summary.weight.deltaFromFirst > 0 ? 'rgba(239, 68, 68, 0.15)' : 'rgba(113, 113, 122, 0.15)',
+                              fontSize: '11px',
+                              fontWeight: '500',
+                              color: summary.weight.deltaFromFirst < 0 ? '#10b981' : summary.weight.deltaFromFirst > 0 ? '#ef4444' : '#71717a'
+                            }}>
+                              {summary.weight.deltaFromFirst > 0 ? '+' : ''}{summary.weight.deltaFromFirst} total
+                            </div>
+                          )}
+                          {summary.weight.bmi && (
+                            <div style={{ 
+                              padding: '4px 10px',
+                              borderRadius: '6px',
+                              background: 'rgba(168, 85, 247, 0.15)',
+                              fontSize: '11px',
+                              fontWeight: '500',
+                              color: '#a855f7'
+                            }}>
+                              BMI {summary.weight.bmi}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Streak Card */}
+                    <div style={{ 
+                      background: '#18181b', 
+                      borderRadius: '14px', 
+                      padding: '16px',
+                      marginBottom: '16px',
+                      border: '1px solid #27272a'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <div style={{ 
+                            width: '40px', 
+                            height: '40px', 
+                            borderRadius: '10px', 
+                            background: summary.streakData.currentStreak > 0 ? 'linear-gradient(135deg, #f97316, #f59e0b)' : '#27272a',
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center' 
+                          }}>
+                            <Flame size={20} style={{ color: summary.streakData.currentStreak > 0 ? '#ffffff' : '#71717a' }} />
+                          </div>
+                          <div>
+                            <p style={{ fontSize: '22px', fontWeight: '700', color: '#ffffff', margin: 0, lineHeight: 1 }}>
+                              {summary.streakData.currentStreak}
+                            </p>
+                            <p style={{ fontSize: '11px', color: '#71717a', margin: 0 }}>day streak</p>
+                          </div>
+                        </div>
+                        <div style={{ 
+                          padding: '4px 10px',
+                          borderRadius: '9999px',
+                          background: summary.streakData.todayValid ? 'rgba(16, 185, 129, 0.15)' : 'rgba(249, 115, 22, 0.15)',
+                          fontSize: '11px',
+                          fontWeight: '500',
+                          color: summary.streakData.todayValid ? '#10b981' : '#f97316'
+                        }}>
+                          {summary.streakData.todayValid ? 'Complete ✓' : `${summary.streakData.todayRoutineTasks}/10`}
+                        </div>
+                      </div>
+                      
+                      {/* Last 7 Days */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '4px' }}>
+                        {summary.streakData.last7Days.map((day, index) => (
+                          <div key={day.date} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', flex: 1 }}>
+                            <div style={{ 
+                              width: '28px', 
+                              height: '28px', 
+                              borderRadius: '50%', 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              justifyContent: 'center',
+                              background: day.valid ? '#f97316' : index === 6 ? 'transparent' : '#27272a',
+                              border: index === 6 && !day.valid ? '2px dashed rgba(249, 115, 22, 0.4)' : 'none'
+                            }}>
+                              {day.valid && <Flame size={12} style={{ color: '#ffffff' }} />}
+                            </div>
+                            <span style={{ fontSize: '9px', color: '#52525b' }}>{getDayAbbr(day.date)}</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
 
-                    {/* Stats Grid - 2x2 */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
-                      {/* Exercises */}
-                      <div style={{ background: '#18181b', borderRadius: '12px', padding: '16px', border: '1px solid #27272a' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                          <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: 'rgba(244, 63, 94, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {/* X% Better Card */}
+                    <div style={{ 
+                      background: '#18181b', 
+                      borderRadius: '14px', 
+                      padding: '20px',
+                      marginBottom: '16px',
+                      border: '1px solid #27272a',
+                      textAlign: 'center'
+                    }}>
+                      <p style={{ fontSize: '32px', fontWeight: '700', color: '#ffffff', margin: 0, lineHeight: 1.2 }}>
+                        {summary.userName.split(' ')[0]} is {improvementPercent}% better
+                      </p>
+                      <p style={{ fontSize: '13px', color: '#71717a', marginTop: '4px' }}>version of themselves</p>
+                    </div>
+
+                    {/* Today's Workout by Page */}
+                    {Object.entries(summary.exercisesByPage).map(([pageName, exercises]) => (
+                      <div key={pageName} style={{ 
+                        background: '#18181b', 
+                        borderRadius: '14px', 
+                        padding: '14px 16px',
+                        marginBottom: '10px',
+                        border: '1px solid #27272a'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                             <Dumbbell size={14} style={{ color: '#f43f5e' }} />
+                            <span style={{ fontSize: '13px', fontWeight: '600', color: '#ffffff' }}>{pageName}</span>
                           </div>
-                          <span style={{ fontSize: '11px', color: '#71717a', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Exercises</span>
+                          <span style={{ fontSize: '11px', color: '#71717a' }}>
+                            {exercises.length} ex • {exercises.reduce((a, e) => a + e.sets.length, 0)} sets • {exercises.reduce((a, e) => a + e.sets.reduce((acc, s) => acc + s.reps, 0), 0)} reps
+                          </span>
                         </div>
-                        <p style={{ fontSize: '28px', fontWeight: '700', color: '#ffffff', margin: 0 }}>{summary.totalExercises}</p>
-                      </div>
-
-                      {/* Sets */}
-                      <div style={{ background: '#18181b', borderRadius: '12px', padding: '16px', border: '1px solid #27272a' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                          <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: 'rgba(249, 115, 22, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <Flame size={14} style={{ color: '#f97316' }} />
-                          </div>
-                          <span style={{ fontSize: '11px', color: '#71717a', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Sets</span>
-                        </div>
-                        <p style={{ fontSize: '28px', fontWeight: '700', color: '#ffffff', margin: 0 }}>{summary.totalSets}</p>
-                      </div>
-
-                      {/* Reps */}
-                      <div style={{ background: '#18181b', borderRadius: '12px', padding: '16px', border: '1px solid #27272a' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                          <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: 'rgba(168, 85, 247, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <span style={{ fontSize: '12px', color: '#a855f7' }}>⚡</span>
-                          </div>
-                          <span style={{ fontSize: '11px', color: '#71717a', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Reps</span>
-                        </div>
-                        <p style={{ fontSize: '28px', fontWeight: '700', color: '#ffffff', margin: 0 }}>{totalReps}</p>
-                      </div>
-
-                      {/* Weight */}
-                      <div style={{ background: '#18181b', borderRadius: '12px', padding: '16px', border: '1px solid #27272a' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                          <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: 'rgba(59, 130, 246, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <Scale size={14} style={{ color: '#3b82f6' }} />
-                          </div>
-                          <span style={{ fontSize: '11px', color: '#71717a', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Weight</span>
-                        </div>
-                        <p style={{ fontSize: '28px', fontWeight: '700', color: '#ffffff', margin: 0 }}>
-                          {summary.weight ? `${summary.weight}` : '—'}
-                          {summary.weight && <span style={{ fontSize: '14px', fontWeight: '400', color: '#71717a' }}> kg</span>}
+                        <p style={{ fontSize: '12px', color: '#a1a1aa', margin: 0, lineHeight: 1.5 }}>
+                          {exercises.map(ex => formatExercise(ex)).join(', ')}
                         </p>
                       </div>
-                    </div>
+                    ))}
 
                     {/* Meditation */}
                     <div style={{ 
                       background: '#18181b', 
-                      borderRadius: '12px', 
-                      padding: '14px 16px', 
+                      borderRadius: '10px', 
+                      padding: '12px 14px',
                       marginBottom: '16px',
                       border: '1px solid #27272a',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between'
                     }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: 'rgba(16, 185, 129, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <Leaf size={14} style={{ color: '#10b981' }} />
-                        </div>
-                        <span style={{ fontSize: '14px', color: '#a1a1aa' }}>Meditation</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <Leaf size={14} style={{ color: summary.meditationDone ? '#10b981' : '#71717a' }} />
+                        <span style={{ fontSize: '13px', color: '#a1a1aa' }}>Meditation</span>
                       </div>
                       <div style={{ 
-                        padding: '4px 12px', 
+                        padding: '3px 10px', 
                         borderRadius: '9999px', 
                         background: summary.meditationDone ? 'rgba(16, 185, 129, 0.15)' : 'rgba(113, 113, 122, 0.15)',
                         color: summary.meditationDone ? '#10b981' : '#71717a',
-                        fontSize: '12px',
+                        fontSize: '11px',
                         fontWeight: '500',
                         display: 'flex',
                         alignItems: 'center',
                         gap: '4px'
                       }}>
-                        {summary.meditationDone && <Check size={12} />}
+                        {summary.meditationDone && <Check size={10} />}
                         {summary.meditationDone ? 'Done' : 'Not done'}
                       </div>
                     </div>
 
-                    {/* Workout Pages */}
-                    {Object.keys(summary.exercisesByPage).length > 0 && (
-                      <div style={{ marginBottom: '16px' }}>
-                        <p style={{ fontSize: '11px', color: '#71717a', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '10px' }}>
-                          Today&apos;s Workout
-                        </p>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                          {Object.entries(summary.exercisesByPage).map(([pageName, exercises]) => (
-                            <div 
-                              key={pageName}
-                              style={{ 
-                                background: '#18181b', 
-                                borderRadius: '10px', 
-                                padding: '12px 14px',
-                                border: '1px solid #27272a',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between'
-                              }}
-                            >
-                              <span style={{ fontSize: '13px', color: '#ffffff', fontWeight: '500' }}>{pageName}</span>
-                              <span style={{ fontSize: '12px', color: '#71717a' }}>
-                                {exercises.length} exercise{exercises.length > 1 ? 's' : ''} • {exercises.reduce((a, e) => a + e.sets.length, 0)} sets
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Muscles */}
-                    {Object.keys(summary.muscleCount).length > 0 && (
-                      <div style={{ marginBottom: '20px' }}>
-                        <p style={{ fontSize: '11px', color: '#71717a', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '10px' }}>
-                          Muscles Worked
-                        </p>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                          {Object.entries(summary.muscleCount)
-                            .sort(([, a], [, b]) => b - a)
-                            .slice(0, 8)
-                            .map(([muscle, count]) => (
-                              <span 
-                                key={muscle}
-                                style={{ 
-                                  padding: '5px 10px', 
-                                  borderRadius: '6px', 
-                                  fontSize: '11px', 
-                                  fontWeight: '500',
-                                  background: '#27272a',
-                                  color: '#a1a1aa'
-                                }}
-                              >
-                                {muscle} ({count})
-                              </span>
-                            ))}
-                        </div>
-                      </div>
-                    )}
-
                     {/* Footer */}
-                    <div style={{ paddingTop: '16px', borderTop: '1px solid #27272a', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <span style={{ fontSize: '12px', color: '#52525b' }}>LifeOS</span>
-                      <span style={{ fontSize: '11px', color: '#3f3f46' }}>Track. Improve. Repeat.</span>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '12px', borderTop: '1px solid #27272a' }}>
+                      <span style={{ fontSize: '11px', color: '#52525b' }}>LifeOS</span>
+                      <span style={{ fontSize: '10px', color: '#3f3f46' }}>{formattedDate}</span>
                     </div>
                   </div>
                 </div>

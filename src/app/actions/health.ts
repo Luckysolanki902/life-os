@@ -916,6 +916,11 @@ export async function getTodaysWorkoutSummary() {
   const targetDateStr = getTodayDateString();
   const { startOfDay: targetDate, endOfDay: nextDay } = getDateRange(targetDateStr);
   
+  // Get user profile for BMI calculation
+  const user = await User.findOne().lean();
+  const heightCm = user?.profile?.height || 183;
+  const userName = user?.name || 'User';
+  
   // Get all health pages
   const pages = await HealthPage.find().sort({ createdAt: 1 }).lean();
   const pageIds = pages.map((p: any) => p._id);
@@ -963,6 +968,13 @@ export async function getTodaysWorkoutSummary() {
     ? await WeightLog.findOne({ date: { $lt: todaysWeight.date } }).sort({ date: -1 }).lean()
     : null;
   
+  // Get first ever weight log for total progress
+  const firstWeight = await WeightLog.findOne().sort({ date: 1 }).lean();
+  
+  // Calculate BMI
+  const currentWeight = todaysWeight?.weight ? Number(todaysWeight.weight) : null;
+  const bmi = currentWeight ? (currentWeight / ((heightCm / 100) ** 2)).toFixed(1) : null;
+  
   // Get mood
   const moodLog = await MoodLog.findOne({ 
     date: { $gte: targetDate, $lt: nextDay } 
@@ -998,18 +1010,38 @@ export async function getTodaysWorkoutSummary() {
     exercisesByPage[ex.pageName].push(ex);
   });
   
+  // Get streak data
+  const { getStreakData } = await import('./streak');
+  const streakData = await getStreakData();
+  
   return {
     date: targetDate.toISOString(),
+    userName,
     exercises: exercisesWithLogs,
     exercisesByPage,
     muscleCount,
     totalExercises: exercisesWithLogs.length,
     totalSets: exercisesWithLogs.reduce((acc: number, ex: any) => acc + (ex?.sets?.length || 0), 0),
-    weight: todaysWeight?.weight ? Number(todaysWeight.weight.toFixed(2)) : null,
-    weightDelta: (todaysWeight && previousWeight) 
-      ? Number((todaysWeight.weight - previousWeight.weight).toFixed(2)) 
-      : null,
+    totalReps: exercisesWithLogs.reduce((acc: number, ex: any) => 
+      acc + (ex?.sets?.reduce((setAcc: number, s: any) => setAcc + (s.reps || 0), 0) || 0), 0),
+    weight: {
+      current: currentWeight ? Number(currentWeight.toFixed(2)) : null,
+      deltaFromLast: (todaysWeight && previousWeight) 
+        ? Number((todaysWeight.weight - previousWeight.weight).toFixed(2)) 
+        : null,
+      deltaFromFirst: (todaysWeight && firstWeight) 
+        ? Number((todaysWeight.weight - firstWeight.weight).toFixed(2)) 
+        : null,
+      bmi: bmi ? Number(bmi) : null,
+      firstWeight: firstWeight ? Number(firstWeight.weight.toFixed(2)) : null,
+    },
     mood: moodLog?.mood || null,
-    meditationDone
+    meditationDone,
+    streakData: {
+      currentStreak: streakData.currentStreak,
+      last7Days: streakData.last7Days,
+      todayValid: streakData.todayValid,
+      todayRoutineTasks: streakData.todayRoutineTasks,
+    }
   };
 }
