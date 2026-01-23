@@ -224,21 +224,21 @@ export default function ShareableWorkout({ canShare, hasWeight }: ShareableWorko
                         border: '2px solid #fbcfe8',
                         boxShadow: '0 4px 12px rgba(236, 72, 153, 0.08)'
                       }}>
-                        <div style={{ marginBottom: '14px', overflow: 'hidden' }}>
-                          <span style={{ 
-                            display: 'inline-block',
-                            width: '42px', 
-                            height: '42px', 
-                            borderRadius: '12px', 
-                            background: 'linear-gradient(135deg, #ec4899, #f43f5e)', 
-                            textAlign: 'center',
-                            lineHeight: '42px',
-                            float: 'left',
-                            marginRight: '12px'
-                          }}>
-                            <Scale size={20} style={{ color: 'white', verticalAlign: 'middle' }} />
-                          </span>
-                          <div>
+                        <div style={{ marginBottom: '14px', display: 'table', width: '100%' }}>
+                          <div style={{ display: 'table-cell', width: '54px', verticalAlign: 'middle' }}>
+                            <div style={{ 
+                              width: '42px', 
+                              height: '42px', 
+                              borderRadius: '12px', 
+                              background: 'linear-gradient(135deg, #ec4899, #f43f5e)', 
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}>
+                              <Scale size={20} style={{ color: 'white' }} />
+                            </div>
+                          </div>
+                          <div style={{ display: 'table-cell', verticalAlign: 'middle' }}>
                             <span style={{ 
                               fontSize: '32px', 
                               fontWeight: '800', 
@@ -315,38 +315,39 @@ export default function ShareableWorkout({ canShare, hasWeight }: ShareableWorko
                       boxShadow: '0 4px 12px rgba(236, 72, 153, 0.08)'
                     }}>
                       {/* Streak Header */}
-                      <div style={{ marginBottom: '16px', overflow: 'hidden' }}>
-                        <span style={{ 
-                          display: 'inline-block',
-                          width: '44px', 
-                          height: '44px', 
-                          borderRadius: '12px', 
-                          background: summary.streakData.currentStreak > 0 ? 'linear-gradient(135deg, #f97316, #fb923c)' : '#f3f4f6',
-                          textAlign: 'center',
-                          lineHeight: '44px',
-                          float: 'left',
-                          marginRight: '12px'
-                        }}>
-                          <Flame size={22} style={{ color: summary.streakData.currentStreak > 0 ? 'white' : '#9ca3af', verticalAlign: 'middle' }} />
-                        </span>
-                        <div>
-                          <div style={{ fontSize: '26px', fontWeight: '800', color: '#ec4899', lineHeight: '26px' }}>
+                      <div style={{ marginBottom: '16px', display: 'table', width: '100%' }}>
+                        <div style={{ display: 'table-cell', width: '56px', verticalAlign: 'middle' }}>
+                          <div style={{ 
+                            width: '44px', 
+                            height: '44px', 
+                            borderRadius: '12px', 
+                            background: summary.streakData.currentStreak > 0 ? 'linear-gradient(135deg, #f97316, #fb923c)' : '#f3f4f6',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}>
+                            <Flame size={22} style={{ color: summary.streakData.currentStreak > 0 ? 'white' : '#9ca3af' }} />
+                          </div>
+                        </div>
+                        <div style={{ display: 'table-cell', verticalAlign: 'middle' }}>
+                          <div style={{ fontSize: '26px', fontWeight: '800', color: '#ec4899', lineHeight: '1' }}>
                             {summary.streakData.currentStreak}
                           </div>
-                          <div style={{ fontSize: '13px', color: '#9ca3af', lineHeight: '18px', fontWeight: '500' }}>day streak</div>
+                          <div style={{ fontSize: '13px', color: '#9ca3af', fontWeight: '500', marginTop: '4px' }}>day streak</div>
                         </div>
-                        <span style={{ 
-                          float: 'right',
-                          padding: '6px 12px',
-                          borderRadius: '12px',
-                          background: summary.streakData.todayValid ? '#d1fae5' : '#fed7aa',
-                          fontSize: '12px',
-                          fontWeight: '600',
-                          color: summary.streakData.todayValid ? '#059669' : '#ea580c',
-                          marginTop: '8px'
-                        }}>
-                          {summary.streakData.todayValid ? '✓ Done' : `${summary.streakData.todayRoutineTasks}/10`}
-                        </span>
+                        <div style={{ display: 'table-cell', width: '80px', verticalAlign: 'middle', textAlign: 'right' }}>
+                          <span style={{ 
+                            display: 'inline-block',
+                            padding: '6px 12px',
+                            borderRadius: '12px',
+                            background: summary.streakData.todayValid ? '#d1fae5' : '#fed7aa',
+                            fontSize: '12px',
+                            fontWeight: '600',
+                            color: summary.streakData.todayValid ? '#059669' : '#ea580c'
+                          }}>
+                            {summary.streakData.todayValid ? '✓ Done' : `${summary.streakData.todayRoutineTasks}/10`}
+                          </span>
+                        </div>
                       </div>
                       
                       {/* Last 7 Days */}
@@ -389,7 +390,7 @@ export default function ShareableWorkout({ canShare, hasWeight }: ShareableWorko
                       boxShadow: '0 4px 12px rgba(236, 72, 153, 0.08)'
                     }}>
                       <div style={{ fontSize: '26px', fontWeight: '800', color: '#ec4899', lineHeight: '1.3', letterSpacing: '-0.5px' }}>
-                        {summary.userName?.split(' ')[0] || 'Lucky'} is {improvementPercent}% better ✨
+                        {summary.userName?.split(' ')[0] || 'Lucky'} is {improvementPercent}% better
                       </div>
                       <div style={{ fontSize: '14px', color: '#9ca3af', marginTop: '6px', fontWeight: '500' }}>version of themselves</div>
                     </div>
@@ -403,28 +404,30 @@ export default function ShareableWorkout({ canShare, hasWeight }: ShareableWorko
                         marginBottom: '16px',
                         border: '2px solid #fbcfe8',
                         boxShadow: '0 4px 12px rgba(236, 72, 153, 0.08)',
-                        overflow: 'hidden'
+                        display: 'table',
+                        width: '100%',
+                        boxSizing: 'border-box'
                       }}>
-                        <span style={{ 
-                          display: 'inline-block',
-                          width: '50px', 
-                          height: '50px', 
-                          borderRadius: '14px', 
-                          background: moodConfig[summary.mood.mood].bgColor,
-                          textAlign: 'center',
-                          lineHeight: '50px',
-                          fontSize: '28px',
-                          float: 'left',
-                          marginRight: '14px'
-                        }}>
-                          {moodConfig[summary.mood.mood].emoji}
-                        </span>
-                        <div>
-                          <div style={{ fontSize: '17px', fontWeight: '700', color: moodConfig[summary.mood.mood].color, lineHeight: '24px' }}>
+                        <div style={{ display: 'table-cell', width: '64px', verticalAlign: 'middle' }}>
+                          <div style={{ 
+                            width: '50px', 
+                            height: '50px', 
+                            borderRadius: '14px', 
+                            background: moodConfig[summary.mood.mood].bgColor,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '28px'
+                          }}>
+                            {moodConfig[summary.mood.mood].emoji}
+                          </div>
+                        </div>
+                        <div style={{ display: 'table-cell', verticalAlign: 'middle' }}>
+                          <div style={{ fontSize: '17px', fontWeight: '700', color: moodConfig[summary.mood.mood].color }}>
                             {moodConfig[summary.mood.mood].label}
                           </div>
                           {summary.mood.note && (
-                            <div style={{ fontSize: '13px', color: '#6b7280', marginTop: '4px', fontStyle: 'italic', lineHeight: '18px' }}>
+                            <div style={{ fontSize: '13px', color: '#6b7280', marginTop: '4px', fontStyle: 'italic' }}>
                               &quot;{summary.mood.note}&quot;
                             </div>
                           )}
@@ -450,32 +453,31 @@ export default function ShareableWorkout({ canShare, hasWeight }: ShareableWorko
                           boxShadow: '0 4px 12px rgba(236, 72, 153, 0.08)'
                         }}>
                           {/* Page Header */}
-                          <div style={{ marginBottom: '12px', overflow: 'hidden' }}>
-                            <span style={{ 
-                              display: 'inline-block',
-                              width: '32px', 
-                              height: '32px', 
-                              borderRadius: '10px', 
-                              background: `${color}25`,
-                              textAlign: 'center',
-                              lineHeight: '32px',
-                              float: 'left',
-                              marginRight: '10px'
-                            }}>
-                              <Dumbbell size={16} style={{ color, verticalAlign: 'middle' }} />
-                            </span>
-                            <div>
+                          <div style={{ marginBottom: '12px', display: 'table', width: '100%' }}>
+                            <div style={{ display: 'table-cell', width: '44px', verticalAlign: 'middle' }}>
+                              <div style={{ 
+                                width: '32px', 
+                                height: '32px', 
+                                borderRadius: '10px', 
+                                background: `${color}25`,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                              }}>
+                                <Dumbbell size={16} style={{ color }} />
+                              </div>
+                            </div>
+                            <div style={{ display: 'table-cell', verticalAlign: 'middle' }}>
                               <div style={{ 
                                 fontSize: '14px', 
                                 fontWeight: '700', 
                                 color: '#1f2937', 
                                 textTransform: 'uppercase', 
-                                letterSpacing: '0.5px',
-                                lineHeight: '20px'
+                                letterSpacing: '0.5px'
                               }}>
                                 {pageName}
                               </div>
-                              <div style={{ fontSize: '11px', color: '#9ca3af', lineHeight: '16px', fontWeight: '500' }}>
+                              <div style={{ fontSize: '11px', color: '#9ca3af', fontWeight: '500', marginTop: '2px' }}>
                                 {exercises.length} exercises • {totalSets} sets • {totalReps} reps
                               </div>
                             </div>
@@ -512,24 +514,26 @@ export default function ShareableWorkout({ canShare, hasWeight }: ShareableWorko
                       marginBottom: '20px',
                       border: '2px solid #fbcfe8',
                       boxShadow: '0 4px 12px rgba(236, 72, 153, 0.08)',
-                      overflow: 'hidden'
+                      display: 'table',
+                      width: '100%',
+                      boxSizing: 'border-box'
                     }}>
-                      <span style={{ 
-                        display: 'inline-block',
-                        width: '32px', 
-                        height: '32px', 
-                        borderRadius: '10px', 
-                        background: summary.meditationDone ? '#d1fae5' : '#f3f4f6',
-                        textAlign: 'center',
-                        lineHeight: '32px',
-                        float: 'left',
-                        marginRight: '12px'
-                      }}>
-                        <Leaf size={16} style={{ color: summary.meditationDone ? '#059669' : '#9ca3af', verticalAlign: 'middle' }} />
-                      </span>
-                      <div>
-                        <div style={{ fontSize: '14px', color: '#1f2937', fontWeight: '600', lineHeight: '20px' }}>Meditation</div>
-                        <div style={{ fontSize: '12px', color: summary.meditationDone ? '#059669' : '#9ca3af', fontWeight: '500', lineHeight: '16px' }}>
+                      <div style={{ display: 'table-cell', width: '44px', verticalAlign: 'middle' }}>
+                        <div style={{ 
+                          width: '32px', 
+                          height: '32px', 
+                          borderRadius: '10px', 
+                          background: summary.meditationDone ? '#d1fae5' : '#f3f4f6',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}>
+                          <Leaf size={16} style={{ color: summary.meditationDone ? '#059669' : '#9ca3af' }} />
+                        </div>
+                      </div>
+                      <div style={{ display: 'table-cell', verticalAlign: 'middle' }}>
+                        <div style={{ fontSize: '14px', color: '#1f2937', fontWeight: '600' }}>Meditation</div>
+                        <div style={{ fontSize: '12px', color: summary.meditationDone ? '#059669' : '#9ca3af', fontWeight: '500', marginTop: '2px' }}>
                           {summary.meditationDone ? '✓ Completed today' : 'Not done today'}
                         </div>
                       </div>
