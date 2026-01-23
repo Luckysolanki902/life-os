@@ -919,7 +919,7 @@ export async function getTodaysWorkoutSummary() {
   // Get user profile for BMI calculation
   const user = await User.findOne().lean();
   const heightCm = user?.profile?.height || 183;
-  const userName = user?.name || 'User';
+  const userName = user?.username || 'User';
   
   // Get all health pages
   const pages = await HealthPage.find().sort({ createdAt: 1 }).lean();

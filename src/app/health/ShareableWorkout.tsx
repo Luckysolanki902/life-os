@@ -212,13 +212,15 @@ export default function ShareableWorkout({ canShare, hasWeight }: ShareableWorko
                   <div 
                     ref={cardRef}
                     style={{
+                      width: '600px',
+                      maxWidth: '100%',
+                      margin: '0 auto',
                       background: 'linear-gradient(135deg, #fff1f2 0%, #fce7f3 50%, #fae8ff 100%)',
                       borderRadius: '24px',
                       padding: '24px',
                       color: '#1f2937',
                       fontFamily: 'system-ui, -apple-system, sans-serif',
                       border: '2px solid #fbcfe8',
-                      width: '100%',
                       boxSizing: 'border-box',
                       boxShadow: '0 8px 32px rgba(236, 72, 153, 0.15)'
                     }}

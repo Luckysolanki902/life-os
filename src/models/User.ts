@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 
 const UserSchema = new mongoose.Schema({
-  username: { type: String, default: 'Admin' },
+  username: { type: String, default: 'User' },
   email: { type: String, default: '' }, // For email notifications
   pushToken: { type: String, default: '' }, // FCM token for push notifications
   notificationsEnabled: { type: Boolean, default: true },
