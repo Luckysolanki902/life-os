@@ -52,6 +52,7 @@ interface WorkoutSummary {
     todayValid: boolean;
     todayRoutineTasks: number;
   };
+  totalPoints: number;
 }
 
 interface ShareableWorkoutProps {
@@ -168,8 +169,8 @@ export default function ShareableWorkout({ canShare, hasWeight }: ShareableWorko
     year: 'numeric'
   }) : '';
 
-  // Calculate improvement percentage (based on streak days as a simple metric)
-  const improvementPercent = summary ? Math.min(summary.streakData.currentStreak * 2, 100) : 0;
+  // Calculate improvement percentage (190 points = 1%, >200 = 2%)
+  const improvementPercent = summary ? Math.floor(summary.totalPoints / 100) : 0;
 
   return (
     <>
@@ -386,17 +387,17 @@ export default function ShareableWorkout({ canShare, hasWeight }: ShareableWorko
                             boxSizing: 'border-box'
                           }}>
                             <div style={{ 
-                              display: 'inline-block',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
                               width: '32px', 
                               height: '32px', 
-                              borderRadius: '50%', 
-                              textAlign: 'center',
-                              lineHeight: '32px',
+                              borderRadius: '50%',
                               background: day.valid ? 'linear-gradient(135deg, #f97316, #fb923c)' : index === 6 ? 'transparent' : '#f3f4f6',
                               border: index === 6 && !day.valid ? '2px dashed #fbcfe8' : 'none',
                               boxSizing: 'border-box'
                             }}>
-                              {day.valid && <Flame size={14} style={{ color: 'white', verticalAlign: 'middle' }} />}
+                              {day.valid && <Flame size={14} style={{ color: 'white' }} />}
                             </div>
                             <div style={{ fontSize: '10px', color: '#9ca3af', marginTop: '6px', fontWeight: '500' }}>{getDayAbbr(day.date)}</div>
                           </div>

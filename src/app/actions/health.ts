@@ -1014,6 +1014,10 @@ export async function getTodaysWorkoutSummary() {
   const { getStreakData } = await import('./streak');
   const streakData = await getStreakData();
   
+  // Get total points
+  const { getTotalPointsWithBonuses } = await import('./streak');
+  const pointsData = await getTotalPointsWithBonuses();
+  
   return {
     date: targetDate.toISOString(),
     userName,
@@ -1042,6 +1046,7 @@ export async function getTodaysWorkoutSummary() {
       last7Days: streakData.last7Days,
       todayValid: streakData.todayValid,
       todayRoutineTasks: streakData.todayRoutineTasks,
-    }
+    },
+    totalPoints: pointsData.totalPoints
   };
 }
