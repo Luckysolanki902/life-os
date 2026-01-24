@@ -20,6 +20,8 @@ import {
   BookMarked,
   Loader2,
   RotateCcw,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { toggleTaskStatus, skipTask, unskipTask } from './actions/routine';
 import { logWeight, updateWeight } from './actions/health';
@@ -138,6 +140,9 @@ export default function HomeClient({
   const [weightLoading, setWeightLoading] = useState(false);
   const [weightSuccess, setWeightSuccess] = useState(false);
   const [isEditingWeight, setIsEditingWeight] = useState(false);
+  
+  // Skipped tasks visibility
+  const [showSkippedTasks, setShowSkippedTasks] = useState(false);
 
   const handleToggleTask = useCallback(async (taskId: string) => {
     // Instant haptic feedback
@@ -315,10 +320,10 @@ export default function HomeClient({
 
           <div className="space-y-2">
             {(() => {
-              // Filter and show only pending tasks (not completed, not skipped)
+              // Filter tasks by status
               const pendingTasks = optimisticTasks.filter(t => t.status !== 'skipped' && t.status !== 'completed');
               const skippedTasks = optimisticTasks.filter(t => t.status === 'skipped');
-              const completedTasks = optimisticTasks.filter(t => t.status === 'completed');
+              
               // Show first 3 pending tasks
               const displayTasks = pendingTasks.slice(0, 3);
               const remainingCount = pendingTasks.length - 3;
@@ -384,32 +389,52 @@ export default function HomeClient({
                     </Link>
                   )}
                   
-                  {/* Skipped tasks - collapsible */}
+                  {/* Skipped tasks - hidden by default, show in chip like health page */}
                   {skippedTasks.length > 0 && (
-                    <div className="pt-2 border-t border-amber-500/20 mt-2">
-                      <p className="text-xs text-amber-500 mb-2 flex items-center gap-1">
-                        <SkipForward size={12} /> {skippedTasks.length} skipped
-                      </p>
-                      {skippedTasks.slice(0, 2).map((task) => (
-                        <div
-                          key={task._id}
-                          className="w-full flex items-center gap-3 p-3 rounded-xl bg-amber-500/5 border border-amber-500/10 
-                            mb-1 text-left group opacity-70 animate-in fade-in-0 duration-200"
-                        >
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium truncate text-sm text-amber-500/80">{task.title}</p>
-                          </div>
-                          <button
-                            onClick={() => handleSkipTask(task._id, true)}
-                            className="p-1.5 rounded-lg text-amber-500 hover:bg-amber-500/10 
-                              transition-all active:scale-90"
-                            title="Unskip task"
-                          >
-                            <RotateCcw size={14} />
-                          </button>
+                    <>
+                      <button
+                        onClick={() => setShowSkippedTasks(!showSkippedTasks)}
+                        className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors px-2.5 py-1.5 rounded-lg bg-secondary/50 hover:bg-secondary"
+                      >
+                        {showSkippedTasks ? <EyeOff size={14} /> : <Eye size={14} />}
+                        {showSkippedTasks ? 'Hide' : 'Show'} skipped ({skippedTasks.length})
+                      </button>
+                      
+                      {showSkippedTasks && (
+                        <div className="space-y-2 opacity-60">
+                          {skippedTasks.map((task) => (
+                            <div
+                              key={task._id}
+                              className="w-full flex items-center gap-3 p-3 rounded-xl bg-amber-500/5 border border-amber-500/10 
+                                text-left group animate-in fade-in-0 duration-200"
+                            >
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium truncate text-sm">{task.title}</p>
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                  <span className="capitalize">{task.domainId}</span>
+                                  {task.timeOfDay && (
+                                    <>
+                                      <span>•</span>
+                                      <span className="capitalize">{task.timeOfDay}</span>
+                                    </>
+                                  )}
+                                  <span>•</span>
+                                  <span>{task.points} pts</span>
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => handleSkipTask(task._id, true)}
+                                className="p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 
+                                  transition-all active:scale-90"
+                                title="Unskip task"
+                              >
+                                <RotateCcw size={16} />
+                              </button>
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
+                      )}
+                    </>
                   )}
                 </>
               );
