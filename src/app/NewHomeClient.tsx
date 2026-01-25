@@ -4,6 +4,9 @@ import { useState, useTransition, useOptimistic, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
+  AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer
+} from 'recharts';
+import {
   Heart,
   Library,
   CheckCircle2,
@@ -22,6 +25,7 @@ import {
   RotateCcw,
   Eye,
   EyeOff,
+  Target,
 } from 'lucide-react';
 import { toggleTaskStatus, skipTask, unskipTask } from './actions/routine';
 import { logWeight, updateWeight } from './actions/health';
@@ -326,49 +330,6 @@ export default function HomeClient({
           </div>
         </section>
 
-        {/* Daily Completion Mini Chart */}
-        <section className="p-4 rounded-2xl bg-card border border-border/50">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-muted-foreground">This Week&apos;s Progress</h3>
-            <Link href="/reports" className="text-xs text-primary hover:underline">
-              Details
-            </Link>
-          </div>
-          <div className="flex items-end justify-between gap-1 h-16">
-            {last7DaysCompletion.map((day, index) => {
-              // Rate is out of 100
-              const heightPercent = day.rate > 0 ? Math.max((day.rate / 100) * 100, 8) : 4;
-              const isToday = index === last7DaysCompletion.length - 1;
-              
-              return (
-                <div key={day.date} className="flex-1 flex flex-col items-center gap-1">
-                  <div 
-                    className="w-full rounded-t transition-all group relative cursor-default"
-                    style={{ height: `${heightPercent}%` }}
-                  >
-                    <div className={cn(
-                      'absolute inset-0 rounded-t transition-colors',
-                      day.rate >= 80 ? 'bg-emerald-500' : 
-                      day.rate >= 50 ? 'bg-amber-500' : 
-                      day.rate > 0 ? 'bg-rose-400' : 'bg-secondary/50',
-                      isToday && 'ring-2 ring-primary/30 ring-offset-1 ring-offset-background'
-                    )} />
-                    <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-popover border border-border px-2 py-0.5 rounded text-[10px] opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 shadow-lg">
-                      {day.rate}%
-                    </div>
-                  </div>
-                  <span className={cn(
-                    "text-[10px]",
-                    isToday ? "text-primary font-medium" : "text-muted-foreground"
-                  )}>
-                    {day.day}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-
         {/* Next Tasks Section */}
         <section className="space-y-3">
           <div className="flex items-center justify-between">
@@ -499,6 +460,60 @@ export default function HomeClient({
                 </>
               );
             })()}
+          </div>
+        </section>
+
+        {/* Daily Completion Chart */}
+        <section className="p-4 rounded-2xl bg-card border border-border/50">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Target size={18} className="text-primary" />
+              <h3 className="text-sm font-semibold text-muted-foreground">Completion Rate</h3>
+            </div>
+            <Link href="/reports" className="text-xs text-primary hover:underline">
+              Details
+            </Link>
+          </div>
+          <div className="h-40">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={last7DaysCompletion}>
+                <defs>
+                  <linearGradient id="completionGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.4} />
+                    <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <XAxis 
+                  dataKey="day" 
+                  tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <YAxis 
+                  domain={[0, 100]}
+                  ticks={[0, 25, 50, 75, 100]}
+                  tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <Tooltip 
+                  contentStyle={{
+                    backgroundColor: 'hsl(var(--popover))',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '8px',
+                    fontSize: '12px'
+                  }}
+                  formatter={(value: number | undefined) => value !== undefined ? [`${value}%`, 'Completion'] : ['', '']}
+                />
+                <Area 
+                  type="monotone" 
+                  dataKey="rate" 
+                  stroke="hsl(var(--primary))" 
+                  strokeWidth={2}
+                  fill="url(#completionGradient)" 
+                />
+              </AreaChart>
+            </ResponsiveContainer>
           </div>
         </section>
 

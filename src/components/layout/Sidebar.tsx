@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { triggerNavigationLoading } from '@/components/NavigationLoader';
 import {
   LayoutDashboard,
   ListTodo,
@@ -25,17 +24,10 @@ export default function Sidebar() {
   const pathname = usePathname();
   const isSidebarOpen = useSelector((state: RootState) => state.ui.isSidebarOpen);
 
-  const handleNavClick = (href: string) => {
-    const isActive = pathname === href || (href !== '/' && pathname.startsWith(href));
-    if (!isActive) {
-      triggerNavigationLoading();
-    }
-  };
-
   if (!isSidebarOpen) return null;
 
   return (
-    <aside className="hidden md:flex flex-col w-64 h-screen fixed left-0 top-0 border-r border-border bg-background/80 backdrop-blur-md z-50 transition-all duration-300">
+    <aside className="hidden md:flex flex-col w-64 h-screen fixed left-0 top-0 border-r border-border bg-background/80 backdrop-blur-md z-50">
       <div className="p-6">
         <h1 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-primary" />
@@ -53,7 +45,6 @@ export default function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
-              onClick={() => handleNavClick(item.href)}
               className={cn(
                 'flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200',
                 isActive
