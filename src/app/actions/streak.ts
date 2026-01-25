@@ -15,11 +15,56 @@ import {
   dayjs
 } from '@/lib/server-date-utils';
 
-const MIN_ROUTINE_TASKS = 10;
+const MIN_ROUTINE_TASKS = 5;
 const MIN_BOOK_READING_MINUTES = 5;
 const BOOK_TASK_POINTS = 20;
 const EXERCISE_TASK_POINTS = 25;
 const LEARNING_TASK_POINTS = 15;
+
+// Helper: Check if a day can be considered a rest day (valid if 2 consecutive exercise days before)
+async function canBeRestDay(dateStr: string): Promise<boolean> {
+  const checkDate = dayjs(dateStr).tz('Asia/Kolkata');
+  const day1 = checkDate.subtract(1, 'day');
+  const day2 = checkDate.subtract(2, 'day');
+  
+  const { startOfDay: start1, endOfDay: end1 } = getDateRange(day1.format('YYYY-MM-DD'));
+  const { startOfDay: start2, endOfDay: end2 } = getDateRange(day2.format('YYYY-MM-DD'));
+  
+  const exercise1 = await ExerciseLog.countDocuments({ date: { $gte: start1, $lt: end1 } });
+  const exercise2 = await ExerciseLog.countDocuments({ date: { $gte: start2, $lt: end2 } });
+  
+  return exercise1 > 0 && exercise2 > 0;
+}
+
+// Helper: Check if a day is valid for streak (either has exercise OR is a valid rest day)
+async function isDayValidForStreak(dateStr: string): Promise<{ valid: boolean; isRestDay: boolean; routineTasks: number; hasExercise: boolean }> {
+  const { startOfDay, endOfDay } = getDateRange(dateStr);
+  
+  const routineTasks = await DailyLog.countDocuments({
+    date: { $gte: startOfDay, $lt: endOfDay },
+    status: 'completed'
+  });
+  
+  const exerciseCount = await ExerciseLog.countDocuments({
+    date: { $gte: startOfDay, $lt: endOfDay }
+  });
+  
+  const hasExercise = exerciseCount > 0;
+  const hasEnoughTasks = routineTasks >= MIN_ROUTINE_TASKS;
+  
+  // If has exercise and tasks, it's a normal valid day
+  if (hasExercise && hasEnoughTasks) {
+    return { valid: true, isRestDay: false, routineTasks, hasExercise };
+  }
+  
+  // If has tasks but no exercise, check if it can be a rest day
+  if (hasEnoughTasks && !hasExercise) {
+    const isRestDay = await canBeRestDay(dateStr);
+    return { valid: isRestDay, isRestDay, routineTasks, hasExercise };
+  }
+  
+  return { valid: false, isRestDay: false, routineTasks, hasExercise };
+}
 
 interface StreakData {
   currentStreak: number;
@@ -118,61 +163,37 @@ export async function getStreakData(): Promise<StreakData> {
   await connectDB();
   
   const today = getTodayDateString();
-  const { startOfDay: todayStart, endOfDay: todayEnd } = getDateRange(today);
   
-  // Get today's stats
-  const todayRoutineTasks = await DailyLog.countDocuments({
-    date: { $gte: todayStart, $lt: todayEnd },
-    status: 'completed'
-  });
+  // Get today's validation using helper
+  const todayResult = await isDayValidForStreak(today);
+  const todayValid = todayResult.valid;
+  const todayRoutineTasks = todayResult.routineTasks;
+  const todayHasExercise = todayResult.hasExercise;
+  const todayIsRestDay = todayResult.isRestDay;
   
-  const todayExerciseLogs = await ExerciseLog.countDocuments({
-    date: { $gte: todayStart, $lt: todayEnd }
-  });
-  
-  const todayHasExercise = todayExerciseLogs > 0;
-  const todayValid = todayRoutineTasks >= MIN_ROUTINE_TASKS && todayHasExercise;
-  
-  // Calculate current streak
+  // Calculate current streak - start from yesterday and count backwards
   let currentStreak = 0;
-  let checkDate = dayjs().tz('Asia/Kolkata');
+  let checkDate = dayjs().tz('Asia/Kolkata').subtract(1, 'day');
   
-  // If today is valid, start from today, otherwise start from yesterday
-  if (todayValid) {
-    currentStreak = 1;
-    checkDate = checkDate.subtract(1, 'day');
-  }
-  
-  // Count backwards
+  // Count backwards from yesterday
   while (true) {
-    const { startOfDay, endOfDay } = getDateRange(checkDate.format('YYYY-MM-DD'));
-    const record = await DailyStreakRecord.findOne({
-      date: { $gte: startOfDay, $lt: endOfDay }
-    });
+    const dateStr = checkDate.format('YYYY-MM-DD');
+    const dayResult = await isDayValidForStreak(dateStr);
     
-    if (record && record.streakValid) {
+    if (dayResult.valid) {
       currentStreak++;
       checkDate = checkDate.subtract(1, 'day');
     } else {
-      // Check if there was activity that day even if no record exists
-      const routineTasks = await DailyLog.countDocuments({
-        date: { $gte: startOfDay, $lt: endOfDay },
-        status: 'completed'
-      });
-      const exerciseCount = await ExerciseLog.countDocuments({
-        date: { $gte: startOfDay, $lt: endOfDay }
-      });
-      
-      if (routineTasks >= MIN_ROUTINE_TASKS && exerciseCount > 0) {
-        currentStreak++;
-        checkDate = checkDate.subtract(1, 'day');
-      } else {
-        break;
-      }
+      break;
     }
     
     // Safety limit
     if (currentStreak > 365) break;
+  }
+  
+  // If today is already valid, add it to the streak
+  if (todayValid) {
+    currentStreak++;
   }
   
   // Calculate longest streak
@@ -198,38 +219,18 @@ export async function getStreakData(): Promise<StreakData> {
   }
   
   // Get last 7 days data
-  const last7Days: { date: string; valid: boolean }[] = [];
+  const last7Days: { date: string; valid: boolean; isRestDay?: boolean }[] = [];
   for (let i = 6; i >= 0; i--) {
     const date = dayjs().tz('Asia/Kolkata').subtract(i, 'day');
     const dateStr = date.format('YYYY-MM-DD');
-    const { startOfDay, endOfDay } = getDateRange(dateStr);
-    
-    let valid = false;
     
     if (i === 0) {
       // Today
-      valid = todayValid;
+      last7Days.push({ date: dateStr, valid: todayValid, isRestDay: todayIsRestDay });
     } else {
-      const record = await DailyStreakRecord.findOne({
-        date: { $gte: startOfDay, $lt: endOfDay }
-      });
-      
-      if (record) {
-        valid = record.streakValid;
-      } else {
-        // Check manually
-        const routineTasks = await DailyLog.countDocuments({
-          date: { $gte: startOfDay, $lt: endOfDay },
-          status: 'completed'
-        });
-        const exerciseCount = await ExerciseLog.countDocuments({
-          date: { $gte: startOfDay, $lt: endOfDay }
-        });
-        valid = routineTasks >= MIN_ROUTINE_TASKS && exerciseCount > 0;
-      }
+      const dayResult = await isDayValidForStreak(dateStr);
+      last7Days.push({ date: dateStr, valid: dayResult.valid, isRestDay: dayResult.isRestDay });
     }
-    
-    last7Days.push({ date: dateStr, valid });
   }
   
   // Find next target

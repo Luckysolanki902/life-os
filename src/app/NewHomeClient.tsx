@@ -303,7 +303,7 @@ export default function HomeClient({
                   ? "bg-emerald-500/20 text-emerald-400" 
                   : "bg-orange-500/20 text-orange-400"
               )}>
-                {streakData.todayValid ? "Complete ✓" : `${streakData.todayRoutineTasks}/10 tasks`}
+                {streakData.todayValid ? "Complete ✓" : `${streakData.todayRoutineTasks}/5 tasks`}
               </span>
             </div>
           </div>

@@ -26,7 +26,7 @@ const DailyStreakRecordSchema = new Schema(
     date: { type: Date, required: true, unique: true }, // Normalized to midnight
     routineTasksCompleted: { type: Number, default: 0 },
     hasExerciseLog: { type: Boolean, default: false },
-    streakValid: { type: Boolean, default: false }, // true if >= 10 tasks AND has exercise
+    streakValid: { type: Boolean, default: false }, // true if >= 5 tasks AND has exercise (or rest day)
     bonusPointsAwarded: { type: Number, default: 0 }, // Streak milestone bonus earned
     milestonesReached: [{ type: Number }], // Array of milestone days reached (e.g., [1, 3, 5])
   },

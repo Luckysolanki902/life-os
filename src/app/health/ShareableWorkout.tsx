@@ -48,11 +48,13 @@ interface WorkoutSummary {
   meditationDone: boolean;
   streakData: {
     currentStreak: number;
-    last7Days: { date: string; valid: boolean }[];
+    last7Days: { date: string; valid: boolean; isRestDay?: boolean }[];
     todayValid: boolean;
     todayRoutineTasks: number;
+    todayIsRestDay?: boolean;
   };
   totalPoints: number;
+  isRestDay?: boolean;
 }
 
 interface ShareableWorkoutProps {
@@ -371,7 +373,7 @@ export default function ShareableWorkout({ canShare, hasWeight }: ShareableWorko
                             fontWeight: '600',
                             color: summary.streakData.todayValid ? '#059669' : '#ea580c'
                           }}>
-                            {summary.streakData.todayValid ? '✓ Done' : `${summary.streakData.todayRoutineTasks}/10`}
+                            {summary.streakData.todayValid ? '✓ Done' : `${summary.streakData.todayRoutineTasks}/5`}
                           </span>
                         </div>
                       </div>
