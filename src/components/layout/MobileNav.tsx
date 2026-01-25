@@ -3,12 +3,12 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import { triggerNavigationLoading } from '@/components/NavigationLoader';
 import {
   LayoutDashboard,
   ListTodo,
   LayoutGrid,
   BarChart3,
-  Settings,
 } from 'lucide-react';
 
 const navItems = [
@@ -21,6 +21,14 @@ const navItems = [
 export default function MobileNav() {
   const pathname = usePathname();
 
+  const handleNavClick = (href: string) => {
+    // Only trigger loading if navigating to a different page
+    const isActive = pathname === href || (href !== '/' && pathname.startsWith(href));
+    if (!isActive) {
+      triggerNavigationLoading();
+    }
+  };
+
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 h-20 bg-background/80 backdrop-blur-xl border-t border-border z-50 pb-safe">
       <div className="flex justify-around items-center h-full px-2">
@@ -32,6 +40,7 @@ export default function MobileNav() {
             <Link
               key={item.href}
               href={item.href}
+              onClick={() => handleNavClick(item.href)}
               className={cn(
                 'flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors',
                 isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground'

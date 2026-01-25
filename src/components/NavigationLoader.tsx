@@ -22,35 +22,30 @@ function setLoading(value: boolean) {
   listeners.forEach(l => l());
 }
 
+// Export function to trigger loading immediately on click
+export function triggerNavigationLoading() {
+  setLoading(true);
+  // Auto-hide after animation if route change hasn't triggered yet
+  setTimeout(() => {
+    setLoading(false);
+  }, 600);
+}
+
 export default function NavigationLoader() {
   const isLoading = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
   const pathname = usePathname();
   const prevPathRef = useRef(pathname);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    // Only trigger on actual route changes
+    // When route actually changes, hide the loader
     if (prevPathRef.current !== pathname) {
       prevPathRef.current = pathname;
-      
-      // Clear any existing timeout
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-      
-      setLoading(true);
-      
-      // Hide after animation
-      timeoutRef.current = setTimeout(() => {
+      // Small delay to ensure smooth transition
+      const timer = setTimeout(() => {
         setLoading(false);
-      }, 500);
+      }, 100);
+      return () => clearTimeout(timer);
     }
-    
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-    };
   }, [pathname]);
 
   if (!isLoading) return null;

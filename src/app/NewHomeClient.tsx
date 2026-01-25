@@ -76,7 +76,9 @@ interface StreakData {
   todayValid: boolean;
   todayRoutineTasks: number;
   todayHasExercise: boolean;
-  last7Days: { date: string; valid: boolean }[];
+  todayIsRestDay: boolean;
+  todayCanBeRestDay: boolean;
+  last7Days: { date: string; valid: boolean; isRestDay?: boolean }[];
   nextTarget: { days: number; points: number; label: string } | null;
   totalStreakPoints: number;
   reachedMilestones: { days: number; points: number; label: string }[];
@@ -313,7 +315,12 @@ export default function HomeClient({
                   ? "bg-emerald-500/20 text-emerald-400" 
                   : "bg-orange-500/20 text-orange-400"
               )}>
-                {streakData.todayValid ? "Complete ✓" : `${streakData.todayRoutineTasks}/5 tasks`}
+                {streakData.todayValid 
+                  ? (streakData.todayIsRestDay ? "Rest Day ✓" : "Complete ✓") 
+                  : streakData.todayRoutineTasks >= 5 
+                    ? (streakData.todayCanBeRestDay ? "Rest Day OK" : (streakData.todayHasExercise ? "Complete ✓" : "Need Exercise"))
+                    : `${streakData.todayRoutineTasks}/5 tasks`
+                }
               </span>
             </div>
           </div>

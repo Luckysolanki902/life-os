@@ -72,7 +72,9 @@ interface StreakData {
   todayValid: boolean;
   todayRoutineTasks: number;
   todayHasExercise: boolean;
-  last7Days: { date: string; valid: boolean }[];
+  todayIsRestDay: boolean;
+  todayCanBeRestDay: boolean;
+  last7Days: { date: string; valid: boolean; isRestDay?: boolean }[];
   nextTarget: { days: number; points: number; label: string } | null;
   totalStreakPoints: number;
   reachedMilestones: { days: number; points: number; label: string }[];
@@ -170,6 +172,8 @@ export async function getStreakData(): Promise<StreakData> {
   const todayRoutineTasks = todayResult.routineTasks;
   const todayHasExercise = todayResult.hasExercise;
   const todayIsRestDay = todayResult.isRestDay;
+  // Check if today could be a rest day (even if not yet valid)
+  const todayCanBeRestDay = await canBeRestDay(today);
   
   // Calculate current streak - start from yesterday and count backwards
   let currentStreak = 0;
@@ -256,6 +260,8 @@ export async function getStreakData(): Promise<StreakData> {
     todayValid,
     todayRoutineTasks,
     todayHasExercise,
+    todayIsRestDay,
+    todayCanBeRestDay,
     last7Days,
     nextTarget,
     totalStreakPoints,

@@ -3,14 +3,13 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import { triggerNavigationLoading } from '@/components/NavigationLoader';
 import {
   LayoutDashboard,
   ListTodo,
   LayoutGrid,
   BarChart3,
-  Settings,
   LogOut,
-  BookOpen,
 } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import { RootState } from '@/lib/store';
@@ -25,6 +24,13 @@ const navItems = [
 export default function Sidebar() {
   const pathname = usePathname();
   const isSidebarOpen = useSelector((state: RootState) => state.ui.isSidebarOpen);
+
+  const handleNavClick = (href: string) => {
+    const isActive = pathname === href || (href !== '/' && pathname.startsWith(href));
+    if (!isActive) {
+      triggerNavigationLoading();
+    }
+  };
 
   if (!isSidebarOpen) return null;
 
@@ -47,6 +53,7 @@ export default function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
+              onClick={() => handleNavClick(item.href)}
               className={cn(
                 'flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200',
                 isActive
