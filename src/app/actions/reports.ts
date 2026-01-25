@@ -603,19 +603,62 @@ export async function getHealthReport(period: string = 'thisWeek') {
     taskId: { $in: healthTaskIds },
     date: { $gte: start, $lt: end }
   });
+
+  // Calculate workout streak with rest day logic
+  // Get all exercise logs for streak calculation (last 90 days)
+  const streakStart = dayjs().tz(DEFAULT_TIMEZONE).subtract(90, 'day').startOf('day').toDate();
+  const streakEnd = dayjs().tz(DEFAULT_TIMEZONE).add(1, 'day').startOf('day').toDate();
+  const allExerciseLogs = await ExerciseLog.find({ 
+    date: { $gte: streakStart, $lt: streakEnd } 
+  }).sort({ date: -1 }).lean();
+
+  // Group by date
+  const exerciseByDate: Record<string, boolean> = {};
+  allExerciseLogs.forEach((log: any) => {
+    const logDate = dayjs(log.date).tz(DEFAULT_TIMEZONE).format('YYYY-MM-DD');
+    exerciseByDate[logDate] = true;
+  });
+
+  // Calculate streak backwards from today
+  let workoutStreak = 0;
+  let checkDate = dayjs().tz(DEFAULT_TIMEZONE);
+  let consecutiveWorkoutDays = 0;
+
+  while (true) {
+    const dateStr = checkDate.format('YYYY-MM-DD');
+    const hasWorkout = exerciseByDate[dateStr];
+
+    if (hasWorkout) {
+      workoutStreak++;
+      consecutiveWorkoutDays++;
+    } else {
+      // Check if this can be a rest day (after 2+ consecutive workout days)
+      if (consecutiveWorkoutDays >= 2) {
+        // This is a valid rest day, streak continues
+        consecutiveWorkoutDays = 0; // Reset counter for next rest day eligibility
+      } else {
+        // Can't be a rest day, streak breaks
+        break;
+      }
+    }
+
+    checkDate = checkDate.subtract(1, 'day');
+    if (workoutStreak > 365) break; // Safety limit
+  }
   
-  // Daily exercise chart
+  // Daily exercise chart - use dayjs for proper IST timezone handling
   const dailyExercise = [];
   for (let i = 0; i < Math.min(daysInPeriod, 31); i++) {
-    const dayStart = new Date(start.getTime() + i * 24 * 60 * 60 * 1000);
-    const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+    const currentDay = dayjs(start).tz(DEFAULT_TIMEZONE).add(i, 'day');
+    const dayStart = currentDay.startOf('day').toDate();
+    const dayEnd = currentDay.add(1, 'day').startOf('day').toDate();
     
     const dayLogs = await ExerciseLog.find({ date: { $gte: dayStart, $lt: dayEnd } }).lean();
     const totalSets = dayLogs.reduce((acc, log: any) => acc + (log.sets?.length || 0), 0);
     
     dailyExercise.push({
-      date: dayStart.toISOString().split('T')[0],
-      dayName: dayStart.toLocaleDateString('en-US', { weekday: 'short' }),
+      date: currentDay.format('YYYY-MM-DD'),
+      dayName: currentDay.format('ddd'),
       sessions: dayLogs.length,
       sets: totalSets
     });
@@ -632,7 +675,8 @@ export async function getHealthReport(period: string = 'thisWeek') {
       avgMood: Number(avgMood),
       healthTasksCompletionRate: healthTasksTotal > 0 
         ? Math.round((healthTasksCompleted / healthTasksTotal) * 100) 
-        : 0
+        : 0,
+      workoutStreak
     },
     muscleWork: Object.entries(muscleWork)
       .map(([muscle, count]) => ({ muscle, count }))

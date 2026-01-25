@@ -307,21 +307,10 @@ function MoodChart({ data, distribution }: { data: any[]; distribution: Record<s
   );
 }
 
-function WorkoutStreakCard({ dailyExercise }: { dailyExercise: any[] }) {
+function WorkoutStreakCard({ dailyExercise, workoutStreak }: { dailyExercise: any[]; workoutStreak: number }) {
   // Only consider days from first activity
   const firstActivityIndex = dailyExercise.findIndex(d => d.sessions > 0);
   const relevantDays = firstActivityIndex >= 0 ? dailyExercise.slice(firstActivityIndex) : [];
-  
-  let currentStreak = 0;
-  const reversedData = [...relevantDays].reverse();
-  
-  for (const day of reversedData) {
-    if (day.sessions > 0) {
-      currentStreak++;
-    } else {
-      break;
-    }
-  }
   
   const totalWorkoutDays = relevantDays.filter(d => d.sessions > 0).length;
   const totalDays = relevantDays.length;
@@ -336,7 +325,7 @@ function WorkoutStreakCard({ dailyExercise }: { dailyExercise: any[] }) {
       
       <div className="flex items-center gap-6 mb-4">
         <div>
-          <p className="text-3xl font-bold text-orange-500">{currentStreak}</p>
+          <p className="text-3xl font-bold text-orange-500">{workoutStreak}</p>
           <p className="text-sm text-muted-foreground">day streak</p>
         </div>
         <div className="h-12 w-px bg-border" />
@@ -346,7 +335,7 @@ function WorkoutStreakCard({ dailyExercise }: { dailyExercise: any[] }) {
         </div>
       </div>
       
-      <div className="flex flex-wrap gap-1">
+      <div className="flex flex-wrap gap-1 mb-2">
         {relevantDays.slice(-21).map((day, i) => (
           <div
             key={i}
@@ -362,6 +351,10 @@ function WorkoutStreakCard({ dailyExercise }: { dailyExercise: any[] }) {
           </div>
         ))}
       </div>
+      
+      <p className="text-xs text-muted-foreground">
+        💡 Rest days allowed after 2 consecutive workout days
+      </p>
     </div>
   );
 }
@@ -487,7 +480,7 @@ export default function HealthReportClient({ initialData, initialPeriod }: Healt
 
       {/* Workout Streak */}
       {dailyExercise && dailyExercise.length > 0 && (
-        <WorkoutStreakCard dailyExercise={dailyExercise} />
+        <WorkoutStreakCard dailyExercise={dailyExercise} workoutStreak={summary.workoutStreak || 0} />
       )}
 
       {/* Charts Row */}
