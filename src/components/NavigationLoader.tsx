@@ -54,7 +54,8 @@ export default function NavigationLoader() {
     <div 
       className="fixed inset-0 z-50 flex items-center justify-center bg-background animate-in fade-in-0 duration-150"
     >
-      <div className="flex flex-col items-center gap-4">
+      {/* Offset for sidebar on desktop */}
+      <div className="flex flex-col items-center gap-4 md:ml-32">
         <div className="relative w-20 h-20 animate-pulse">
           <Image
             src="/penguin_logo.png"

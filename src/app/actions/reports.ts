@@ -222,14 +222,14 @@ export async function getOverallReport(period: string = 'thisWeek') {
     completedDate: { $gte: prev.start, $lt: prev.end }
   });
   
-  // LEARNING: Total minutes practiced
-  const learningResult = await LearningLog.aggregate([
+  // LEARNING: Total minutes practiced (using SimpleLearningLog)
+  const learningResult = await SimpleLearningLog.aggregate([
     { $match: { date: { $gte: start, $lt: end } } },
     { $group: { _id: null, total: { $sum: '$duration' } } }
   ]);
   const learningMinutes = learningResult[0]?.total || 0;
   
-  const prevLearningResult = await LearningLog.aggregate([
+  const prevLearningResult = await SimpleLearningLog.aggregate([
     { $match: { date: { $gte: prev.start, $lt: prev.end } } },
     { $group: { _id: null, total: { $sum: '$duration' } } }
   ]);
@@ -257,7 +257,7 @@ export async function getOverallReport(period: string = 'thisWeek') {
   ]);
   
   // Learning: based on learning logs - calculate days with practice vs total days
-  const learningLogDays = await LearningLog.aggregate([
+  const learningLogDays = await SimpleLearningLog.aggregate([
     { $match: { date: { $gte: start, $lt: end } } },
     { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$date' } } } },
     { $count: 'days' }
