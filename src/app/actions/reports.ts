@@ -5,7 +5,6 @@ import Task from '@/models/Task';
 import DailyLog from '@/models/DailyLog';
 import WeightLog from '@/models/WeightLog';
 import ExerciseLog from '@/models/ExerciseLog';
-import ExerciseDefinition from '@/models/ExerciseDefinition';
 import MoodLog from '@/models/MoodLog';
 import Book from '@/models/Book';
 import BookLog from '@/models/BookLog';
@@ -14,6 +13,7 @@ import LearningArea from '@/models/LearningArea';
 import LearningSkill from '@/models/LearningSkill';
 import PracticeMedium from '@/models/PracticeMedium';
 import LearningLog from '@/models/LearningLog';
+import SimpleLearningLog from '@/models/SimpleLearningLog';
 import {
   dayjs
 } from '@/lib/server-date-utils';
@@ -319,13 +319,45 @@ export async function getOverallReport(period: string = 'thisWeek') {
       status: 'completed'
     });
     
+    // Get learning duration for this day
+    const dayLearningResult = await SimpleLearningLog.aggregate([
+      { $match: { date: { $gte: dayStart, $lt: dayEnd } } },
+      { $group: { _id: null, total: { $sum: '$duration' } } }
+    ]);
+    const dayLearningMinutes = dayLearningResult[0]?.total || 0;
+    
+    // Get pages read for this day
+    const dayBookLogs = await BookLog.find({ date: { $gte: dayStart, $lt: dayEnd } })
+      .sort({ date: 1 })
+      .lean();
+    
+    const dayBookPageTracker: Record<string, { firstPage: number; lastPage: number }> = {};
+    dayBookLogs.forEach((log: any) => {
+      const bookId = log.bookId?._id?.toString() || log.bookId?.toString();
+      if (!bookId) return;
+      
+      if (!dayBookPageTracker[bookId]) {
+        dayBookPageTracker[bookId] = { firstPage: log.currentPage, lastPage: log.currentPage };
+      } else {
+        dayBookPageTracker[bookId].lastPage = Math.max(dayBookPageTracker[bookId].lastPage, log.currentPage);
+        dayBookPageTracker[bookId].firstPage = Math.min(dayBookPageTracker[bookId].firstPage, log.currentPage);
+      }
+    });
+    
+    const dayPagesRead = Object.values(dayBookPageTracker).reduce(
+      (acc, p) => acc + Math.max(0, p.lastPage - p.firstPage), 
+      0
+    );
+    
     // Use expected tasks as total (not just logged tasks)
     dailyBreakdown.push({
       date: dayStart.toISOString().split('T')[0],
       dayName: dayStart.toLocaleDateString('en-US', { weekday: 'short' }),
       completed: dayCompleted,
       total: expectedTasksForDay,
-      rate: expectedTasksForDay > 0 ? Math.round((dayCompleted / expectedTasksForDay) * 100) : 0
+      rate: expectedTasksForDay > 0 ? Math.round((dayCompleted / expectedTasksForDay) * 100) : 0,
+      learningMinutes: dayLearningMinutes,
+      pagesRead: dayPagesRead
     });
   }
   

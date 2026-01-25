@@ -63,6 +63,8 @@ interface ReportsClientProps {
       completed: number;
       total: number;
       rate: number;
+      learningMinutes?: number;
+      pagesRead?: number;
     }>;
   };
   initialPeriod: string;
@@ -173,6 +175,8 @@ export default function ReportsClient({ initialData, initialPeriod }: ReportsCli
     rate: day.rate,
     completed: day.completed,
     total: day.total,
+    learningMinutes: day.learningMinutes || 0,
+    pagesRead: day.pagesRead || 0,
   })) || [];
 
   const moodLabels: Record<number, string> = {
@@ -398,6 +402,100 @@ export default function ReportsClient({ initialData, initialPeriod }: ReportsCli
           })}
         </div>
       </div>
+
+      {/* Learning Duration Chart */}
+      {chartData.length > 1 && (
+        <div className="bg-card/50 border border-border/30 rounded-2xl p-4">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-semibold flex items-center gap-2">
+              <Brain size={14} className="text-amber-500" />
+              Learning Duration (minutes)
+            </h3>
+            <Link href={`/reports/learning?period=${period}`} className="text-xs text-amber-500 hover:underline">
+              Details
+            </Link>
+          </div>
+          <div className="h-36">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="learningGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="rgb(245, 158, 11)" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="rgb(245, 158, 11)" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <XAxis 
+                  dataKey="shortDate" 
+                  tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis 
+                  tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <Tooltip content={<MinimalTooltip />} />
+                <Area
+                  type="monotone"
+                  dataKey="learningMinutes"
+                  stroke="rgb(245, 158, 11)"
+                  strokeWidth={2}
+                  fill="url(#learningGradient)"
+                  name="Minutes"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
+
+      {/* Books Pages Read Chart */}
+      {chartData.length > 1 && (
+        <div className="bg-card/50 border border-border/30 rounded-2xl p-4">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-semibold flex items-center gap-2">
+              <BookOpen size={14} className="text-cyan-500" />
+              Pages Read
+            </h3>
+            <Link href={`/reports/books?period=${period}`} className="text-xs text-cyan-500 hover:underline">
+              Details
+            </Link>
+          </div>
+          <div className="h-36">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="booksGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="rgb(6, 182, 212)" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="rgb(6, 182, 212)" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <XAxis 
+                  dataKey="shortDate" 
+                  tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis 
+                  tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <Tooltip content={<MinimalTooltip />} />
+                <Area
+                  type="monotone"
+                  dataKey="pagesRead"
+                  stroke="rgb(6, 182, 212)"
+                  strokeWidth={2}
+                  fill="url(#booksGradient)"
+                  name="Pages"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
 
       {/* Quick Links */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
