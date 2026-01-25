@@ -71,6 +71,9 @@ interface HealthClientProps {
     mood: MoodLog | null;
     date: string;
     todaysExerciseCount?: number;
+    canBeRestDay?: boolean;
+    yesterdayExerciseCount?: number;
+    dayBeforeExerciseCount?: number;
   };
 }
 
@@ -119,7 +122,7 @@ const MOOD_OPTIONS = [
 
 export default function HealthClient({ initialData }: HealthClientProps) {
   const router = useRouter();
-  const { routine, weightStats, pages, mood, date, todaysExerciseCount = 0 } = initialData;
+  const { routine, weightStats, pages, mood, date, todaysExerciseCount = 0, canBeRestDay = false } = initialData;
   
   // Parse server date and get YYYY-MM-DD in local timezone (IST)
   const currentDate = parseServerDate(date);
@@ -234,8 +237,9 @@ export default function HealthClient({ initialData }: HealthClientProps) {
           {/* Share Button - Only show for today */}
           {isToday && (
             <ShareableWorkout 
-              canShare={todaysExerciseCount >= 5 && !!weightStats.todaysWeight}
+              canShare={(todaysExerciseCount >= 5 || canBeRestDay) && !!weightStats.todaysWeight}
               hasWeight={!!weightStats.todaysWeight}
+              isRestDay={canBeRestDay && todaysExerciseCount < 5}
             />
           )}
           <input

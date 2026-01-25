@@ -161,14 +161,18 @@ export async function getHealthDashboardData(dateStr?: string) {
   const pages = await HealthPage.find().sort({ createdAt: 1 }).lean();
   const pageIds = pages.map((p: any) => p._id.toString());
 
+  // Get all exercises for all pages (needed for both cycle position and rest day check)
+  const allExercises = pageIds.length > 0 
+    ? await ExerciseDefinition.find({ pageId: { $in: pageIds } }).lean()
+    : [];
+  const exerciseIds = allExercises.map((e: any) => e._id);
+
   // 4. Find the most recent workout log to determine cycle position
   let lastWorkoutPageIndex = -1;
   let lastWorkoutDate: Date | null = null;
   let todaysExerciseCount = 0;
   
   if (pageIds.length > 0) {
-    // Get all exercises for all pages
-    const allExercises = await ExerciseDefinition.find({ pageId: { $in: pageIds } }).lean();
     const exerciseToPage: Record<string, string> = {};
     allExercises.forEach((ex: any) => {
       exerciseToPage[ex._id.toString()] = ex.pageId.toString();
@@ -176,7 +180,7 @@ export async function getHealthDashboardData(dateStr?: string) {
     
     // Find the most recent exercise log
     const latestLog = await ExerciseLog.findOne({
-      exerciseId: { $in: allExercises.map((e: any) => e._id) }
+      exerciseId: { $in: exerciseIds }
     }).sort({ date: -1 }).lean();
     
     if (latestLog) {
@@ -187,11 +191,35 @@ export async function getHealthDashboardData(dateStr?: string) {
     
     // Count today's exercise logs (for shareable)
     const todaysLogs = await ExerciseLog.find({
-      exerciseId: { $in: allExercises.map((e: any) => e._id) },
+      exerciseId: { $in: exerciseIds },
       date: { $gte: targetDate, $lt: nextDay }
     }).lean();
     todaysExerciseCount = todaysLogs.filter((l: any) => l.sets && l.sets.length > 0).length;
   }
+
+  // Check last 2 days for rest day eligibility
+  const yesterday = dayjs(targetDateStr).subtract(1, 'day');
+  const dayBeforeYesterday = dayjs(targetDateStr).subtract(2, 'day');
+  
+  const yesterdayRange = getDateRange(yesterday.format('YYYY-MM-DD'));
+  const dayBeforeRange = getDateRange(dayBeforeYesterday.format('YYYY-MM-DD'));
+  
+  // Count yesterday's exercises
+  const yesterdayLogs = await ExerciseLog.find({
+    exerciseId: { $in: exerciseIds },
+    date: { $gte: yesterdayRange.startOfDay, $lt: yesterdayRange.endOfDay }
+  }).lean();
+  const yesterdayExerciseCount = yesterdayLogs.filter((l: any) => l.sets && l.sets.length > 0).length;
+  
+  // Count day before yesterday's exercises
+  const dayBeforeLogs = await ExerciseLog.find({
+    exerciseId: { $in: exerciseIds },
+    date: { $gte: dayBeforeRange.startOfDay, $lt: dayBeforeRange.endOfDay }
+  }).lean();
+  const dayBeforeExerciseCount = dayBeforeLogs.filter((l: any) => l.sets && l.sets.length > 0).length;
+  
+  // Rest day is allowed if last 2 days both had 5+ exercises
+  const canBeRestDay = yesterdayExerciseCount >= 5 && dayBeforeExerciseCount >= 5;
 
   // Calculate next workout index (cycles back to 0)
   const nextWorkoutIndex = pageIds.length > 0 
@@ -218,7 +246,10 @@ export async function getHealthDashboardData(dateStr?: string) {
       nextWorkoutIndex
     },
     mood: moodLog ? { mood: moodLog.mood, note: moodLog.note } : null,
-    todaysExerciseCount
+    todaysExerciseCount,
+    canBeRestDay,
+    yesterdayExerciseCount,
+    dayBeforeExerciseCount
   };
 }
 
@@ -1018,6 +1049,30 @@ export async function getTodaysWorkoutSummary() {
   const { getTotalPointsWithBonuses } = await import('./streak');
   const pointsData = await getTotalPointsWithBonuses();
   
+  // Check if today is a rest day (last 2 days had 5+ exercises each)
+  const yesterday = dayjs(targetDateStr).subtract(1, 'day');
+  const dayBeforeYesterday = dayjs(targetDateStr).subtract(2, 'day');
+  
+  const yesterdayRange = getDateRange(yesterday.format('YYYY-MM-DD'));
+  const dayBeforeRange = getDateRange(dayBeforeYesterday.format('YYYY-MM-DD'));
+  
+  // Count yesterday's exercises
+  const yesterdayLogs = await ExerciseLog.find({
+    exerciseId: { $in: exerciseIds },
+    date: { $gte: yesterdayRange.startOfDay, $lt: yesterdayRange.endOfDay }
+  }).lean();
+  const yesterdayExerciseCount = yesterdayLogs.filter((l: any) => l.sets && l.sets.length > 0).length;
+  
+  // Count day before yesterday's exercises
+  const dayBeforeLogs = await ExerciseLog.find({
+    exerciseId: { $in: exerciseIds },
+    date: { $gte: dayBeforeRange.startOfDay, $lt: dayBeforeRange.endOfDay }
+  }).lean();
+  const dayBeforeExerciseCount = dayBeforeLogs.filter((l: any) => l.sets && l.sets.length > 0).length;
+  
+  // Rest day is valid if last 2 days both had 5+ exercises and today has less than 5
+  const isRestDay = yesterdayExerciseCount >= 5 && dayBeforeExerciseCount >= 5 && exercisesWithLogs.length < 5;
+  
   return {
     date: targetDate.toISOString(),
     userName,
@@ -1047,6 +1102,7 @@ export async function getTodaysWorkoutSummary() {
       todayValid: streakData.todayValid,
       todayRoutineTasks: streakData.todayRoutineTasks,
     },
-    totalPoints: pointsData.totalPoints
+    totalPoints: pointsData.totalPoints,
+    isRestDay
   };
 }

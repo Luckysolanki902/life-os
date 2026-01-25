@@ -60,6 +60,7 @@ interface WorkoutSummary {
 interface ShareableWorkoutProps {
   canShare: boolean;
   hasWeight: boolean;
+  isRestDay?: boolean;
 }
 
 // Format exercise for display: "Pushups (3x12x4kg)" or "Headstand (120s)"
@@ -84,14 +85,15 @@ function getDayAbbr(dateStr: string): string {
 
 // Mood configurations
 const moodConfig = {
-  great: { label: 'Feeling Great', color: '#22c55e', bgColor: 'rgba(34, 197, 94, 0.15)', emoji: '�' },
+  great: { label: 'Feeling Great', color: '#22c55e', bgColor: 'rgba(34, 197, 94, 0.15)', emoji: '😁' },
   good: { label: 'Feeling Good', color: '#3b82f6', bgColor: 'rgba(59, 130, 246, 0.15)', emoji: '😊' },
-  okay: { label: 'Doing Okay', color: '#f59e0b', bgColor: 'rgba(245, 158, 11, 0.15)', emoji: '�' },
+  okay: { label: 'Doing Okay', color: '#f59e0b', bgColor: 'rgba(245, 158, 11, 0.15)', emoji: '🙂' },
   low: { label: 'Feeling Low', color: '#f97316', bgColor: 'rgba(249, 115, 22, 0.15)', emoji: '😔' },
-  bad: { label: 'Rough Day', color: '#ef4444', bgColor: 'rgba(239, 68, 68, 0.15)', emoji: '�' }
+  bad: { label: 'Rough Day', color: '#ef4444', bgColor: 'rgba(239, 68, 68, 0.15)', emoji: '😞' }
 };
 
-export default function ShareableWorkout({ canShare, hasWeight }: ShareableWorkoutProps) {
+export default function ShareableWorkout({ canShare, hasWeight, isRestDay = false }: ShareableWorkoutProps) {
+  console.log('canShare:', canShare, 'hasWeight:', hasWeight, 'isRestDay:', isRestDay);
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [summary, setSummary] = useState<WorkoutSummary | null>(null);
@@ -186,7 +188,7 @@ export default function ShareableWorkout({ canShare, hasWeight }: ShareableWorko
             ? "bg-primary text-primary-foreground hover:bg-primary/90"
             : "bg-secondary text-muted-foreground cursor-not-allowed opacity-50"
         )}
-        title={!canShare ? `Need at least 5 exercises logged${!hasWeight ? ' and weight logged' : ''}` : 'Share'}
+        title={!canShare ? `Need ${isRestDay ? 'last 2 days with 5+ exercises each' : 'at least 5 exercises logged'}${!hasWeight ? ' and weight logged' : ''}` : 'Share'}
       >
         <Share2 size={16} />
         Share
@@ -464,8 +466,42 @@ export default function ShareableWorkout({ canShare, hasWeight }: ShareableWorko
                       </div>
                     )}
 
-                    {/* Today's Workout by Page */}
-                    {Object.entries(summary.exercisesByPage).map(([pageName, exercises], pageIndex) => {
+                    {/* Today's Workout by Page OR Rest Day */}
+                    {summary.isRestDay ? (
+                      // Rest Day Card
+                      <div style={{ 
+                        width: '100%',
+                        boxSizing: 'border-box',
+                        background: 'white', 
+                        borderRadius: '20px', 
+                        padding: '32px 24px',
+                        marginBottom: '12px',
+                        border: '2px solid #fbcfe8',
+                        textAlign: 'center',
+                        boxShadow: '0 4px 12px rgba(236, 72, 153, 0.08)'
+                      }}>
+                        <div style={{ 
+                          width: '56px', 
+                          height: '56px', 
+                          borderRadius: '16px', 
+                          background: 'linear-gradient(135deg, #10b981, #34d399)',
+                          margin: '0 auto 16px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}>
+                          <Leaf size={32} style={{ color: 'white' }} />
+                        </div>
+                        <div style={{ fontSize: '28px', fontWeight: '800', color: '#10b981', marginBottom: '8px', letterSpacing: '-0.5px' }}>
+                          Rest Day
+                        </div>
+                        <div style={{ fontSize: '14px', color: '#6b7280', fontWeight: '500' }}>
+                          Recovery is part of progress
+                        </div>
+                      </div>
+                    ) : (
+                      // Exercise Cards
+                      Object.entries(summary.exercisesByPage).map(([pageName, exercises], pageIndex) => {
                       const pageColors = ['#f43f5e', '#8b5cf6', '#3b82f6', '#10b981', '#f59e0b'];
                       const color = pageColors[pageIndex % pageColors.length];
                       const totalSets = exercises.reduce((a, e) => a + e.sets.length, 0);
@@ -535,7 +571,7 @@ export default function ShareableWorkout({ canShare, hasWeight }: ShareableWorko
                           </div>
                         </div>
                       );
-                    })}
+                    }))}
 
                     {/* Meditation */}
                     <div style={{ 
