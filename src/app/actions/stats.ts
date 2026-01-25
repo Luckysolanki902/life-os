@@ -2,6 +2,9 @@
 
 import dbConnect from '@/lib/db';
 import DailyLog from '@/models/DailyLog';
+import Task from '@/models/Task';
+import { dayjs } from '@/lib/server-date-utils';
+
 // Ensure Task model is registered
 import '@/models/Task'; 
 
@@ -51,4 +54,53 @@ export async function getIdentityMetric() {
       startups: stats.startups,
     }
   };
+}
+
+// Get last 7 days completion rate for mini chart
+export async function getLast7DaysCompletion(): Promise<{ date: string; day: string; completed: number; total: number; rate: number }[]> {
+  await dbConnect();
+  
+  const allTasks = await Task.find({ isActive: true }).lean();
+  
+  // Helper to check if task shows on a given day
+  const shouldShowTaskOnDay = (task: any, dayOfWeek: number): boolean => {
+    const recurrenceType = task.recurrenceType || 'daily';
+    switch (recurrenceType) {
+      case 'daily': return true;
+      case 'weekdays': return dayOfWeek >= 1 && dayOfWeek <= 5;
+      case 'weekends': return dayOfWeek === 0 || dayOfWeek === 6;
+      case 'custom': return (task.recurrenceDays || []).includes(dayOfWeek);
+      default: return true;
+    }
+  };
+  
+  const result: { date: string; day: string; completed: number; total: number; rate: number }[] = [];
+  
+  for (let i = 6; i >= 0; i--) {
+    const date = dayjs().tz('Asia/Kolkata').subtract(i, 'day');
+    const dateStr = date.format('YYYY-MM-DD');
+    const dayOfWeek = date.day();
+    
+    const dayStart = date.startOf('day').toDate();
+    const dayEnd = date.endOf('day').toDate();
+    
+    // Expected tasks for this day
+    const expectedTasks = allTasks.filter((task: any) => shouldShowTaskOnDay(task, dayOfWeek)).length;
+    
+    // Completed tasks
+    const completed = await DailyLog.countDocuments({
+      date: { $gte: dayStart, $lte: dayEnd },
+      status: 'completed'
+    });
+    
+    result.push({
+      date: dateStr,
+      day: date.format('dd').slice(0, 1),
+      completed,
+      total: expectedTasks,
+      rate: expectedTasks > 0 ? Math.round((completed / expectedTasks) * 100) : 0
+    });
+  }
+  
+  return result;
 }

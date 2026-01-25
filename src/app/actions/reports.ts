@@ -138,13 +138,20 @@ export async function getOverallReport(period: string = 'thisWeek') {
   ]);
   const prevTotalPoints = prevPointsResult[0]?.total || 0;
   
-  // HEALTH: Exercise sessions, weight change
-  const exerciseSessions = await ExerciseLog.countDocuments({
-    date: { $gte: start, $lt: end }
-  });
-  const prevExerciseSessions = await ExerciseLog.countDocuments({
-    date: { $gte: prev.start, $lt: prev.end }
-  });
+  // HEALTH: Exercise days (unique days with exercise), weight change
+  const exerciseDaysResult = await ExerciseLog.aggregate([
+    { $match: { date: { $gte: start, $lt: end } } },
+    { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$date' } } } },
+    { $count: 'days' }
+  ]);
+  const exerciseDays = exerciseDaysResult[0]?.days || 0;
+  
+  const prevExerciseDaysResult = await ExerciseLog.aggregate([
+    { $match: { date: { $gte: prev.start, $lt: prev.end } } },
+    { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$date' } } } },
+    { $count: 'days' }
+  ]);
+  const prevExerciseDays = prevExerciseDaysResult[0]?.days || 0;
   
   // Weight change
   const latestWeight = await WeightLog.findOne({ date: { $lt: end } }).sort({ date: -1 }).lean();
@@ -160,12 +167,53 @@ export async function getOverallReport(period: string = 'thisWeek') {
     ? (moodLogs.reduce((acc, m: any) => acc + moodValues[m.mood], 0) / moodLogs.length).toFixed(1)
     : 0;
   
-  // BOOKS: Pages read, books completed
-  const bookLogs = await BookLog.find({ date: { $gte: start, $lt: end } }).lean();
-  const pagesRead = bookLogs.reduce((acc, log: any) => {
-    // Find the previous log for this book to calculate pages read
-    return acc + (log.currentPage || 0);
-  }, 0);
+  // BOOKS: Pages read (calculate from progress), books completed
+  const bookLogs = await BookLog.find({ date: { $gte: start, $lt: end } })
+    .populate('bookId')
+    .sort({ date: 1 })
+    .lean();
+  
+  // Calculate pages read by tracking progress per book
+  const bookPageTracker: Record<string, { firstPage: number; lastPage: number }> = {};
+  bookLogs.forEach((log: any) => {
+    const bookId = log.bookId?._id?.toString() || log.bookId?.toString();
+    if (!bookId) return;
+    
+    if (!bookPageTracker[bookId]) {
+      bookPageTracker[bookId] = { firstPage: log.currentPage, lastPage: log.currentPage };
+    } else {
+      bookPageTracker[bookId].lastPage = Math.max(bookPageTracker[bookId].lastPage, log.currentPage);
+      bookPageTracker[bookId].firstPage = Math.min(bookPageTracker[bookId].firstPage, log.currentPage);
+    }
+  });
+  
+  const totalPagesRead = Object.values(bookPageTracker).reduce(
+    (acc, p) => acc + Math.max(0, p.lastPage - p.firstPage), 
+    0
+  );
+  
+  // Previous period pages read
+  const prevBookLogs = await BookLog.find({ date: { $gte: prev.start, $lt: prev.end } })
+    .sort({ date: 1 })
+    .lean();
+  
+  const prevBookPageTracker: Record<string, { firstPage: number; lastPage: number }> = {};
+  prevBookLogs.forEach((log: any) => {
+    const bookId = log.bookId?._id?.toString() || log.bookId?.toString();
+    if (!bookId) return;
+    
+    if (!prevBookPageTracker[bookId]) {
+      prevBookPageTracker[bookId] = { firstPage: log.currentPage, lastPage: log.currentPage };
+    } else {
+      prevBookPageTracker[bookId].lastPage = Math.max(prevBookPageTracker[bookId].lastPage, log.currentPage);
+      prevBookPageTracker[bookId].firstPage = Math.min(prevBookPageTracker[bookId].firstPage, log.currentPage);
+    }
+  });
+  
+  const prevPagesRead = Object.values(prevBookPageTracker).reduce(
+    (acc, p) => acc + Math.max(0, p.lastPage - p.firstPage), 
+    0
+  );
   
   const booksCompleted = await Book.countDocuments({
     completedDate: { $gte: start, $lt: end }
@@ -188,34 +236,53 @@ export async function getOverallReport(period: string = 'thisWeek') {
   const prevLearningMinutes = prevLearningResult[0]?.total || 0;
   
   // Domain breakdown for the period
-  const domainBreakdown = await Promise.all(['health', 'learning'].map(async (domainId) => {
-    const domainTasks = await Task.find({ domainId, isActive: true }).lean();
-    const domainTaskIds = domainTasks.map((t: any) => t._id);
-    
-    const completed = await DailyLog.countDocuments({
-      taskId: { $in: domainTaskIds },
-      date: { $gte: start, $lt: end },
-      status: 'completed'
-    });
-    
-    const total = await DailyLog.countDocuments({
-      taskId: { $in: domainTaskIds },
-      date: { $gte: start, $lt: end }
-    });
-    
-    const pointsRes = await DailyLog.aggregate([
-      { $match: { taskId: { $in: domainTaskIds }, date: { $gte: start, $lt: end }, status: 'completed' } },
-      { $group: { _id: null, total: { $sum: '$pointsEarned' } } }
-    ]);
-    
-    return {
-      domain: domainId,
-      completed,
-      total,
-      completionRate: total > 0 ? Math.round((completed / total) * 100) : 0,
-      points: pointsRes[0]?.total || 0
-    };
-  }));
+  // Health: based on routine tasks
+  const healthTasks = await Task.find({ domainId: 'health', isActive: true }).lean();
+  const healthTaskIds = healthTasks.map((t: any) => t._id);
+  
+  const healthCompleted = await DailyLog.countDocuments({
+    taskId: { $in: healthTaskIds },
+    date: { $gte: start, $lt: end },
+    status: 'completed'
+  });
+  
+  const healthTotal = await DailyLog.countDocuments({
+    taskId: { $in: healthTaskIds },
+    date: { $gte: start, $lt: end }
+  });
+  
+  const healthPointsRes = await DailyLog.aggregate([
+    { $match: { taskId: { $in: healthTaskIds }, date: { $gte: start, $lt: end }, status: 'completed' } },
+    { $group: { _id: null, total: { $sum: '$pointsEarned' } } }
+  ]);
+  
+  // Learning: based on learning logs - calculate days with practice vs total days
+  const learningLogDays = await LearningLog.aggregate([
+    { $match: { date: { $gte: start, $lt: end } } },
+    { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$date' } } } },
+    { $count: 'days' }
+  ]);
+  const learningDaysWithPractice = learningLogDays[0]?.days || 0;
+  
+  // Learning points: calculate from duration (1 point per 5 minutes)
+  const learningPoints = Math.floor(learningMinutes / 5);
+  
+  const domainBreakdown = [
+    {
+      domain: 'health',
+      completed: healthCompleted,
+      total: healthTotal,
+      completionRate: healthTotal > 0 ? Math.round((healthCompleted / healthTotal) * 100) : 0,
+      points: healthPointsRes[0]?.total || 0
+    },
+    {
+      domain: 'learning',
+      completed: learningDaysWithPractice,
+      total: daysInPeriod,
+      completionRate: daysInPeriod > 0 ? Math.round((learningDaysWithPractice / daysInPeriod) * 100) : 0,
+      points: learningPoints
+    }
+  ];
   
   // Daily breakdown for charts
   const dailyBreakdown = [];
@@ -270,12 +337,14 @@ export async function getOverallReport(period: string = 'thisWeek') {
       routineChange: routineCompletionRate - prevRoutineCompletionRate,
       totalPoints,
       pointsChange: totalPoints - prevTotalPoints,
-      exerciseSessions,
-      exerciseChange: exerciseSessions - prevExerciseSessions,
+      exerciseDays,
+      exerciseChange: exerciseDays - prevExerciseDays,
       weightChange,
       avgMood: Number(avgMood),
       booksCompleted,
       booksChange: booksCompleted - prevBooksCompleted,
+      pagesRead: totalPagesRead,
+      pagesReadChange: totalPagesRead - prevPagesRead,
       learningMinutes,
       learningChange: learningMinutes - prevLearningMinutes,
       interactions: 0,
@@ -647,7 +716,7 @@ export async function getBooksReport(period: string = 'thisWeek') {
     };
   }));
   
-  // Daily reading chart
+  // Daily reading chart - with pages calculation
   const dailyReading = [];
   for (let i = 0; i < Math.min(daysInPeriod, 31); i++) {
     const dayStart = new Date(start.getTime() + i * 24 * 60 * 60 * 1000);
@@ -656,11 +725,33 @@ export async function getBooksReport(period: string = 'thisWeek') {
     const dayLogs = await BookLog.find({ date: { $gte: dayStart, $lt: dayEnd } }).lean();
     const dayMinutes = dayLogs.reduce((acc, log: any) => acc + (log.duration || 0), 0);
     
+    // Calculate pages for this day - approximate by looking at progress jumps
+    let dayPages = 0;
+    const bookDayProgress: Record<string, number[]> = {};
+    dayLogs.forEach((log: any) => {
+      const bookId = log.bookId?.toString();
+      if (bookId && log.currentPage) {
+        if (!bookDayProgress[bookId]) bookDayProgress[bookId] = [];
+        bookDayProgress[bookId].push(log.currentPage);
+      }
+    });
+    // For each book, pages read = max - min (or just count pages if single log)
+    Object.values(bookDayProgress).forEach(pages => {
+      if (pages.length > 0) {
+        dayPages += Math.max(...pages) - Math.min(...pages);
+        // If only 1 log, estimate pages from duration (avg 2 pages per minute)
+        if (pages.length === 1 && dayMinutes > 0) {
+          dayPages += Math.round(dayMinutes / dayLogs.length * 0.5);
+        }
+      }
+    });
+    
     dailyReading.push({
       date: dayStart.toISOString().split('T')[0],
       dayName: dayStart.toLocaleDateString('en-US', { weekday: 'short' }),
       sessions: dayLogs.length,
-      minutes: dayMinutes
+      minutes: dayMinutes,
+      pagesRead: dayPages
     });
   }
   

@@ -82,6 +82,14 @@ interface StreakData {
   reachedMilestones: { days: number; points: number; label: string }[];
 }
 
+interface DayCompletion {
+  date: string;
+  day: string;
+  completed: number;
+  total: number;
+  rate: number;
+}
+
 interface Props {
   incompleteTasks: Task[];
   domains: Domain[];
@@ -89,6 +97,7 @@ interface Props {
   streakData: StreakData;
   specialTasks: SpecialTask[];
   totalPoints: number;
+  last7DaysCompletion: DayCompletion[];
 }
 
 export default function HomeClient({ 
@@ -97,7 +106,8 @@ export default function HomeClient({
   todaysWeight,
   streakData,
   specialTasks,
-  totalPoints 
+  totalPoints,
+  last7DaysCompletion
 }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -254,7 +264,7 @@ export default function HomeClient({
               <div className={cn(
                 "w-12 h-12 rounded-xl flex items-center justify-center transition-all",
                 streakData.currentStreak > 0 
-                  ? "bg-gradient-to-br from-orange-500 to-amber-500" 
+                  ? "bg-linear-to-br from-orange-500 to-amber-500" 
                   : "bg-secondary"
               )}>
                 <Flame size={24} className={streakData.currentStreak > 0 ? "text-white" : "text-muted-foreground"} />
@@ -268,7 +278,7 @@ export default function HomeClient({
               <div className="text-right">
                 <p className="text-xs text-muted-foreground">Next milestone</p>
                 <p className="text-sm font-medium text-orange-400">
-                  {streakData.nextTarget.days - streakData.currentStreak}  more days
+                  {streakData.nextTarget.days - streakData.currentStreak} {streakData.nextTarget.days - streakData.currentStreak === 1 ? 'day' : 'days'} more
                 </p>
               </div>
             )}
@@ -306,6 +316,49 @@ export default function HomeClient({
                 {streakData.todayValid ? "Complete ✓" : `${streakData.todayRoutineTasks}/5 tasks`}
               </span>
             </div>
+          </div>
+        </section>
+
+        {/* Daily Completion Mini Chart */}
+        <section className="p-4 rounded-2xl bg-card border border-border/50">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-muted-foreground">This Week&apos;s Progress</h3>
+            <Link href="/reports" className="text-xs text-primary hover:underline">
+              Details
+            </Link>
+          </div>
+          <div className="flex items-end justify-between gap-1 h-16">
+            {last7DaysCompletion.map((day, index) => {
+              // Rate is out of 100
+              const heightPercent = day.rate > 0 ? Math.max((day.rate / 100) * 100, 8) : 4;
+              const isToday = index === last7DaysCompletion.length - 1;
+              
+              return (
+                <div key={day.date} className="flex-1 flex flex-col items-center gap-1">
+                  <div 
+                    className="w-full rounded-t transition-all group relative cursor-default"
+                    style={{ height: `${heightPercent}%` }}
+                  >
+                    <div className={cn(
+                      'absolute inset-0 rounded-t transition-colors',
+                      day.rate >= 80 ? 'bg-emerald-500' : 
+                      day.rate >= 50 ? 'bg-amber-500' : 
+                      day.rate > 0 ? 'bg-rose-400' : 'bg-secondary/50',
+                      isToday && 'ring-2 ring-primary/30 ring-offset-1 ring-offset-background'
+                    )} />
+                    <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-popover border border-border px-2 py-0.5 rounded text-[10px] opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 shadow-lg">
+                      {day.rate}%
+                    </div>
+                  </div>
+                  <span className={cn(
+                    "text-[10px]",
+                    isToday ? "text-primary font-medium" : "text-muted-foreground"
+                  )}>
+                    {day.day}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </section>
 

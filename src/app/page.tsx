@@ -1,4 +1,4 @@
-import { getIdentityMetric } from "./actions/stats";
+import { getIdentityMetric, getLast7DaysCompletion } from "./actions/stats";
 import { getRoutine } from "./actions/routine";
 import { getTodaysWeightData } from "./actions/health";
 import { getStreakData, getSpecialTasks, getTotalPointsWithBonuses } from "./actions/streak";
@@ -8,13 +8,14 @@ import HomeClient from "./NewHomeClient";
 export const dynamic = 'force-dynamic';
 
 export default async function Dashboard() {
-  const [stats, routine, todaysWeight, streakData, specialTasks, pointsData] = await Promise.all([
+  const [stats, routine, todaysWeight, streakData, specialTasks, pointsData, last7DaysCompletion] = await Promise.all([
     getIdentityMetric(),
     getRoutine(),
     getTodaysWeightData(),
     getStreakData(),
     getSpecialTasks(),
-    getTotalPointsWithBonuses()
+    getTotalPointsWithBonuses(),
+    getLast7DaysCompletion()
   ]);
 
   // Get all incomplete tasks (not completed) - send all pending and skipped tasks
@@ -63,7 +64,7 @@ export default async function Dashboard() {
     <div className="space-y-6 pb-24">
       {/* Hero Section - X% Better Banner */}
       <section className="relative py-10 md:py-16 text-center space-y-3 overflow-hidden rounded-3xl glass border-none shadow-sm">
-        <div className="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent pointer-events-none" />
+        <div className="absolute inset-0 bg-linear-to-b from-primary/5 to-transparent pointer-events-none" />
 
         <h1 className="relative text-3xl md:text-5xl font-bold tracking-tight text-foreground">
           You are <span className="text-primary">{Math.floor(pointsData.totalPoints / 100)}%</span> better
@@ -86,6 +87,7 @@ export default async function Dashboard() {
         streakData={streakData}
         specialTasks={specialTasks}
         totalPoints={pointsData.totalPoints}
+        last7DaysCompletion={last7DaysCompletion}
       />
     </div>
   );

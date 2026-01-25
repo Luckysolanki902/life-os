@@ -5,16 +5,14 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   AreaChart, Area, BarChart, Bar,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
+  XAxis, YAxis, Tooltip, ResponsiveContainer
 } from 'recharts';
 import {
   TrendingUp,
   TrendingDown,
-  Minus,
   Activity,
   BookOpen,
   Brain,
-  CheckCircle,
   Trophy,
   Scale,
   Smile,
@@ -22,31 +20,19 @@ import {
   ArrowRight,
   Target,
   Flame,
-  Zap,
+  FileText,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const PERIODS = [
-  { value: 'last7Days', label: '7 Days' },
-  { value: 'last14Days', label: '14 Days' },
-  { value: 'thisWeek', label: 'This Week' },
-  { value: 'lastWeek', label: 'Last Week' },
-  { value: 'thisMonth', label: 'This Month' },
-  { value: 'lastMonth', label: 'Last Month' },
-  { value: 'last3Months', label: '3 Months' },
-  { value: 'last6Months', label: '6 Months' },
-  { value: 'thisYear', label: 'This Year' },
-  { value: 'allTime', label: 'All Time' },
+  { value: 'last7Days', label: '7D' },
+  { value: 'last14Days', label: '14D' },
+  { value: 'thisWeek', label: 'Week' },
+  { value: 'thisMonth', label: 'Month' },
+  { value: 'last3Months', label: '3M' },
+  { value: 'thisYear', label: 'Year' },
+  { value: 'allTime', label: 'All' },
 ];
-
-const COLORS = {
-  primary: '#8b5cf6',
-  emerald: '#10b981',
-  amber: '#f59e0b',
-  rose: '#f43f5e',
-  cyan: '#06b6d4',
-  blue: '#3b82f6',
-};
 
 interface ReportsClientProps {
   initialData: {
@@ -55,12 +41,14 @@ interface ReportsClientProps {
       routineChange: number;
       totalPoints: number;
       pointsChange: number;
-      exerciseSessions: number;
+      exerciseDays: number;
       exerciseChange: number;
       weightChange: number;
       avgMood: number;
       booksCompleted: number;
       booksChange: number;
+      pagesRead: number;
+      pagesReadChange: number;
       learningMinutes: number;
       learningChange: number;
     };
@@ -81,19 +69,13 @@ interface ReportsClientProps {
 }
 
 function TrendBadge({ value, suffix = '' }: { value: number; suffix?: string }) {
-  if (value === 0) {
-    return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary text-muted-foreground text-xs">
-        <Minus size={10} /> Same
-      </span>
-    );
-  }
+  if (value === 0) return null;
   
   const isPositive = value > 0;
   return (
     <span className={cn(
-      'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium',
-      isPositive ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'
+      'inline-flex items-center gap-0.5 text-[10px] font-semibold',
+      isPositive ? 'text-emerald-500' : 'text-rose-500'
     )}>
       {isPositive ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
       {isPositive ? '+' : ''}{value}{suffix}
@@ -101,23 +83,68 @@ function TrendBadge({ value, suffix = '' }: { value: number; suffix?: string }) 
   );
 }
 
-// Custom tooltip for charts
+// Minimal stat card
+function StatCard({
+  label,
+  value,
+  change,
+  icon: Icon,
+  suffix = '',
+  changeSuffix = '',
+  color,
+}: {
+  label: string;
+  value: string | number;
+  change?: number;
+  icon: React.ElementType;
+  suffix?: string;
+  changeSuffix?: string;
+  color: string;
+}) {
+  const colorMap: Record<string, { bg: string; text: string }> = {
+    primary: { bg: 'bg-primary/10', text: 'text-primary' },
+    rose: { bg: 'bg-rose-500/10', text: 'text-rose-500' },
+    amber: { bg: 'bg-amber-500/10', text: 'text-amber-500' },
+    purple: { bg: 'bg-purple-500/10', text: 'text-purple-500' },
+    cyan: { bg: 'bg-cyan-500/10', text: 'text-cyan-500' },
+    emerald: { bg: 'bg-emerald-500/10', text: 'text-emerald-500' },
+  };
+  
+  const c = colorMap[color] || colorMap.primary;
+
+  return (
+    <div className="bg-card/50 backdrop-blur-sm border border-border/30 rounded-2xl p-4 hover:border-border/60 transition-all">
+      <div className="flex items-center justify-between mb-3">
+        <div className={cn('p-2 rounded-xl', c.bg)}>
+          <Icon size={16} className={c.text} />
+        </div>
+        {change !== undefined && change !== 0 && (
+          <TrendBadge value={change} suffix={changeSuffix} />
+        )}
+      </div>
+      <p className="text-2xl font-bold tracking-tight">{value}{suffix}</p>
+      <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
+    </div>
+  );
+}
+
+// Custom minimal tooltip
 interface TooltipProps {
   active?: boolean;
-  payload?: Array<{ name: string; value: number; color: string }>;
+  payload?: Array<{ name: string; value: number; color: string; dataKey?: string }>;
   label?: string;
 }
 
-function CustomTooltip({ active, payload, label }: TooltipProps) {
+function MinimalTooltip({ active, payload, label }: TooltipProps) {
   if (!active || !payload?.length) return null;
   
   return (
-    <div className="bg-card border border-border rounded-lg shadow-xl p-3 text-sm">
-      <p className="font-medium mb-1">{label}</p>
+    <div className="bg-card/95 backdrop-blur-md border border-border/50 rounded-xl px-3 py-2 shadow-xl">
+      <p className="text-xs font-medium text-foreground mb-1">{label}</p>
       {payload.map((entry, i: number) => (
-        <p key={i} className="text-muted-foreground">
-          <span style={{ color: entry.color }} className="font-medium">{entry.name}: </span>
-          {entry.value}{entry.name.includes('Rate') || entry.name.includes('%') ? '%' : ''}
+        <p key={i} className="text-xs text-muted-foreground">
+          <span className="font-medium" style={{ color: entry.color }}>{entry.value}</span>
+          {entry.name.includes('Rate') || entry.dataKey === 'rate' ? '%' : ''}
         </p>
       ))}
     </div>
@@ -139,39 +166,32 @@ export default function ReportsClient({ initialData, initialPeriod }: ReportsCli
 
   const { summary, domainBreakdown, dailyBreakdown } = data;
 
-  // Process daily data for charts - only include days with some activity
-  const firstActivityIndex = dailyBreakdown?.findIndex((day) => day.completed > 0 || day.rate > 0) ?? -1;
-  const relevantDays = firstActivityIndex >= 0 ? dailyBreakdown?.slice(firstActivityIndex) : dailyBreakdown;
-  
-  const chartData = relevantDays?.map((day) => ({
+  // Process chart data
+  const chartData = dailyBreakdown?.map((day) => ({
     date: new Date(day.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-    shortDate: new Date(day.date).getDate().toString().padStart(2, '0'),
+    shortDate: day.dayName || new Date(day.date).toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 2),
     rate: day.rate,
     completed: day.completed,
     total: day.total,
   })) || [];
 
   const moodLabels: Record<number, string> = {
-    5: 'Great',
-    4: 'Good',
-    3: 'Okay',
-    2: 'Low',
-    1: 'Bad',
+    5: 'Great', 4: 'Good', 3: 'Okay', 2: 'Low', 1: 'Bad'
   };
 
   return (
-    <div className={cn('space-y-6 pb-24', isPending && 'opacity-60 pointer-events-none')}>
+    <div className={cn('space-y-6 pb-24', isPending && 'opacity-50 pointer-events-none transition-opacity')}>
       {/* Header */}
-      <div className="flex flex-col gap-4">
+      <div className="space-y-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Reports</h1>
-          <p className="text-muted-foreground mt-1">
-            Track your progress and identify patterns
+          <h1 className="text-2xl font-bold tracking-tight">Reports</h1>
+          <p className="text-sm text-muted-foreground">
+            Your progress at a glance
           </p>
         </div>
         
-        {/* Period Selector */}
-        <div className="flex flex-wrap gap-1.5">
+        {/* Period Pills */}
+        <div className="flex gap-1 p-1 bg-secondary/30 rounded-xl w-fit">
           {PERIODS.map((p) => (
             <button
               key={p.value}
@@ -179,8 +199,8 @@ export default function ReportsClient({ initialData, initialPeriod }: ReportsCli
               className={cn(
                 'px-3 py-1.5 rounded-lg text-xs font-medium transition-all',
                 period === p.value
-                  ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/25'
-                  : 'bg-secondary/50 text-muted-foreground hover:bg-secondary hover:text-foreground'
+                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
               )}
             >
               {p.label}
@@ -189,207 +209,161 @@ export default function ReportsClient({ initialData, initialPeriod }: ReportsCli
         </div>
       </div>
 
-      {/* Main Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {/* Completion Rate - Featured */}
-        <div className="col-span-2 lg:col-span-1 bg-linear-to-br from-primary/20 to-primary/5 border border-primary/20 rounded-2xl p-4">
-          <div className="flex items-center justify-between mb-2">
-            <div className="p-2 rounded-xl bg-primary/20">
+      {/* Main Completion Rate Card with Chart */}
+      <div className="bg-linear-to-br from-primary/10 via-primary/5 to-transparent border border-primary/20 rounded-2xl p-5">
+        <div className="flex items-start justify-between mb-4">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
               <Target size={18} className="text-primary" />
+              <span className="text-sm font-medium text-muted-foreground">Completion Rate</span>
             </div>
-            <TrendBadge value={summary.routineChange} suffix="%" />
-          </div>
-          <p className="text-4xl font-bold text-primary">{summary.routineCompletionRate}%</p>
-          <p className="text-sm text-muted-foreground">Routine Completion</p>
-        </div>
-
-        {/* Points */}
-        <div className="bg-card border border-border/50 rounded-2xl p-4">
-          <div className="flex items-center justify-between mb-2">
-            <div className="p-2 rounded-xl bg-amber-500/10">
-              <Trophy size={18} className="text-amber-500" />
+            <div className="flex items-baseline gap-2">
+              <span className="text-4xl font-bold text-primary">{summary.routineCompletionRate}%</span>
+              <TrendBadge value={summary.routineChange} suffix="%" />
             </div>
-            <TrendBadge value={summary.pointsChange} />
           </div>
-          <p className="text-2xl font-bold">{summary.totalPoints.toLocaleString()}</p>
-          <p className="text-xs text-muted-foreground">Points Earned</p>
         </div>
-
-        {/* Exercise */}
-        <div className="bg-card border border-border/50 rounded-2xl p-4">
-          <div className="flex items-center justify-between mb-2">
-            <div className="p-2 rounded-xl bg-rose-500/10">
-              <Activity size={18} className="text-rose-500" />
-            </div>
-            <TrendBadge value={summary.exerciseChange} />
+        
+        {chartData.length > 1 && (
+          <div className="h-24 -mx-2">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={chartData} margin={{ top: 5, right: 10, left: 10, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="completionGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.4} />
+                    <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <XAxis 
+                  dataKey="shortDate" 
+                  tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <Tooltip content={<MinimalTooltip />} />
+                <Area
+                  type="monotone"
+                  dataKey="rate"
+                  stroke="hsl(var(--primary))"
+                  strokeWidth={2}
+                  fill="url(#completionGradient)"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
           </div>
-          <p className="text-2xl font-bold">{summary.exerciseSessions}</p>
-          <p className="text-xs text-muted-foreground">Exercise Sessions</p>
-        </div>
-
-        {/* Learning */}
-        <div className="bg-card border border-border/50 rounded-2xl p-4">
-          <div className="flex items-center justify-between mb-2">
-            <div className="p-2 rounded-xl bg-purple-500/10">
-              <Brain size={18} className="text-purple-500" />
-            </div>
-            <TrendBadge value={Math.round(summary.learningChange / 60 * 10) / 10} suffix="h" />
-          </div>
-          <p className="text-2xl font-bold">{Math.round(summary.learningMinutes / 60 * 10) / 10}h</p>
-          <p className="text-xs text-muted-foreground">Learning Time</p>
-        </div>
+        )}
       </div>
 
-      {/* Secondary Stats */}
+      {/* Stats Grid - 4 Columns */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <StatCard
+          label="Points Earned"
+          value={summary.totalPoints.toLocaleString()}
+          change={summary.pointsChange}
+          icon={Trophy}
+          color="amber"
+        />
+        <StatCard
+          label="Days with Exercise"
+          value={summary.exerciseDays}
+          change={summary.exerciseChange}
+          icon={Activity}
+          color="rose"
+        />
+        <StatCard
+          label="Learning Time"
+          value={`${Math.round(summary.learningMinutes / 60 * 10) / 10}h`}
+          change={Math.round(summary.learningChange / 60 * 10) / 10}
+          changeSuffix="h"
+          icon={Brain}
+          color="purple"
+        />
+        <StatCard
+          label="Pages Read"
+          value={summary.pagesRead || 0}
+          change={summary.pagesReadChange}
+          icon={FileText}
+          color="cyan"
+        />
+      </div>
+
+      {/* Secondary Stats Row */}
       <div className="grid grid-cols-3 gap-3">
-        <div className="bg-card border border-border/50 rounded-xl p-3 flex items-center gap-3">
+        <div className="bg-card/50 border border-border/30 rounded-xl p-3 flex items-center gap-3">
           <div className="p-2 rounded-lg bg-cyan-500/10">
-            <Scale size={16} className="text-cyan-500" />
+            <Scale size={14} className="text-cyan-500" />
           </div>
           <div>
-            <p className="font-semibold">
+            <p className="text-sm font-semibold">
               {summary.weightChange > 0 ? '+' : ''}{summary.weightChange}kg
             </p>
-            <p className="text-xs text-muted-foreground">Weight</p>
+            <p className="text-[10px] text-muted-foreground">Weight</p>
           </div>
         </div>
-        <div className="bg-card border border-border/50 rounded-xl p-3 flex items-center gap-3">
+        <div className="bg-card/50 border border-border/30 rounded-xl p-3 flex items-center gap-3">
           <div className="p-2 rounded-lg bg-emerald-500/10">
-            <Smile size={16} className="text-emerald-500" />
+            <Smile size={14} className="text-emerald-500" />
           </div>
           <div>
-            <p className="font-semibold">
-              {summary.avgMood > 0 ? moodLabels[Math.round(summary.avgMood)] : 'N/A'}
+            <p className="text-sm font-semibold">
+              {summary.avgMood > 0 ? moodLabels[Math.round(summary.avgMood)] : '—'}
             </p>
-            <p className="text-xs text-muted-foreground">Avg Mood</p>
+            <p className="text-[10px] text-muted-foreground">Avg Mood</p>
           </div>
         </div>
-        <div className="bg-card border border-border/50 rounded-xl p-3 flex items-center gap-3">
+        <div className="bg-card/50 border border-border/30 rounded-xl p-3 flex items-center gap-3">
           <div className="p-2 rounded-lg bg-blue-500/10">
-            <BookOpen size={16} className="text-blue-500" />
+            <BookOpen size={14} className="text-blue-500" />
           </div>
           <div>
-            <p className="font-semibold">{summary.booksCompleted}</p>
-            <p className="text-xs text-muted-foreground">Books Done</p>
+            <p className="text-sm font-semibold">{summary.booksCompleted}</p>
+            <p className="text-[10px] text-muted-foreground">Books Done</p>
           </div>
         </div>
       </div>
 
-      {/* Charts Section */}
+      {/* Tasks Completed Bar Chart */}
       {chartData.length > 1 && (
-        <div className="grid lg:grid-cols-2 gap-4">
-          {/* Area Chart - Completion Rate */}
-          <div className="bg-card border border-border/50 rounded-2xl p-4">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold flex items-center gap-2">
-                <Flame size={16} className="text-orange-500" />
-                Daily Completion Rate
-              </h3>
-              <span className="text-xs text-muted-foreground">{chartData.length} days</span>
-            </div>
-            <div className="h-48">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="colorRate" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor={COLORS.primary} stopOpacity={0.4}/>
-                      <stop offset="95%" stopColor={COLORS.primary} stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                  <XAxis 
-                    dataKey="date" 
-                    tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
-                    axisLine={{ stroke: 'hsl(var(--border))' }}
-                    tickLine={false}
-                  />
-                  <YAxis 
-                    tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
-                    axisLine={false}
-                    tickLine={false}
-                    domain={[0, 100]}
-                    tickFormatter={(v) => `${v}%`}
-                  />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Area 
-                    type="monotone" 
-                    dataKey="rate" 
-                    name="Completion Rate"
-                    stroke={COLORS.primary} 
-                    strokeWidth={2}
-                    fill="url(#colorRate)" 
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          {/* Bar Chart - Tasks Completed */}
-          <div className="bg-card border border-border/50 rounded-2xl p-4">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold flex items-center gap-2">
-                <CheckCircle size={16} className="text-emerald-500" />
-                Tasks Completed
-              </h3>
-            </div>
-            <div className="h-48">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
-                  <XAxis 
-                    dataKey="shortDate" 
-                    tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
-                    axisLine={{ stroke: 'hsl(var(--border))' }}
-                    tickLine={false}
-                  />
-                  <YAxis 
-                    tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Bar 
-                    dataKey="completed" 
-                    name="Completed"
-                    fill={COLORS.emerald} 
-                    radius={[4, 4, 0, 0]}
-                    maxBarSize={40}
-                  />
-                  <Bar 
-                    dataKey="total" 
-                    name="Total"
-                    fill="hsl(var(--secondary))" 
-                    radius={[4, 4, 0, 0]}
-                    maxBarSize={40}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+        <div className="bg-card/50 border border-border/30 rounded-2xl p-4">
+          <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
+            <Flame size={14} className="text-orange-500" />
+            Tasks Completed
+          </h3>
+          <div className="h-36">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                <XAxis 
+                  dataKey="shortDate" 
+                  tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis 
+                  tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <Tooltip content={<MinimalTooltip />} />
+                <Bar 
+                  dataKey="completed" 
+                  fill="hsl(var(--primary))"
+                  radius={[4, 4, 0, 0]}
+                  maxBarSize={32}
+                />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
         </div>
       )}
 
       {/* Domain Performance */}
-      <div className="bg-card border border-border/50 rounded-2xl p-4">
-        <h3 className="font-semibold mb-4 flex items-center gap-2">
-          <Zap size={16} className="text-yellow-500" />
-          Domain Performance
-        </h3>
-        <div className="grid md:grid-cols-2 gap-4">
+      <div className="space-y-3">
+        <h3 className="text-sm font-semibold">Domain Performance</h3>
+        <div className="grid gap-3">
           {domainBreakdown?.map((domain) => {
-            const colors: Record<string, { bg: string; text: string; bar: string; gradient: string }> = {
-              health: { 
-                bg: 'bg-rose-500/10', 
-                text: 'text-rose-500', 
-                bar: 'bg-rose-500',
-                gradient: 'from-rose-500 to-rose-600'
-              },
-              learning: { 
-                bg: 'bg-amber-500/10', 
-                text: 'text-amber-500', 
-                bar: 'bg-amber-500',
-                gradient: 'from-amber-500 to-amber-600'
-              },
+            const colors: Record<string, { bg: string; text: string; bar: string }> = {
+              health: { bg: 'bg-rose-500/10', text: 'text-rose-500', bar: 'bg-rose-500' },
+              learning: { bg: 'bg-amber-500/10', text: 'text-amber-500', bar: 'bg-amber-500' },
             };
             const c = colors[domain.domain] || colors.health;
             const Icon = domain.domain === 'health' ? Activity : Brain;
@@ -398,39 +372,27 @@ export default function ReportsClient({ initialData, initialPeriod }: ReportsCli
               <Link
                 key={domain.domain}
                 href={`/reports/${domain.domain}?period=${period}`}
-                className="group p-4 rounded-xl bg-secondary/30 hover:bg-secondary/50 transition-all border border-transparent hover:border-border"
+                className="group flex items-center gap-4 p-4 bg-card/50 border border-border/30 rounded-xl hover:border-border/60 hover:bg-card transition-all"
               >
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <div className={cn('p-2 rounded-lg', c.bg)}>
-                      <Icon size={16} className={c.text} />
-                    </div>
-                    <span className="font-medium capitalize">{domain.domain}</span>
-                  </div>
-                  <ArrowRight size={14} className="text-muted-foreground group-hover:translate-x-1 transition-transform" />
+                <div className={cn('p-2.5 rounded-xl', c.bg)}>
+                  <Icon size={18} className={c.text} />
                 </div>
                 
-                <div className="space-y-3">
-                  {/* Completion Progress */}
-                  <div>
-                    <div className="flex justify-between text-xs mb-1">
-                      <span className="text-muted-foreground">Completion</span>
-                      <span className="font-medium">{domain.completionRate}%</span>
-                    </div>
-                    <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                      <div 
-                        className={cn('h-full rounded-full transition-all duration-700 bg-linear-to-r', c.gradient)}
-                        style={{ width: `${domain.completionRate}%` }}
-                      />
-                    </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="font-medium capitalize">{domain.domain}</span>
+                    <span className={cn('text-sm font-semibold', c.text)}>{domain.completionRate}%</span>
                   </div>
-                  
-                  {/* Points */}
-                  <div className="flex items-center justify-between pt-2 border-t border-border/50">
-                    <span className="text-xs text-muted-foreground">Points earned</span>
-                    <span className="font-semibold text-sm">{domain.points}</span>
+                  <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
+                    <div 
+                      className={cn('h-full rounded-full transition-all duration-700', c.bar)}
+                      style={{ width: `${domain.completionRate}%` }}
+                    />
                   </div>
+                  <p className="text-xs text-muted-foreground mt-1.5">{domain.points} points</p>
                 </div>
+                
+                <ArrowRight size={16} className="text-muted-foreground group-hover:translate-x-1 transition-transform" />
               </Link>
             );
           })}
@@ -438,44 +400,25 @@ export default function ReportsClient({ initialData, initialPeriod }: ReportsCli
       </div>
 
       {/* Quick Links */}
-      <div>
-        <h3 className="font-semibold mb-3 flex items-center gap-2">
-          <Calendar size={16} className="text-blue-500" />
-          Detailed Reports
-        </h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-          {[
-            { name: 'Routine', href: '/reports/routine', icon: Calendar, color: 'primary', bg: 'bg-primary/10' },
-            { name: 'Health', href: '/reports/health', icon: Activity, color: 'rose', bg: 'bg-rose-500/10' },
-            { name: 'Books', href: '/reports/books', icon: BookOpen, color: 'cyan', bg: 'bg-cyan-500/10' },
-            { name: 'Learning', href: '/reports/learning', icon: Brain, color: 'amber', bg: 'bg-amber-500/10' },
-          ].map((item) => {
-            const colorMap: Record<string, string> = {
-              primary: 'text-primary hover:border-primary/50',
-              rose: 'text-rose-500 hover:border-rose-500/50',
-              cyan: 'text-cyan-500 hover:border-cyan-500/50',
-              amber: 'text-amber-500 hover:border-amber-500/50',
-            };
-            
-            return (
-              <Link
-                key={item.name}
-                href={`${item.href}?period=${period}`}
-                className={cn(
-                  'flex items-center gap-2 p-3 bg-card border border-border/50 rounded-xl transition-all group',
-                  'hover:bg-secondary/30',
-                  colorMap[item.color]
-                )}
-              >
-                <div className={cn('p-1.5 rounded-lg', item.bg)}>
-                  <item.icon size={14} />
-                </div>
-                <span className="text-sm font-medium text-foreground">{item.name}</span>
-                <ArrowRight size={12} className="ml-auto text-muted-foreground group-hover:translate-x-0.5 transition-transform" />
-              </Link>
-            );
-          })}
-        </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        {[
+          { name: 'Routine', href: '/reports/routine', icon: Calendar, color: 'text-primary', bg: 'bg-primary/10' },
+          { name: 'Health', href: '/reports/health', icon: Activity, color: 'text-rose-500', bg: 'bg-rose-500/10' },
+          { name: 'Books', href: '/reports/books', icon: BookOpen, color: 'text-cyan-500', bg: 'bg-cyan-500/10' },
+          { name: 'Learning', href: '/reports/learning', icon: Brain, color: 'text-amber-500', bg: 'bg-amber-500/10' },
+        ].map((item) => (
+          <Link
+            key={item.name}
+            href={`${item.href}?period=${period}`}
+            className="flex items-center gap-2 p-3 bg-card/50 border border-border/30 rounded-xl hover:border-border/60 transition-all group"
+          >
+            <div className={cn('p-1.5 rounded-lg', item.bg)}>
+              <item.icon size={14} className={item.color} />
+            </div>
+            <span className="text-sm font-medium">{item.name}</span>
+            <ArrowRight size={12} className="ml-auto text-muted-foreground opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
+          </Link>
+        ))}
       </div>
     </div>
   );
