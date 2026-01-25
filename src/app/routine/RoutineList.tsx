@@ -170,8 +170,9 @@ export default function RoutineList({ initialTasks, allTasks = [], initialSpecia
     // Refetch today's tasks
     const fetchToday = async () => {
       const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      const todaysTasks = await getRoutine(timezone);
+      const { routine: todaysTasks, specialTasks: todaysSpecial } = await getRoutine(timezone);
       setTasks(todaysTasks);
+      setSpecialTasks(todaysSpecial);
     };
     fetchToday();
   };
@@ -180,8 +181,9 @@ export default function RoutineList({ initialTasks, allTasks = [], initialSpecia
   useEffect(() => {
     const fetchWithTimezone = async () => {
       const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      const todaysTasks = await getRoutine(timezone);
+      const { routine: todaysTasks, specialTasks: todaysSpecial } = await getRoutine(timezone);
       setTasks(todaysTasks);
+      setSpecialTasks(todaysSpecial);
     };
     fetchWithTimezone();
   }, []);
@@ -189,7 +191,8 @@ export default function RoutineList({ initialTasks, allTasks = [], initialSpecia
   // Sync with server data if it changes (e.g. new task added)
   useEffect(() => {
     setTasks(initialTasks);
-  }, [initialTasks]);
+    setSpecialTasks(initialSpecialTasks);
+  }, [initialTasks, initialSpecialTasks]);
 
   const sensors = useSensors(
     useSensor(PointerSensor),

@@ -123,22 +123,6 @@ export async function getRoutineForDate(dateStr: string) {
 
   return { routine, specialTasks };
 }
-    const log = logs.find((l: any) => l.taskId.toString() === task._id.toString());
-    const { subtasks, ...cleanTask } = task;
-    
-    return {
-      ...cleanTask,
-      _id: task._id.toString(),
-      log: log ? {
-        ...log,
-        _id: log._id.toString(),
-        taskId: log.taskId.toString(),
-      } : null
-    };
-  });
-  
-  return routine;
-}
 
 // Get all tasks (regardless of recurrence) for management view
 export async function getAllTasks() {

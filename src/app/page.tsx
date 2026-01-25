@@ -8,7 +8,7 @@ import HomeClient from "./NewHomeClient";
 export const dynamic = 'force-dynamic';
 
 export default async function Dashboard() {
-  const [stats, routine, todaysWeight, streakData, specialTasks, pointsData, last7DaysCompletion] = await Promise.all([
+  const [stats, routineData, todaysWeight, streakData, specialTasks, pointsData, last7DaysCompletion] = await Promise.all([
     getIdentityMetric(),
     getRoutine(),
     getTodaysWeightData(),
@@ -17,6 +17,9 @@ export default async function Dashboard() {
     getTotalPointsWithBonuses(),
     getLast7DaysCompletion()
   ]);
+
+  // Extract routine from the result object
+  const routine = routineData.routine;
 
   // Get all incomplete tasks (not completed) - send all pending and skipped tasks
   const incompleteTasks = routine
