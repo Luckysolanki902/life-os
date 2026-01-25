@@ -94,6 +94,25 @@ export function getDateRange(dateStr: string): { startOfDay: Date; endOfDay: Dat
  * @returns Day of week (0 = Sunday, 6 = Saturday)
  */
 export function getDayOfWeek(dateStr: string): number {
+  // Validate and sanitize date string
+  if (!dateStr || typeof dateStr !== 'string') {
+    console.error('[getDayOfWeek] Invalid date string (empty or not string):', dateStr);
+    dateStr = getTodayDateString();
+  }
+  
+  // Check format YYYY-MM-DD
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    console.error('[getDayOfWeek] Invalid date format (expected YYYY-MM-DD):', dateStr);
+    dateStr = getTodayDateString();
+  }
+  
+  // Validate that it's a valid date
+  const parsed = dayjs(dateStr);
+  if (!parsed.isValid()) {
+    console.error('[getDayOfWeek] Invalid date value:', dateStr);
+    dateStr = getTodayDateString();
+  }
+  
   return dayjs.tz(dateStr, DEFAULT_TIMEZONE).day();
 }
 
