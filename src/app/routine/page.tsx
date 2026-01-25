@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 export default async function RoutinePage() {
   // Get tasks for today (server-side uses IST day)
   // Client will re-fetch with correct timezone
-  const tasks = await getRoutine();
+  const { routine: tasks, specialTasks } = await getRoutine();
   const allTasks = await getAllTasks();
 
   return (
@@ -21,7 +21,7 @@ export default async function RoutinePage() {
         </p>
       </header>
 
-      <RoutineList initialTasks={tasks} allTasks={allTasks} />
+      <RoutineList initialTasks={tasks} allTasks={allTasks} initialSpecialTasks={specialTasks} />
 
       <NewTaskForm />
     </div>

@@ -364,7 +364,7 @@ export default function ReportsClient({ initialData, initialPeriod }: ReportsCli
       <div className="space-y-3">
         <h3 className="text-sm font-semibold">Domain Performance</h3>
         <div className="grid gap-3">
-          {domainBreakdown?.map((domain) => {
+          {domainBreakdown.slice(0, 1)?.map((domain) => {
             const colors: Record<string, { bg: string; text: string; bar: string }> = {
               health: { bg: 'bg-rose-500/10', text: 'text-rose-500', bar: 'bg-rose-500' },
               learning: { bg: 'bg-amber-500/10', text: 'text-amber-500', bar: 'bg-amber-500' },

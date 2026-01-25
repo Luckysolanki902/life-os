@@ -73,7 +73,11 @@ export async function getRoutine(dateStr?: string) {
     };
   });
 
-  return routine;
+  // 5. Get special tasks (auto-generated from activity logs)
+  const { getSpecialTasks } = await import('./streak');
+  const specialTasks = await getSpecialTasks();
+
+  return { routine, specialTasks };
 }
 
 // Get routine for a specific date (for viewing/editing past days)
@@ -98,6 +102,27 @@ export async function getRoutineForDate(dateStr: string) {
   
   // 4. Merge them
   const routine = daysTasks.map((task: any) => {
+    const log = logs.find((l: any) => l.taskId.toString() === task._id.toString());
+    
+    const { subtasks, ...cleanTask } = task;
+
+    return {
+      ...cleanTask,
+      _id: task._id.toString(),
+      log: log ? {
+        ...log,
+        _id: log._id.toString(),
+        taskId: log.taskId.toString(),
+      } : null
+    };
+  });
+
+  // 5. Get special tasks for this date (pass dateStr to getDateRange inside getSpecialTasks)
+  // Note: getSpecialTasks currently only works for today, would need modification for past dates
+  const specialTasks: any[] = []; // For now, only show special tasks on today's view
+
+  return { routine, specialTasks };
+}
     const log = logs.find((l: any) => l.taskId.toString() === task._id.toString());
     const { subtasks, ...cleanTask } = task;
     

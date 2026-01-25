@@ -91,10 +91,12 @@ function SortableTaskItem({ task, dateStr }: { task: any; dateStr?: string }) {
 interface RoutineListProps {
   initialTasks: any[];
   allTasks?: any[];
+  initialSpecialTasks?: any[];
 }
 
-export default function RoutineList({ initialTasks, allTasks = [] }: RoutineListProps) {
+export default function RoutineList({ initialTasks, allTasks = [], initialSpecialTasks = [] }: RoutineListProps) {
   const [tasks, setTasks] = useState(initialTasks);
+  const [specialTasks, setSpecialTasks] = useState(initialSpecialTasks);
   const [viewMode, setViewMode] = useState<'today' | 'custom'>('today');
   const [filterOpen, setFilterOpen] = useState(false);
   const [timeFilter, setTimeFilter] = useState('all');
@@ -133,8 +135,9 @@ export default function RoutineList({ initialTasks, allTasks = [] }: RoutineList
   const fetchCustomDate = async (dateStr: string) => {
     setIsLoadingCustom(true);
     try {
-      const customTasks = await getRoutineForDate(dateStr);
+      const { routine: customTasks, specialTasks: customSpecial } = await getRoutineForDate(dateStr);
       setTasks(customTasks);
+      setSpecialTasks(customSpecial);
     } finally {
       setIsLoadingCustom(false);
     }
@@ -420,6 +423,46 @@ export default function RoutineList({ initialTasks, allTasks = [] }: RoutineList
           </div>
         </SortableContext>
       </DndContext>
+
+      {/* Special Tasks Section (Auto-completed from logs) */}
+      {specialTasks.length > 0 && (
+        <div className="mt-4 pt-4 border-t border-primary/20">
+          <p className="text-xs font-medium text-primary mb-3 px-1 flex items-center gap-2">
+            <span>✨ Auto-Completed Tasks</span>
+            <span className="px-1.5 py-0.5 rounded-full bg-primary/10 text-[10px]">
+              {specialTasks.length}
+            </span>
+          </p>
+          <div className="space-y-2">
+            {specialTasks.map((task) => (
+              <div
+                key={task._id}
+                className="flex items-center gap-3 p-3 rounded-xl bg-primary/5 border border-primary/20"
+              >
+                <div className="p-2 rounded-lg bg-primary/20">
+                  <span className="text-lg">
+                    {task.type === 'health' ? '💪' : task.type === 'books' ? '📚' : '🧠'}
+                  </span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="font-medium text-sm truncate">{task.title}</p>
+                    <span className="shrink-0 px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 text-[10px] font-semibold">
+                      +{task.points} pts
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5">{task.source}</p>
+                </div>
+                <div className="shrink-0 w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center">
+                  <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Skipped Tasks Section */}
       {skippedTasks.length > 0 && (

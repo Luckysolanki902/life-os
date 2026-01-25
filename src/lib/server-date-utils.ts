@@ -63,8 +63,28 @@ export function formatToDateString(date: Date): string {
  * @returns Object with startOfDay and endOfDay (exclusive, for $lt queries)
  */
 export function getDateRange(dateStr: string): { startOfDay: Date; endOfDay: Date } {
+  // Validate and sanitize date string
+  if (!dateStr || typeof dateStr !== 'string') {
+    console.error('[getDateRange] Invalid date string (empty or not string):', dateStr);
+    dateStr = getTodayDateString();
+  }
+  
+  // Check format YYYY-MM-DD
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    console.error('[getDateRange] Invalid date format (expected YYYY-MM-DD):', dateStr);
+    dateStr = getTodayDateString();
+  }
+  
+  // Validate that it's a valid date
+  const parsed = dayjs(dateStr);
+  if (!parsed.isValid()) {
+    console.error('[getDateRange] Invalid date value:', dateStr);
+    dateStr = getTodayDateString();
+  }
+  
   const startOfDay = dayjs.tz(dateStr, DEFAULT_TIMEZONE).startOf('day').toDate();
   const endOfDay = dayjs.tz(dateStr, DEFAULT_TIMEZONE).add(1, 'day').startOf('day').toDate();
+  
   return { startOfDay, endOfDay };
 }
 
