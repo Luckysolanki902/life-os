@@ -33,5 +33,11 @@ const TaskSchema = new mongoose.Schema({
   },
 }, { timestamps: true });
 
+// Indexes for performance
+TaskSchema.index({ domainId: 1, isActive: 1 });
+TaskSchema.index({ isActive: 1, order: 1 });
+TaskSchema.index({ timeOfDay: 1, isActive: 1 });
+TaskSchema.index({ recurrenceType: 1 });
+
 // Use 'RoutineTask' to avoid caching collisions with previous 'Task' models
 export default mongoose.models.RoutineTask || mongoose.model('RoutineTask', TaskSchema);

@@ -6,8 +6,15 @@ import { getStreakData, getSpecialTasks, getTotalPointsWithBonuses } from "@/app
 
 export async function GET() {
   try {
-    const [, routineData, todaysWeight, streakData, specialTasks, pointsData, last7DaysCompletion] = await Promise.all([
-      getIdentityMetric(),
+    // Parallel independent fetching for ultra-fast performance
+    const [
+      routineData,
+      todaysWeight,
+      streakData,
+      specialTasks,
+      pointsData,
+      last7DaysCompletion
+    ] = await Promise.all([
       getRoutine(),
       getTodaysWeightData(),
       getStreakData(),

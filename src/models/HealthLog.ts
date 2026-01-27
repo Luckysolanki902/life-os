@@ -28,4 +28,8 @@ const HealthLogSchema = new mongoose.Schema({
   date: { type: Date, default: Date.now }
 }, { timestamps: true });
 
+// Indexes for performance
+HealthLogSchema.index({ date: -1 });
+HealthLogSchema.index({ type: 1, date: -1 });
+
 export default mongoose.models.HealthLog || mongoose.model('HealthLog', HealthLogSchema);

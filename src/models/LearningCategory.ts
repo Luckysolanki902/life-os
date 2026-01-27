@@ -10,5 +10,8 @@ const LearningCategorySchema = new Schema(
   { timestamps: true }
 );
 
+// Indexes for performance
+LearningCategorySchema.index({ order: 1 });
+
 export default mongoose.models.LearningCategory ||
   mongoose.model("LearningCategory", LearningCategorySchema);

@@ -11,5 +11,8 @@ const LearningAreaSchema = new Schema(
   { timestamps: true }
 );
 
+// Indexes for performance
+LearningAreaSchema.index({ order: 1 });
+
 export default mongoose.models.LearningArea ||
   mongoose.model("LearningArea", LearningAreaSchema);

@@ -336,76 +336,56 @@ export default function LearningClient({ initialData }: LearningClientProps) {
   const selectedMedium = allMediums.find((m) => m._id === quickLogData.mediumId);
 
   return (
-    <div className="space-y-5 sm:space-y-6 pb-20">
-      {/* Header */}
-      <div className="flex flex-col gap-3 sm:gap-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="space-y-0.5 sm:space-y-1">
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-2 sm:gap-3">
-              <BookOpen className="text-violet-500 shrink-0" size={24} />
-              Learning
-            </h1>
-            <p className="text-muted-foreground text-xs sm:text-sm">Track your knowledge journey</p>
-          </div>
-          <div className="flex gap-1.5 sm:gap-2 shrink-0">
-            <button
-              onClick={() => setIsQuickLogOpen(true)}
-              className="px-2.5 sm:px-4 py-2 rounded-xl bg-primary text-primary-foreground font-medium text-xs sm:text-sm flex items-center gap-1 sm:gap-2 hover:opacity-90 shadow-lg shadow-primary/20"
-            >
-              <Play size={14} />
-              <span className="hidden xs:inline">Quick</span> Log
-            </button>
-            <button
-              onClick={() => setIsAreaModalOpen(true)}
-              className="px-2.5 sm:px-4 py-2 rounded-xl bg-secondary text-secondary-foreground font-medium text-xs sm:text-sm flex items-center gap-1 sm:gap-2 hover:opacity-80"
-            >
-              <Plus size={14} />
-              <span className="hidden sm:inline">Area</span>
-            </button>
-          </div>
+    <div className="space-y-6 pb-20">
+      {/* Header - Minimal */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Learning</h1>
+          <p className="text-sm text-muted-foreground">Track your skills</p>
         </div>
+        <button
+          onClick={() => setIsQuickLogOpen(true)}
+          className="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90"
+        >
+          + Log
+        </button>
       </div>
 
-      {/* Today's Learning Tasks */}
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Today&apos;s Learning</h2>
-        <div className="space-y-2">
-          {activeTasks.length > 0 ? (
-            activeTasks.map((task) => (
-              <TaskItem key={task._id} task={task} />
-            ))
-          ) : routine.length === 0 ? (
-            <div className="p-5 rounded-xl border border-dashed border-border text-center text-muted-foreground text-sm">
-              No learning habits scheduled for today.
-            </div>
-          ) : (
-            <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-center text-emerald-400 text-sm">
-              All learning tasks completed! 🎉
-            </div>
-          )}
-        </div>
-        
-        {/* Toggle buttons for done/skipped tasks */}
-        <div className="flex flex-wrap gap-2">
+      {/* Today's Learning Tasks - Minimal */}
+      {routine.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-lg font-semibold tracking-tight">Today</h2>
+          <div className="space-y-2">
+            {activeTasks.length > 0 ? (
+              activeTasks.map((task) => (
+                <TaskItem key={task._id} task={task} />
+              ))
+            ) : (
+              <div className="p-4 rounded-2xl bg-card border border-border/50 text-center text-sm">
+                <p className="font-medium">All done! 🎉</p>
+              </div>
+            )}
+          </div>
+          
+          {/* Show/hide completed tasks */}
           {doneTasks.length > 0 && (
             <button
               onClick={() => setShowDoneTasks(!showDoneTasks)}
-              className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors px-2.5 py-1.5 rounded-lg bg-secondary/50 hover:bg-secondary"
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5"
             >
               {showDoneTasks ? <EyeOff size={14} /> : <Eye size={14} />}
-              {showDoneTasks ? "Hide" : "Show"} done ({doneTasks.length})
+              {showDoneTasks ? "Hide" : "Show"} completed ({doneTasks.length})
             </button>
           )}
           {skippedTasks.length > 0 && (
             <button
               onClick={() => setShowSkippedTasks(!showSkippedTasks)}
-              className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors px-2.5 py-1.5 rounded-lg bg-secondary/50 hover:bg-secondary"
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5"
             >
               {showSkippedTasks ? <EyeOff size={14} /> : <Eye size={14} />}
               {showSkippedTasks ? "Hide" : "Show"} skipped ({skippedTasks.length})
             </button>
           )}
-        </div>
         
         {/* Done tasks (collapsed by default) */}
         {showDoneTasks && doneTasks.length > 0 && (
@@ -420,91 +400,94 @@ export default function LearningClient({ initialData }: LearningClientProps) {
             {skippedTasks.map((task) => <TaskItem key={task._id} task={task} />)}
           </div>
         )}
-      </section>
+        </section>
+      )}
 
-      {/* Learning Areas */}
+      {/* Learning Areas - Minimal */}
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Knowledge Areas</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold tracking-tight">Skills</h2>
+          <button
+            onClick={() => setIsAreaModalOpen(true)}
+            className="text-sm text-primary hover:underline"
+          >
+            + Area
+          </button>
+        </div>
         
         {areas.length === 0 ? (
-          <div className="p-8 rounded-2xl border-2 border-dashed border-border text-center">
-            <BookOpen size={40} className="mx-auto text-muted-foreground mb-3" />
-            <p className="text-muted-foreground mb-4">No learning areas yet</p>
+          <div className="p-8 rounded-2xl bg-card border border-border/50 text-center space-y-3">
+            <Target className="mx-auto text-muted-foreground" size={32} />
+            <div>
+              <p className="font-medium">No areas yet</p>
+              <p className="text-sm text-muted-foreground mt-1">Create your first learning area</p>
+            </div>
             <button
               onClick={() => setIsAreaModalOpen(true)}
-              className="px-4 py-2 rounded-xl bg-primary text-primary-foreground font-medium text-sm"
+              className="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90"
             >
-              Create Your First Area
+              Create Area
             </button>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-2">
             {areas.map((area) => {
-              const colorClasses = getColorClasses(area.color || 'blue');
               const IconComponent = AREA_ICONS[area.icon || 'default'] || AREA_ICONS.default;
               const isExpanded = expandedAreas.has(area._id);
               
               return (
-                <div key={area._id} className={cn(
-                  "rounded-2xl border overflow-hidden transition-all",
-                  colorClasses.border,
-                  colorClasses.bg
-                )}>
-                  {/* Area Header */}
+                <div key={area._id} className="rounded-2xl bg-card border border-border/50 overflow-hidden">
+                  {/* Area Header - Minimal */}
                   <div 
-                    className="flex items-center justify-between p-4 cursor-pointer hover:bg-white/5 transition-colors"
+                    className="flex items-center justify-between p-4 cursor-pointer hover:bg-secondary/30 transition-colors"
                     onClick={() => toggleArea(area._id)}
                   >
                     <div className="flex items-center gap-3">
-                      <div className={cn("p-2 rounded-xl", colorClasses.accent, "bg-opacity-20")}>
-                        <IconComponent size={20} className={colorClasses.text} />
+                      <IconComponent size={20} className="text-muted-foreground" />
+                      <div className="flex-1">
+                        {editingItem?.type === 'area' && editingItem.id === area._id ? (
+                          <input
+                            value={editingItem.title}
+                            onChange={(e) => setEditingItem({ ...editingItem, title: e.target.value })}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') handleRename('area', area._id, editingItem.title);
+                              if (e.key === 'Escape') setEditingItem(null);
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                            autoFocus
+                            className="bg-transparent border-b border-primary outline-none font-medium"
+                          />
+                        ) : (
+                          <h3 className="font-semibold">{area.title}</h3>
+                        )}
+                        {area.totalMinutes > 0 && (
+                          <p className="text-xs text-muted-foreground">{formatDuration(area.totalMinutes)}</p>
+                        )}
                       </div>
-                      {editingItem?.type === 'area' && editingItem.id === area._id ? (
-                        <input
-                          value={editingItem.title}
-                          onChange={(e) => setEditingItem({ ...editingItem, title: e.target.value })}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') handleRename('area', area._id, editingItem.title);
-                            if (e.key === 'Escape') setEditingItem(null);
-                          }}
-                          onClick={(e) => e.stopPropagation()}
-                          autoFocus
-                          className="bg-transparent border-b border-primary font-semibold text-lg outline-none"
-                        />
-                      ) : (
-                        <div>
-                          <h3 className="font-semibold text-lg">{area.title}</h3>
-                          {area.description && <p className="text-xs text-muted-foreground">{area.description}</p>}
-                        </div>
-                      )}
                     </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-xs text-muted-foreground font-medium">
-                        {formatDuration(area.totalMinutes)} total
-                      </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setNewSkill({ ...newSkill, areaId: area._id });
+                          setIsSkillModalOpen(true);
+                        }}
+                        className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                      >
+                        <Plus size={14} />
+                      </button>
                       <div className="relative">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             setContextMenu(contextMenu?.id === area._id ? null : { type: 'area', id: area._id });
                           }}
-                          className="p-1.5 rounded-lg hover:bg-secondary/50 text-muted-foreground"
+                          className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
                         >
-                          <MoreVertical size={16} />
+                          <MoreVertical size={14} />
                         </button>
                         {contextMenu?.type === 'area' && contextMenu.id === area._id && (
                           <div className="absolute right-0 top-full mt-1 bg-card border border-border rounded-xl shadow-lg z-10 min-w-35 overflow-hidden">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setNewSkill({ ...newSkill, areaId: area._id });
-                                setIsSkillModalOpen(true);
-                                setContextMenu(null);
-                              }}
-                              className="w-full px-3 py-2 text-left text-sm hover:bg-secondary flex items-center gap-2"
-                            >
-                              <Plus size={14} /> Add Skill
-                            </button>
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -527,36 +510,35 @@ export default function LearningClient({ initialData }: LearningClientProps) {
                           </div>
                         )}
                       </div>
-                      {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                      {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                     </div>
                   </div>
                   
-                  {/* Skills */}
+                  {/* Skills - Minimal */}
                   {isExpanded && (
-                    <div className="px-4 pb-4 space-y-2">
+                    <div className="px-3 pb-3 space-y-1">
                       {area.skills.length === 0 ? (
                         <button
                           onClick={() => {
                             setNewSkill({ ...newSkill, areaId: area._id });
                             setIsSkillModalOpen(true);
                           }}
-                          className="w-full p-3 rounded-xl border border-dashed border-border/50 text-sm text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors flex items-center justify-center gap-2"
+                          className="w-full p-3 rounded-xl border border-dashed border-border/30 text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center gap-1"
                         >
-                          <Plus size={14} /> Add a skill
+                          <Plus size={12} /> Add skill
                         </button>
                       ) : (
                         area.skills.map((skill) => {
                           const isSkillExpanded = expandedSkills.has(skill._id);
                           
                           return (
-                            <div key={skill._id} className="bg-card/50 rounded-xl border border-border/30 overflow-hidden">
-                              {/* Skill Header */}
+                            <div key={skill._id} className="rounded-xl bg-secondary/30 overflow-hidden">
+                              {/* Skill Header - Minimal */}
                               <div 
-                                className="flex items-center justify-between p-3 cursor-pointer hover:bg-white/5 transition-colors"
+                                className="flex items-center justify-between p-2.5 hover:bg-secondary/50 cursor-pointer transition-colors"
                                 onClick={() => toggleSkill(skill._id)}
                               >
-                                <div className="flex items-center gap-2">
-                                  <Target size={16} className={colorClasses.text} />
+                                <div className="flex items-center gap-2 flex-1 min-w-0">
                                   {editingItem?.type === 'skill' && editingItem.id === skill._id ? (
                                     <input
                                       value={editingItem.title}

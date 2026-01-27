@@ -22,6 +22,8 @@ const DailyLogSchema = new mongoose.Schema(
 
 // Compound index to ensure one log per task per day
 DailyLogSchema.index({ taskId: 1, date: 1 }, { unique: true });
+DailyLogSchema.index({ date: -1 });
+DailyLogSchema.index({ status: 1, date: -1 });
 
 export default mongoose.models.DailyLog ||
   mongoose.model("DailyLog", DailyLogSchema);

@@ -15,5 +15,9 @@ const PracticeMediumSchema = new Schema(
   { timestamps: true }
 );
 
+// Indexes for performance
+PracticeMediumSchema.index({ skillId: 1 });
+PracticeMediumSchema.index({ skillId: 1, order: 1 });
+
 export default mongoose.models.PracticeMedium ||
   mongoose.model("PracticeMedium", PracticeMediumSchema);

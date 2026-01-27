@@ -10,4 +10,7 @@ const MoodLogSchema = new mongoose.Schema({
   note: { type: String, maxlength: 200 }, // Optional short note
 }, { timestamps: true });
 
+// Indexes for performance
+MoodLogSchema.index({ date: -1 });
+
 export default mongoose.models.MoodLog || mongoose.model('MoodLog', MoodLogSchema);
