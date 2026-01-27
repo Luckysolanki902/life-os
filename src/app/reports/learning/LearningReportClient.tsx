@@ -591,6 +591,24 @@ export default function LearningReportClient() {
     setSkillId('');
   };
 
+  const { summary, byArea, bySkill, difficultyDist, ratingDist, topMediums, dailyLearning, weeklyTrend, recentSessions, filters } = data || {};
+
+  // Filter skills by selected area
+  const filteredSkills = useMemo(() => {
+    if (!bySkill) return [];
+    if (!areaId) return bySkill;
+    return bySkill.filter((s: any) => s.areaId === areaId);
+  }, [bySkill, areaId]);
+
+  const formatTime = (minutes: number) => {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    if (hours > 0) return `${hours}h ${mins}m`;
+    return `${mins}m`;
+  };
+
+  const hasActiveFilters = areaId || skillId;
+
   if (isLoading || !data) {
     return (
       <div className="space-y-6 pb-24">
@@ -610,24 +628,6 @@ export default function LearningReportClient() {
       </div>
     );
   }
-
-  const { summary, byArea, bySkill, difficultyDist, ratingDist, topMediums, dailyLearning, weeklyTrend, recentSessions, filters } = data;
-
-  // Filter skills by selected area
-  const filteredSkills = useMemo(() => {
-    if (!bySkill) return [];
-    if (!areaId) return bySkill;
-    return bySkill.filter((s: any) => s.areaId === areaId);
-  }, [bySkill, areaId]);
-
-  const formatTime = (minutes: number) => {
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    if (hours > 0) return `${hours}h ${mins}m`;
-    return `${mins}m`;
-  };
-
-  const hasActiveFilters = areaId || skillId;
 
   return (
     <div className="space-y-6 pb-24">

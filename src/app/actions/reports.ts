@@ -634,6 +634,7 @@ export async function getHealthReport(period: string = 'thisWeek') {
   let checkDate = dayjs().tz(DEFAULT_TIMEZONE);
   let consecutiveWorkoutDays = 0;
 
+  // Start from today and go backwards
   while (true) {
     const dateStr = checkDate.format('YYYY-MM-DD');
     const hasWorkout = exerciseByDate[dateStr];
@@ -642,6 +643,12 @@ export async function getHealthReport(period: string = 'thisWeek') {
       workoutStreak++;
       consecutiveWorkoutDays++;
     } else {
+      // For today specifically, just break if no workout (don't count it yet)
+      const isToday = checkDate.isSame(dayjs().tz(DEFAULT_TIMEZONE), 'day');
+      if (isToday) {
+        break;
+      }
+      
       // Check if this can be a rest day (after 2+ consecutive workout days)
       if (consecutiveWorkoutDays >= 2) {
         // This is a valid rest day, streak continues

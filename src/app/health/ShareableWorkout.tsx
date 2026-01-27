@@ -399,11 +399,14 @@ export default function ShareableWorkout({ canShare, hasWeight, isRestDay = fals
                               width: '32px', 
                               height: '32px', 
                               borderRadius: '50%',
-                              background: day.valid ? 'linear-gradient(135deg, #f97316, #fb923c)' : index === 6 ? 'transparent' : '#f3f4f6',
+                              background: day.valid 
+                                ? (day.isRestDay ? 'linear-gradient(135deg, #10b981, #34d399)' : 'linear-gradient(135deg, #f97316, #fb923c)')
+                                : index === 6 ? 'transparent' : '#f3f4f6',
                               border: index === 6 && !day.valid ? '2px dashed #fbcfe8' : 'none',
                               boxSizing: 'border-box'
                             }}>
-                              {day.valid && <Flame size={14} style={{ color: 'white' }} />}
+                              {day.valid && !day.isRestDay && <Flame size={14} style={{ color: 'white' }} />}
+                              {day.valid && day.isRestDay && <Leaf size={14} style={{ color: 'white' }} />}
                             </div>
                             <div style={{ fontSize: '10px', color: '#9ca3af', marginTop: '6px', fontWeight: '500' }}>{getDayAbbr(day.date)}</div>
                           </div>

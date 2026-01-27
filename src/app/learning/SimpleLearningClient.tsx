@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import { 
   Plus, Clock, Trash2, X, Brain, Minus,
-  Flame, ChevronRight, Pencil, Edit2
+  Flame, ChevronRight, Pencil, Edit2, Play
 } from 'lucide-react';
 import { 
   createCategory, 
@@ -65,15 +65,16 @@ interface SimpleLearningClientProps {
   };
 }
 
+// Minimal color system - thin accents only
 const COLORS = [
-  { name: 'violet', bg: 'bg-violet-500/10', border: 'border-violet-500/30', text: 'text-violet-400', accent: 'bg-violet-500' },
-  { name: 'blue', bg: 'bg-blue-500/10', border: 'border-blue-500/30', text: 'text-blue-400', accent: 'bg-blue-500' },
-  { name: 'emerald', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', text: 'text-emerald-400', accent: 'bg-emerald-500' },
-  { name: 'orange', bg: 'bg-orange-500/10', border: 'border-orange-500/30', text: 'text-orange-400', accent: 'bg-orange-500' },
-  { name: 'rose', bg: 'bg-rose-500/10', border: 'border-rose-500/30', text: 'text-rose-400', accent: 'bg-rose-500' },
-  { name: 'cyan', bg: 'bg-cyan-500/10', border: 'border-cyan-500/30', text: 'text-cyan-400', accent: 'bg-cyan-500' },
-  { name: 'amber', bg: 'bg-amber-500/10', border: 'border-amber-500/30', text: 'text-amber-400', accent: 'bg-amber-500' },
-  { name: 'pink', bg: 'bg-pink-500/10', border: 'border-pink-500/30', text: 'text-pink-400', accent: 'bg-pink-500' },
+  { name: 'violet', text: 'text-violet-500', bg: 'bg-violet-500', ring: 'ring-violet-500' },
+  { name: 'blue', text: 'text-blue-500', bg: 'bg-blue-500', ring: 'ring-blue-500' },
+  { name: 'emerald', text: 'text-emerald-500', bg: 'bg-emerald-500', ring: 'ring-emerald-500' },
+  { name: 'orange', text: 'text-orange-500', bg: 'bg-orange-500', ring: 'ring-orange-500' },
+  { name: 'rose', text: 'text-rose-500', bg: 'bg-rose-500', ring: 'ring-rose-500' },
+  { name: 'cyan', text: 'text-cyan-500', bg: 'bg-cyan-500', ring: 'ring-cyan-500' },
+  { name: 'amber', text: 'text-amber-500', bg: 'bg-amber-500', ring: 'ring-amber-500' },
+  { name: 'pink', text: 'text-pink-500', bg: 'bg-pink-500', ring: 'ring-pink-500' },
 ];
 
 function getColorClasses(colorName: string) {
@@ -213,79 +214,82 @@ export default function SimpleLearningClient({ initialData }: SimpleLearningClie
   }
 
   return (
-    <div className="space-y-5 pb-20">
+    <div className="max-w-4xl mx-auto space-y-8 pb-20">
       {/* Header */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="space-y-0.5">
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-2">
-            <Brain className="text-violet-500 shrink-0" size={24} />
-            Learning
+      <div className="flex items-start justify-between">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-3">
+             <Brain className="text-primary" size={28} />
+             Learning
           </h1>
-          <p className="text-muted-foreground text-xs sm:text-sm">Track your skills</p>
+          <p className="text-muted-foreground text-sm pl-1">Track your progress and skills</p>
         </div>
         <button
           onClick={() => setIsQuickLogOpen(true)}
-          className="px-3 sm:px-4 py-2 rounded-xl bg-primary text-primary-foreground font-medium text-xs sm:text-sm flex items-center gap-1.5 hover:opacity-90 shadow-lg shadow-primary/20"
+          className="px-4 py-2 rounded-full bg-primary text-primary-foreground font-medium text-sm flex items-center gap-2 hover:opacity-90 transition-opacity shadow-sm"
         >
           <Plus size={16} />
-          Log
+          <span>Log Session</span>
         </button>
       </div>
 
-      {/* Today's Stats */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="p-4 rounded-2xl bg-card border border-border/50">
-          <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
-            <Clock size={14} />
-            Today
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="p-6 rounded-2xl bg-card border border-border/40 shadow-sm relative overflow-hidden group">
+          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+            <Clock size={64} />
           </div>
-          <p className="text-2xl font-bold">{formatDuration(todaysTotalMinutes)}</p>
+          <div className="flex flex-col gap-1 relative z-10">
+            <span className="text-muted-foreground text-xs font-medium uppercase tracking-wider">Today</span>
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl font-bold tracking-tight">{formatDuration(todaysTotalMinutes)}</span>
+              {todaysTotalMinutes > 0 && <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />}
+            </div>
+          </div>
         </div>
-        <div className="p-4 rounded-2xl bg-card border border-border/50">
-          <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
-            <Flame size={14} />
-            This Week
+        <div className="p-6 rounded-2xl bg-card border border-border/40 shadow-sm relative overflow-hidden group">
+          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+            <Flame size={64} />
           </div>
-          <p className="text-2xl font-bold">{formatDuration(weeklyTotalMinutes)}</p>
+          <div className="flex flex-col gap-1 relative z-10">
+            <span className="text-muted-foreground text-xs font-medium uppercase tracking-wider">This Week</span>
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl font-bold tracking-tight">{formatDuration(weeklyTotalMinutes)}</span>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Quick Log Skills - Only show if there are skill stats */}
+      {/* Quick Access Grid */}
       {recentSkillStats.length > 0 && (
-        <section className="space-y-3">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Quick Log</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <section className="space-y-4">
+          <h2 className="text-sm font-medium text-muted-foreground pl-1">Jump Back In</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {recentSkillStats.map((stat) => {
               const colors = getColorClasses(stat.categoryColor);
               const defaultDuration = getDefaultDuration(stat.skillId);
               return (
                 <div
                   key={stat.skillId}
-                  className={cn(
-                    "p-4 rounded-xl border transition-all hover:scale-[1.02]",
-                    colors.bg, colors.border
-                  )}
+                  className="group relative p-4 rounded-2xl bg-card border border-border/40 hover:border-border/80 transition-all hover:shadow-md cursor-pointer flex items-center justify-between"
+                  onClick={() => handleQuickAdd(stat)}
                 >
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-base truncate">{stat.categoryIcon} {stat.skillName}</p>
-                      <p className="text-xs text-muted-foreground truncate mt-0.5">
-                        {stat.categoryTitle} • {formatDuration(stat.totalMinutes)} total
-                      </p>
-                      <p className="text-xs text-muted-foreground/70 mt-1">
-                        +{formatDuration(defaultDuration)}
+                  <div className="flex items-center gap-3">
+                    <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center text-lg bg-secondary/50", colors.text)}>
+                      {stat.categoryIcon}
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-sm text-foreground group-hover:text-primary transition-colors">
+                        {stat.skillName}
+                      </h3>
+                      <p className="text-xs text-muted-foreground">
+                        {formatDuration(stat.totalMinutes)} total
                       </p>
                     </div>
-                    <button
-                      onClick={() => handleQuickAdd(stat)}
-                      className={cn(
-                        "w-12 h-12 rounded-xl font-medium transition-all hover:scale-110 active:scale-95 shadow-lg",
-                        colors.accent, "text-white"
-                      )}
-                      title={`Log ${formatDuration(defaultDuration)}`}
-                    >
-                      <Plus size={20} className="mx-auto" />
-                    </button>
+                  </div>
+                  
+                  <div className="absolute right-4 opacity-0 group-hover:opacity-100 transition-opacity bg-primary text-primary-foreground p-2 rounded-full shadow-lg scale-90 group-hover:scale-100">
+                    <Play size={14} fill="currentColor" />
                   </div>
                 </div>
               );
@@ -294,100 +298,86 @@ export default function SimpleLearningClient({ initialData }: SimpleLearningClie
         </section>
       )}
 
-      {/* Today's Logs */}
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Today&apos;s Sessions</h2>
-        {todaysLogs.length === 0 ? (
-          <div className="p-6 rounded-2xl border border-dashed border-border text-center text-muted-foreground text-sm">
-            No learning logged today. Start tracking!
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {todaysLogs.map((log) => {
-              const colors = getColorClasses(log.categoryColor);
-              return (
-                <div
-                  key={log._id}
-                  className={cn(
-                    "p-4 rounded-xl border transition-all hover:border-primary/30",
-                    colors.bg, colors.border
-                  )}
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-base">{log.categoryIcon} {log.skillName}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-xs text-muted-foreground">{log.categoryTitle}</span>
-                        <span className="text-xs text-muted-foreground">•</span>
-                        <span className={cn("text-sm font-semibold", colors.text)}>{formatDuration(log.duration)}</span>
+      {/* Today's Timeline */}
+      <section className="space-y-4">
+        <h2 className="text-sm font-medium text-muted-foreground pl-1">Today's Sessions</h2>
+        <div className="bg-card rounded-3xl border border-border/40 overflow-hidden shadow-sm">
+          {todaysLogs.length === 0 ? (
+            <div className="p-10 text-center">
+              <div className="w-16 h-16 bg-secondary/50 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Brain size={24} className="text-muted-foreground" />
+              </div>
+              <h3 className="text-sm font-medium text-foreground mb-1">No learning logged today</h3>
+              <p className="text-xs text-muted-foreground">Start a session to track your progress</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-border/40">
+              {todaysLogs.map((log) => {
+                const colors = getColorClasses(log.categoryColor);
+                return (
+                  <div key={log._id} className="p-4 flex items-center justify-between hover:bg-secondary/20 transition-colors group">
+                    <div className="flex items-center gap-4">
+                      <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center text-lg bg-secondary/30", colors.text)}>
+                        {log.categoryIcon}
+                      </div>
+                      <div>
+                        <p className="font-semibold text-sm">{log.skillName}</p>
+                        <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                          {log.categoryTitle}
+                          <span className="w-0.5 h-0.5 rounded-full bg-muted-foreground/50" />
+                          {formatDuration(log.duration)}
+                        </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1">
+                    
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
                         onClick={() => openEditLog(log)}
-                        className="p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                        title="Edit duration"
+                        className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
                       >
-                        <Edit2 size={16} />
+                        <Edit2 size={14} />
                       </button>
                       <button
                         onClick={() => handleDeleteLog(log._id)}
                         className="p-2 rounded-lg text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 transition-colors"
-                        title="Delete log"
                       >
-                        <Trash2 size={16} />
+                        <Trash2 size={14} />
                       </button>
                     </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+                );
+              })}
+            </div>
+          )}
+        </div>
       </section>
 
-      {/* Skills Section */}
-      <section className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Skills</h2>
-          <button
-            onClick={() => setIsAddSkillOpen(true)}
-            className="text-xs text-primary hover:underline flex items-center gap-1"
-          >
-            <Plus size={12} />
-            Add
-          </button>
-        </div>
-        {skills.length === 0 ? (
-          <div className="p-5 rounded-xl border border-dashed border-border text-center text-muted-foreground text-sm">
-            No skills yet. Add one to start tracking!
+      {/* Skills & Categories Grid */}
+      <div className="grid md:grid-cols-2 gap-8">
+        {/* All Skills */}
+        <section className="space-y-4">
+          <div className="flex items-center justify-between pl-1">
+            <h2 className="text-sm font-medium text-muted-foreground">My Skills</h2>
+            <button onClick={() => setIsAddSkillOpen(true)} className="p-1.5 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors">
+              <Plus size={16} />
+            </button>
           </div>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          
+          <div className="space-y-2">
             {skills.map((skill) => {
               const colors = getColorClasses(skill.categoryColor);
               const stat = skillStats.find(s => s.skillId === skill._id);
               return (
-                <div
-                  key={skill._id}
-                  className={cn(
-                    "p-3 rounded-xl border transition-all group",
-                    colors.bg, colors.border
-                  )}
-                >
-                  <div className="flex items-start justify-between gap-1">
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm truncate">{skill.categoryIcon} {skill.name}</p>
-                      <p className="text-xs text-muted-foreground truncate">{skill.categoryTitle}</p>
-                      {stat && (
-                        <p className={cn("text-xs font-medium mt-1", colors.text)}>
-                          {formatDuration(stat.totalMinutes)}
-                        </p>
-                      )}
-                    </div>
-                    <button
+                <div key={skill._id} className="p-3 rounded-xl bg-card border border-border/40 hover:border-border/80 transition-colors flex items-center justify-between group">
+                  <div className="flex items-center gap-3">
+                    <span className="text-lg opacity-80">{skill.categoryIcon}</span>
+                    <span className="text-sm font-medium">{skill.name}</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    {stat && <span className="text-xs text-muted-foreground font-medium">{formatDuration(stat.totalMinutes)}</span>}
+                    <button 
                       onClick={() => openEditSkill(skill)}
-                      className="p-1 rounded text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-all"
+                      className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-secondary text-muted-foreground/60 hover:text-foreground transition-all"
                     >
                       <Pencil size={12} />
                     </button>
@@ -395,101 +385,95 @@ export default function SimpleLearningClient({ initialData }: SimpleLearningClie
                 </div>
               );
             })}
+            {skills.length === 0 && (
+              <div className="p-8 rounded-2xl border border-dashed border-border/60 text-center">
+                 <p className="text-sm text-muted-foreground italic mb-3">No skills added yet</p>
+                 <button onClick={() => setIsAddSkillOpen(true)} className="text-xs text-primary hover:underline">Add your first skill</button>
+              </div>
+            )}
           </div>
-        )}
-      </section>
+        </section>
 
-      {/* Categories Section */}
-      <section className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Categories</h2>
-          <button
-            onClick={() => setIsAddCategoryOpen(true)}
-            className="text-xs text-primary hover:underline flex items-center gap-1"
-          >
-            <Plus size={12} />
-            Add
-          </button>
-        </div>
-        {categories.length === 0 ? (
-          <div className="p-5 rounded-xl border border-dashed border-border text-center text-muted-foreground text-sm">
-            No categories yet. Add one to start!
+        {/* Categories */}
+        <section className="space-y-4">
+          <div className="flex items-center justify-between pl-1">
+            <h2 className="text-sm font-medium text-muted-foreground">Categories</h2>
+            <button onClick={() => setIsAddCategoryOpen(true)} className="p-1.5 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors">
+              <Plus size={16} />
+            </button>
           </div>
-        ) : (
+          
           <div className="flex flex-wrap gap-2">
             {categories.map((cat) => {
               const colors = getColorClasses(cat.color);
-              const skillCount = skills.filter(s => s.categoryId === cat._id).length;
+              const count = skills.filter(s => s.categoryId === cat._id).length;
               return (
-                <div
-                  key={cat._id}
-                  className={cn(
-                    "px-3 py-1.5 rounded-full border text-sm flex items-center gap-2",
-                    colors.bg, colors.border, colors.text
-                  )}
-                >
-                  <span>{cat.icon}</span>
-                  <span>{cat.title}</span>
-                  <span className="text-xs opacity-70">({skillCount})</span>
+                <div key={cat._id} className={cn("px-3 py-1.5 rounded-full border border-border/60 bg-card text-xs font-medium flex items-center gap-2 transition-colors hover:border-border cursor-default")}>
+                  <span className={cn("w-2 h-2 rounded-full", colors.bg)} />
+                  {cat.title}
+                  <span className="text-muted-foreground/60 text-[10px] ml-0.5">{count}</span>
                 </div>
               );
             })}
+             {categories.length === 0 && (
+              <div className="w-full p-8 rounded-2xl border border-dashed border-border/60 text-center">
+                 <p className="text-sm text-muted-foreground italic mb-3">No categories added</p>
+                 <button onClick={() => setIsAddCategoryOpen(true)} className="text-xs text-primary hover:underline">Add your first category</button>
+              </div>
+            )}
           </div>
-        )}
-      </section>
+        </section>
+      </div>
 
-      {/* Reports Link */}
-      <div className="pt-2">
-        <Link 
-          href="/reports/learning" 
-          className="text-sm text-primary hover:underline flex items-center gap-1"
-        >
-          View Reports <ChevronRight size={14} />
+      <div className="flex justify-center pt-8">
+        <Link href="/reports/learning" className="text-xs font-medium text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors px-5 py-2.5 rounded-full hover:bg-secondary/50 border border-transparent hover:border-border/30">
+          View Detailed Reports <ChevronRight size={12} />
         </Link>
       </div>
 
+      {/* Modals */}
       {/* Add Category Modal */}
       {isAddCategoryOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-card rounded-2xl border border-border p-5 w-full max-w-sm space-y-4">
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
+          <div className="bg-card rounded-3xl border border-border shadow-2xl p-6 w-full max-w-sm space-y-6">
             <div className="flex items-center justify-between">
-              <h3 className="font-semibold">Add Category</h3>
-              <button onClick={() => setIsAddCategoryOpen(false)} className="text-muted-foreground hover:text-foreground">
+              <h3 className="font-semibold text-lg">New Category</h3>
+              <button onClick={() => setIsAddCategoryOpen(false)} className="p-1 rounded-full hover:bg-secondary text-muted-foreground transition-colors">
                 <X size={20} />
               </button>
             </div>
             <form onSubmit={handleCreateCategory} className="space-y-4">
-              <div>
+              <div className="space-y-2">
                 <label className="text-xs font-medium text-muted-foreground ml-1">Name</label>
                 <input
                   value={newCategory.title}
                   onChange={(e) => setNewCategory({ ...newCategory, title: e.target.value })}
-                  placeholder="e.g., Music, Programming"
-                  className="w-full px-3 py-2 rounded-xl bg-secondary/50 border border-border focus:outline-none focus:border-primary/50 text-sm"
+                  placeholder="e.g. Design"
+                  className="w-full px-4 py-3 rounded-xl bg-secondary/30 border border-transparent focus:bg-background focus:border-primary/20 focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all text-sm"
                   autoFocus
                 />
               </div>
-              <div>
+              <div className="space-y-2">
                 <label className="text-xs font-medium text-muted-foreground ml-1">Icon</label>
                 <input
                   value={newCategory.icon}
                   onChange={(e) => setNewCategory({ ...newCategory, icon: e.target.value })}
-                  placeholder="📚"
-                  className="w-full px-3 py-2 rounded-xl bg-secondary/50 border border-border focus:outline-none focus:border-primary/50 text-sm"
+                  placeholder="🎨"
+                  className="w-full px-4 py-3 rounded-xl bg-secondary/30 border border-transparent focus:bg-background focus:border-primary/20 focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all text-sm"
                 />
               </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground ml-1">Color</label>
-                <div className="flex flex-wrap gap-2 mt-1">
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-muted-foreground ml-1">Color Tag</label>
+                <div className="flex flex-wrap gap-3">
                   {COLORS.map((color) => (
                     <button
                       key={color.name}
                       type="button"
                       onClick={() => setNewCategory({ ...newCategory, color: color.name })}
                       className={cn(
-                        "w-8 h-8 rounded-full transition-all",
-                        color.accent,
-                        newCategory.color === color.name && "ring-2 ring-offset-2 ring-offset-card ring-white"
+                        "w-6 h-6 rounded-full transition-all ring-offset-2 ring-offset-card",
+                        color.bg,
+                        newCategory.color === color.name ? "ring-2 ring-foreground scale-110" : "hover:scale-110 opacity-70 hover:opacity-100"
                       )}
                     />
                   ))}
@@ -497,65 +481,65 @@ export default function SimpleLearningClient({ initialData }: SimpleLearningClie
               </div>
               <button
                 type="submit"
-                className="w-full px-4 py-2.5 rounded-xl bg-primary text-primary-foreground font-medium text-sm hover:opacity-90"
+                className="w-full px-4 py-3 rounded-xl bg-primary text-primary-foreground font-medium text-sm hover:opacity-90 transition-opacity mt-2"
               >
-                Add Category
+                Create Category
               </button>
             </form>
           </div>
         </div>
       )}
 
-      {/* Add Skill Modal */}
+      {/* Add Skill Modal - Updated UI */}
       {isAddSkillOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-card rounded-2xl border border-border p-5 w-full max-w-sm space-y-4">
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
+          <div className="bg-card rounded-3xl border border-border shadow-2xl p-6 w-full max-w-sm space-y-6">
             <div className="flex items-center justify-between">
-              <h3 className="font-semibold">Add Skill</h3>
-              <button onClick={() => setIsAddSkillOpen(false)} className="text-muted-foreground hover:text-foreground">
+              <h3 className="font-semibold text-lg">New Skill</h3>
+              <button onClick={() => setIsAddSkillOpen(false)} className="p-1 rounded-full hover:bg-secondary text-muted-foreground transition-colors">
                 <X size={20} />
               </button>
             </div>
             <form onSubmit={handleCreateSkill} className="space-y-4">
-              <div>
+              <div className="space-y-2">
                 <label className="text-xs font-medium text-muted-foreground ml-1">Category</label>
-                <select
-                  value={newSkill.categoryId}
-                  onChange={(e) => setNewSkill({ ...newSkill, categoryId: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl bg-secondary/50 border border-border focus:outline-none focus:border-primary/50 text-sm"
-                >
-                  {categories.map((cat) => (
-                    <option key={cat._id} value={cat._id}>
-                      {cat.icon} {cat.title}
-                    </option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <select
+                    value={newSkill.categoryId}
+                    onChange={(e) => setNewSkill({ ...newSkill, categoryId: e.target.value })}
+                    className="w-full px-4 py-3 rounded-xl bg-secondary/30 border border-transparent focus:bg-background focus:border-primary/20 focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all text-sm appearance-none"
+                  >
+                    {categories.map((cat) => (
+                      <option key={cat._id} value={cat._id}>
+                        {cat.icon} {cat.title}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 rotate-90 text-muted-foreground pointer-events-none" size={14} />
+                  {categories.length === 0 && (
+                     <div className="absolute inset-0 bg-background/50 flex items-center justify-center rounded-xl">
+                        <span className="text-xs text-muted-foreground">No categories available</span>
+                     </div>
+                  )}
+                </div>
                 {categories.length === 0 && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    <button 
-                      type="button" 
-                      onClick={() => { setIsAddSkillOpen(false); setIsAddCategoryOpen(true); }} 
-                      className="text-primary hover:underline"
-                    >
-                      Add a category first
-                    </button>
-                  </p>
+                   <button type="button" onClick={() => { setIsAddSkillOpen(false); setIsAddCategoryOpen(true); }} className="text-xs text-primary hover:underline">Create a category first</button>
                 )}
               </div>
-              <div>
+              <div className="space-y-2">
                 <label className="text-xs font-medium text-muted-foreground ml-1">Skill Name</label>
                 <input
                   value={newSkill.name}
                   onChange={(e) => setNewSkill({ ...newSkill, name: e.target.value })}
-                  placeholder="e.g., Python, Guitar, Spanish"
-                  className="w-full px-3 py-2 rounded-xl bg-secondary/50 border border-border focus:outline-none focus:border-primary/50 text-sm"
+                  placeholder="e.g. Figma"
+                  className="w-full px-4 py-3 rounded-xl bg-secondary/30 border border-transparent focus:bg-background focus:border-primary/20 focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all text-sm"
                   autoFocus
                 />
               </div>
               <button
                 type="submit"
                 disabled={!newSkill.categoryId || !newSkill.name.trim()}
-                className="w-full px-4 py-2.5 rounded-xl bg-primary text-primary-foreground font-medium text-sm hover:opacity-90 disabled:opacity-50"
+                className="w-full px-4 py-3 rounded-xl bg-primary text-primary-foreground font-medium text-sm hover:opacity-90 transition-opacity disabled:opacity-50 mt-2"
               >
                 Add Skill
               </button>
@@ -564,213 +548,147 @@ export default function SimpleLearningClient({ initialData }: SimpleLearningClie
         </div>
       )}
 
-      {/* Edit Skill Modal */}
-      {isEditSkillOpen && editingSkill && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-card rounded-2xl border border-border p-5 w-full max-w-sm space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="font-semibold">Edit Skill</h3>
-              <button onClick={() => { setIsEditSkillOpen(false); setEditingSkill(null); }} className="text-muted-foreground hover:text-foreground">
-                <X size={20} />
-              </button>
-            </div>
-            <form onSubmit={handleEditSkill} className="space-y-4">
-              <div>
-                <label className="text-xs font-medium text-muted-foreground ml-1">Category</label>
-                <select
-                  value={editingSkill.categoryId}
-                  onChange={(e) => setEditingSkill({ ...editingSkill, categoryId: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl bg-secondary/50 border border-border focus:outline-none focus:border-primary/50 text-sm"
-                >
-                  {categories.map((cat) => (
-                    <option key={cat._id} value={cat._id}>
-                      {cat.icon} {cat.title}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground ml-1">Skill Name</label>
-                <input
-                  value={editingSkill.name}
-                  onChange={(e) => setEditingSkill({ ...editingSkill, name: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl bg-secondary/50 border border-border focus:outline-none focus:border-primary/50 text-sm"
-                />
-              </div>
-              <button
-                type="submit"
-                className="w-full px-4 py-2.5 rounded-xl bg-primary text-primary-foreground font-medium text-sm hover:opacity-90"
-              >
-                Save Changes
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Quick Log Modal */}
+      {/* Quick Log Modal - Updated UI */}
       {isQuickLogOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-card rounded-2xl border border-border p-5 w-full max-w-sm space-y-4">
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
+          <div className="bg-card rounded-3xl border border-border shadow-2xl p-6 w-full max-w-sm space-y-6">
             <div className="flex items-center justify-between">
-              <h3 className="font-semibold">Log Learning</h3>
-              <button onClick={() => setIsQuickLogOpen(false)} className="text-muted-foreground hover:text-foreground">
+              <h3 className="font-semibold text-lg">Log Session</h3>
+              <button onClick={() => setIsQuickLogOpen(false)} className="p-1 rounded-full hover:bg-secondary text-muted-foreground transition-colors">
                 <X size={20} />
               </button>
             </div>
-            <form onSubmit={handleQuickLog} className="space-y-4">
-              <div>
-                <label className="text-xs font-medium text-muted-foreground ml-1">Skill</label>
-                <select
-                  value={quickLogForm.skillId}
-                  onChange={(e) => setQuickLogForm({ ...quickLogForm, skillId: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl bg-secondary/50 border border-border focus:outline-none focus:border-primary/50 text-sm"
-                >
-                  {skills.length === 0 ? (
-                    <option value="">No skills available</option>
-                  ) : (
-                    skills.map((skill) => (
-                      <option key={skill._id} value={skill._id}>
-                        {skill.categoryIcon} {skill.name} • {skill.categoryTitle}
-                      </option>
-                    ))
+            <form onSubmit={handleQuickLog} className="space-y-5">
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-muted-foreground ml-1">Activity</label>
+                <div className="relative">
+                  <select
+                    value={quickLogForm.skillId}
+                    onChange={(e) => setQuickLogForm({ ...quickLogForm, skillId: e.target.value })}
+                    className="w-full px-4 py-3 rounded-xl bg-secondary/30 border border-transparent focus:bg-background focus:border-primary/20 focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all text-sm appearance-none"
+                  >
+                    {skills.length === 0 ? (
+                      <option value="">No skills available</option>
+                    ) : (
+                      skills.map((skill) => (
+                        <option key={skill._id} value={skill._id}>
+                          {skill.categoryIcon} {skill.name}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                  <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 rotate-90 text-muted-foreground pointer-events-none" size={14} />
+                   {skills.length === 0 && (
+                     <div className="absolute inset-0 bg-background/50 flex items-center justify-center rounded-xl">
+                        <span className="text-xs text-muted-foreground">No skills available</span>
+                     </div>
                   )}
-                </select>
-                {skills.length === 0 && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    <button 
-                      type="button" 
-                      onClick={() => { setIsQuickLogOpen(false); setIsAddSkillOpen(true); }} 
-                      className="text-primary hover:underline"
-                    >
-                      Add a skill first
-                    </button>
-                  </p>
+                </div>
+                 {skills.length === 0 && (
+                   <button type="button" onClick={() => { setIsQuickLogOpen(false); setIsAddSkillOpen(true); }} className="text-xs text-primary hover:underline">Add a skill first</button>
                 )}
               </div>
               
-              <div>
-                <label className="text-xs font-medium text-muted-foreground ml-1">Duration (minutes)</label>
-                <div className="flex items-center gap-2 mt-1">
+              <div className="space-y-4">
+                <div className="flex items-center justify-center">
+                   <div className="text-center">
+                     <span className="text-5xl font-bold tracking-tighter text-foreground">{quickLogForm.duration}</span>
+                     <span className="text-muted-foreground font-medium ml-1">min</span>
+                   </div>
+                </div>
+                
+                <div className="flex items-center justify-center gap-4">
                   <button
                     type="button"
-                    onClick={() => setQuickLogForm({ ...quickLogForm, duration: Math.max(1, quickLogForm.duration - 5) })}
-                    className="p-2 rounded-xl bg-secondary/50 hover:bg-secondary text-muted-foreground hover:text-foreground"
+                    onClick={() => setQuickLogForm({ ...quickLogForm, duration: Math.max(5, quickLogForm.duration - 5) })}
+                    className="w-12 h-12 rounded-full bg-secondary/50 hover:bg-secondary flex items-center justify-center transition-colors"
                   >
-                    <Minus size={16} />
+                    <Minus size={20} />
                   </button>
-                  <input
-                    type="number"
-                    value={quickLogForm.duration}
-                    onChange={(e) => setQuickLogForm({ ...quickLogForm, duration: parseInt(e.target.value) || 0 })}
-                    className="flex-1 px-3 py-2 rounded-xl bg-secondary/50 border border-border focus:outline-none focus:border-primary/50 text-sm text-center"
-                    min={1}
-                  />
+                  <div className="flex gap-2">
+                     {[15, 30, 60].map(m => (
+                       <button
+                         key={m}
+                         type="button"
+                         onClick={() => setQuickLogForm({ ...quickLogForm, duration: m })}
+                         className={cn(
+                           "px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
+                           quickLogForm.duration === m ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground hover:bg-secondary/80"
+                         )}
+                       >
+                         {m}m
+                       </button>
+                     ))}
+                  </div>
                   <button
                     type="button"
                     onClick={() => setQuickLogForm({ ...quickLogForm, duration: quickLogForm.duration + 5 })}
-                    className="p-2 rounded-xl bg-secondary/50 hover:bg-secondary text-muted-foreground hover:text-foreground"
+                    className="w-12 h-12 rounded-full bg-secondary/50 hover:bg-secondary flex items-center justify-center transition-colors"
                   >
-                    <Plus size={16} />
+                    <Plus size={20} />
                   </button>
-                </div>
-                <div className="flex gap-2 mt-2">
-                  {[15, 30, 45, 60].map((mins) => (
-                    <button
-                      key={mins}
-                      type="button"
-                      onClick={() => setQuickLogForm({ ...quickLogForm, duration: mins })}
-                      className={cn(
-                        "flex-1 py-1.5 rounded-lg text-xs font-medium transition-colors",
-                        quickLogForm.duration === mins 
-                          ? "bg-primary text-primary-foreground" 
-                          : "bg-secondary/50 hover:bg-secondary text-muted-foreground"
-                      )}
-                    >
-                      {mins}m
-                    </button>
-                  ))}
                 </div>
               </div>
               
               <button
                 type="submit"
                 disabled={!quickLogForm.skillId || skills.length === 0}
-                className="w-full px-4 py-2.5 rounded-xl bg-primary text-primary-foreground font-medium text-sm hover:opacity-90 disabled:opacity-50"
+                className="w-full px-4 py-3 rounded-xl bg-primary text-primary-foreground font-medium text-sm hover:opacity-90 transition-opacity shadow-lg shadow-primary/20 disabled:opacity-50 disabled:shadow-none mt-2"
               >
-                Log Learning
+                Log Session
               </button>
             </form>
           </div>
         </div>
       )}
 
-      {/* Edit Log Modal */}
-      {isEditLogOpen && editingLog && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-card rounded-2xl border border-border p-5 w-full max-w-sm space-y-4">
+      {/* Edit Log Modal - Updated */}
+       {isEditLogOpen && editingLog && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
+          <div className="bg-card rounded-3xl border border-border shadow-2xl p-6 w-full max-w-sm space-y-6">
             <div className="flex items-center justify-between">
-              <h3 className="font-semibold">Edit Session</h3>
-              <button onClick={() => setIsEditLogOpen(false)} className="text-muted-foreground hover:text-foreground">
+              <h3 className="font-semibold text-lg">Edit Session</h3>
+              <button onClick={() => setIsEditLogOpen(false)} className="p-1 rounded-full hover:bg-secondary text-muted-foreground transition-colors">
                 <X size={20} />
               </button>
             </div>
-            <form onSubmit={handleEditLog} className="space-y-4">
-              <div>
-                <label className="text-xs font-medium text-muted-foreground ml-1">Skill</label>
-                <div className="w-full px-3 py-2.5 rounded-xl bg-secondary/30 border border-border text-sm">
-                  {editingLog.categoryIcon} {editingLog.skillName}
+            
+             <div className="text-center py-2">
+                <div className="text-2xl mb-1">{editingLog.categoryIcon}</div>
+                <h4 className="font-semibold">{editingLog.skillName}</h4>
+                <p className="text-xs text-muted-foreground">{editingLog.categoryTitle}</p>
+             </div>
+
+            <form onSubmit={handleEditLog} className="space-y-6">
+              <div className="space-y-4">
+                <div className="flex items-center justify-center">
+                   <div className="text-center">
+                     <span className="text-5xl font-bold tracking-tighter text-foreground">{editingLog.duration}</span>
+                     <span className="text-muted-foreground font-medium ml-1">min</span>
+                   </div>
                 </div>
-                <p className="text-xs text-muted-foreground mt-1 ml-1">{editingLog.categoryTitle}</p>
-              </div>
-              
-              <div>
-                <label className="text-xs font-medium text-muted-foreground ml-1">Duration (minutes)</label>
-                <div className="flex items-center gap-2 mt-1">
-                  <button
+                
+                <div className="flex items-center justify-center gap-4">
+                   <button
                     type="button"
-                    onClick={() => setEditingLog({ ...editingLog, duration: Math.max(1, editingLog.duration - 5) })}
-                    className="p-2 rounded-xl bg-secondary/50 hover:bg-secondary text-muted-foreground hover:text-foreground"
+                    onClick={() => setEditingLog({ ...editingLog, duration: Math.max(5, editingLog.duration - 5) })}
+                    className="w-12 h-12 rounded-full bg-secondary/50 hover:bg-secondary flex items-center justify-center transition-colors"
                   >
-                    <Minus size={16} />
+                    <Minus size={20} />
                   </button>
-                  <input
-                    type="number"
-                    value={editingLog.duration}
-                    onChange={(e) => setEditingLog({ ...editingLog, duration: parseInt(e.target.value) || 0 })}
-                    className="flex-1 px-3 py-2 rounded-xl bg-secondary/50 border border-border focus:outline-none focus:border-primary/50 text-sm text-center font-semibold"
-                    min={1}
-                  />
                   <button
                     type="button"
                     onClick={() => setEditingLog({ ...editingLog, duration: editingLog.duration + 5 })}
-                    className="p-2 rounded-xl bg-secondary/50 hover:bg-secondary text-muted-foreground hover:text-foreground"
+                    className="w-12 h-12 rounded-full bg-secondary/50 hover:bg-secondary flex items-center justify-center transition-colors"
                   >
-                    <Plus size={16} />
+                    <Plus size={20} />
                   </button>
-                </div>
-                <div className="flex gap-2 mt-2">
-                  {[15, 30, 45, 60].map((mins) => (
-                    <button
-                      key={mins}
-                      type="button"
-                      onClick={() => setEditingLog({ ...editingLog, duration: mins })}
-                      className={cn(
-                        "flex-1 py-1.5 rounded-lg text-xs font-medium transition-colors",
-                        editingLog.duration === mins 
-                          ? "bg-primary text-primary-foreground" 
-                          : "bg-secondary/50 hover:bg-secondary text-muted-foreground"
-                      )}
-                    >
-                      {mins}m
-                    </button>
-                  ))}
                 </div>
               </div>
               
               <button
                 type="submit"
-                className="w-full px-4 py-2.5 rounded-xl bg-primary text-primary-foreground font-medium text-sm hover:opacity-90"
+                className="w-full px-4 py-3 rounded-xl bg-primary text-primary-foreground font-medium text-sm hover:opacity-90 transition-opacity shadow-lg shadow-primary/20"
               >
                 Save Changes
               </button>
@@ -778,6 +696,54 @@ export default function SimpleLearningClient({ initialData }: SimpleLearningClie
           </div>
         </div>
       )}
+       
+       {/* Edit Skill Modal */}
+      {isEditSkillOpen && editingSkill && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
+          <div className="bg-card rounded-3xl border border-border shadow-2xl p-6 w-full max-w-sm space-y-6">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-lg">Edit Skill</h3>
+              <button onClick={() => { setIsEditSkillOpen(false); setEditingSkill(null); }} className="p-1 rounded-full hover:bg-secondary text-muted-foreground transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleEditSkill} className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-muted-foreground ml-1">Category</label>
+                <div className="relative">
+                  <select
+                    value={editingSkill.categoryId}
+                    onChange={(e) => setEditingSkill({ ...editingSkill, categoryId: e.target.value })}
+                    className="w-full px-4 py-3 rounded-xl bg-secondary/30 border border-transparent focus:bg-background focus:border-primary/20 focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all text-sm appearance-none"
+                  >
+                    {categories.map((cat) => (
+                      <option key={cat._id} value={cat._id}>
+                        {cat.icon} {cat.title}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 rotate-90 text-muted-foreground pointer-events-none" size={14} />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-muted-foreground ml-1">Skill Name</label>
+                <input
+                  value={editingSkill.name}
+                  onChange={(e) => setEditingSkill({ ...editingSkill, name: e.target.value })}
+                  className="w-full px-4 py-3 rounded-xl bg-secondary/30 border border-transparent focus:bg-background focus:border-primary/20 focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all text-sm"
+                />
+              </div>
+              <button
+                type="submit"
+                className="w-full px-4 py-3 rounded-xl bg-primary text-primary-foreground font-medium text-sm hover:opacity-90 transition-opacity mt-2"
+              >
+                Save Changes
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

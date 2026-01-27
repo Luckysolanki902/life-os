@@ -218,10 +218,38 @@ export async function getHealthDashboardData(dateStr?: string) {
     canBeRestDay = yesterdayExerciseCount >= 1;
   }
 
-  // Calculate next workout index (cycles back to 0)
-  const nextWorkoutIndex = pageIds.length > 0 
-    ? (lastWorkoutPageIndex + 1) % pageIds.length 
-    : 0;
+  // Calculate next workout index
+  // If today has NO exercises, mark the next-in-sequence as "TODAY"
+  // If today has exercises, mark the actual next workout as "NEXT"
+  let nextWorkoutIndex = -1;
+  let todayWorkoutIndex = -1;
+  
+  if (pageIds.length > 0) {
+    // Determine what should be shown as "current"
+    if (todaysExerciseCount === 0) {
+      // No exercise today - show the next workout in sequence as "TODAY"
+      todayWorkoutIndex = (lastWorkoutPageIndex + 1) % pageIds.length;
+    } else {
+      // Has exercise today - find which page was worked today and mark next as "NEXT"
+      const todaysLogs = await ExerciseLog.find({
+        exerciseId: { $in: exerciseIds },
+        date: { $gte: targetDate, $lt: nextDay }
+      }).lean();
+      
+      if (todaysLogs.length > 0) {
+        const exerciseToPage: Record<string, string> = {};
+        allExercises.forEach((ex: any) => {
+          exerciseToPage[ex._id.toString()] = ex.pageId.toString();
+        });
+        
+        const todayLoggedPageId = exerciseToPage[(todaysLogs[0] as any).exerciseId?.toString()];
+        if (todayLoggedPageId) {
+          const todayPageIndex = pageIds.indexOf(todayLoggedPageId);
+          nextWorkoutIndex = (todayPageIndex + 1) % pageIds.length;
+        }
+      }
+    }
+  }
 
   // 5. Mood for that date
   const moodLog = await MoodLog.findOne({ 
@@ -235,12 +263,16 @@ export async function getHealthDashboardData(dateStr?: string) {
     pages: pages.map((p: any, index: number) => ({ 
       ...p, 
       _id: p._id.toString(),
-      cycleStatus: index <= lastWorkoutPageIndex ? 'done' : index === nextWorkoutIndex ? 'current' : 'upcoming'
+      cycleStatus: 
+        index === todayWorkoutIndex ? 'today' :
+        index === nextWorkoutIndex ? 'current' :
+        index <= lastWorkoutPageIndex ? 'done' : 'upcoming'
     })),
     cycleInfo: {
       lastWorkoutPageIndex,
       lastWorkoutDate: lastWorkoutDate?.toISOString() || null,
-      nextWorkoutIndex
+      nextWorkoutIndex,
+      todayWorkoutIndex
     },
     mood: moodLog ? { mood: moodLog.mood, note: moodLog.note } : null,
     todaysExerciseCount,

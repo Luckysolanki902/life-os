@@ -321,12 +321,14 @@ export default function HomeClient({
                 "text-xs font-medium px-2 py-0.5 rounded-full",
                 streakData.todayValid 
                   ? "bg-emerald-500/20 text-emerald-400" 
-                  : "bg-orange-500/20 text-orange-400"
+                  : (streakData.todayRoutineTasks >= 5 && streakData.todayCanBeRestDay)
+                    ? "bg-cyan-500/20 text-cyan-400"
+                    : "bg-orange-500/20 text-orange-400"
               )}>
                 {streakData.todayValid 
                   ? (streakData.todayIsRestDay ? "Rest Day ✓" : "Complete ✓") 
                   : streakData.todayRoutineTasks >= 5 
-                    ? (streakData.todayCanBeRestDay ? "Rest Day OK" : (streakData.todayHasExercise ? "Complete ✓" : "Need Exercise"))
+                    ? (streakData.todayCanBeRestDay ? "Rest Day OK" : "Need Exercise")
                     : `${streakData.todayRoutineTasks}/5 tasks`
                 }
               </span>
