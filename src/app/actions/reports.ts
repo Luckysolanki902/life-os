@@ -6,6 +6,7 @@ import DailyLog from '@/models/DailyLog';
 import WeightLog from '@/models/WeightLog';
 import ExerciseLog from '@/models/ExerciseLog';
 import ExerciseDefinition from '@/models/ExerciseDefinition';
+import HealthPage from '@/models/HealthPage';
 import MoodLog from '@/models/MoodLog';
 import Book from '@/models/Book';
 import BookLog from '@/models/BookLog';
