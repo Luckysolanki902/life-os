@@ -531,6 +531,11 @@ export async function getRoutineReport(period: string = 'thisWeek') {
 export async function getHealthReport(period: string = 'thisWeek') {
   await connectDB();
   
+  // Explicitly ensure ExerciseDefinition model is registered
+  if (!ExerciseDefinition) {
+    throw new Error('ExerciseDefinition model not loaded');
+  }
+  
   const { start, end } = getDateRange(period);
   const prev = getPreviousPeriodRange(period);
   const daysInPeriod = getDaysBetween(start, end);
