@@ -268,14 +268,14 @@ export default function NewHomeClient({
              </div>
              <div className="flex items-baseline gap-2">
                  <span className="text-2xl font-bold tracking-tight">{dashboardStats.totalPoints >= 30 ? `${(dashboardStats.totalPoints).toLocaleString()}` : dashboardStats.totalPoints}</span>
-                 {dashboardStats.improvement !== 0 && (
+                 {/* {dashboardStats.improvement !== 0 && (
                      <div className="flex items-center text-[10px] font-medium">
                         <span className={dashboardStats.improvement > 0 ? "text-emerald-500" : "text-rose-500"}>
                           {dashboardStats.improvement > 0 ? '+' : ''}{dashboardStats.improvement}%
                         </span>
                         <span className="text-muted-foreground/60 ml-1">improved</span>
                      </div>
-                 )}
+                 )} */}
              </div>
           </div>
           <div className="bg-card rounded-2xl border border-border/40 p-4 flex flex-col justify-between shadow-sm relative overflow-hidden">
