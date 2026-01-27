@@ -76,7 +76,7 @@ interface DashboardStats {
 function Heatmap({ data }: { data: Array<{ date: string; count: number }> }) {
   // Generate last 365 days
   const today = new Date();
-  const days = [];
+  const days: Date[] = [];
   for (let i = 364; i >= 0; i--) {
     const d = new Date(today);
     d.setDate(d.getDate() - i);
@@ -189,16 +189,6 @@ function ActivityHeatmap({ data }: { data: Array<{ date: string; count: number }
                         </div>
                     ))}
                 </div>
-            </div>
-            <div className="flex items-center gap-2 mt-2 text-[10px] text-muted-foreground">
-                <span>Less</span>
-                <div className="flex gap-1">
-                    <div className="w-2.5 h-2.5 rounded-[1px] bg-secondary/50" />
-                    <div className="w-2.5 h-2.5 rounded-[1px] bg-emerald-500/40" />
-                    <div className="w-2.5 h-2.5 rounded-[1px] bg-emerald-500/70" />
-                    <div className="w-2.5 h-2.5 rounded-[1px] bg-emerald-500" />
-                </div>
-                <span>More</span>
             </div>
         </div>
     );
@@ -624,8 +614,8 @@ export default function ReportsClient() {
                     <AreaChart data={chartData.filter(d => d.weight !== null)}>
                         <defs>
                             <linearGradient id="weightGradient" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="hsl(var(--destructive))" stopOpacity={0.1} />
-                                <stop offset="95%" stopColor="hsl(var(--destructive))" stopOpacity={0} />
+                                <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.1} />
+                                <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
                             </linearGradient>
                         </defs>
                         <XAxis 
@@ -647,7 +637,7 @@ export default function ReportsClient() {
                         <Area
                             type="monotone"
                             dataKey="weight"
-                            stroke="hsl(var(--destructive))"
+                            stroke="hsl(var(--primary))"
                             strokeWidth={2}
                             fill="url(#weightGradient)"
                             activeDot={{ r: 4 }}

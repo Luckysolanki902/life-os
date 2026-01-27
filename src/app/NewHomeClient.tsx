@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils';
 import { toggleTaskStatus, skipTask, unskipTask } from '@/app/actions/routine';
 import { logWeight } from '@/app/actions/health';
 import { getDashboardStats } from '@/app/actions/reports';
+import { getBetterPercentage } from '@/lib/better';
 import { format } from 'date-fns';
 
 // Fallback toast hook if '@/components/ui/use-toast' is unavailable
@@ -240,6 +241,23 @@ export default function NewHomeClient({
         </div>
       </header>
 
+      {/* Better Percentage Card */}
+      {dashboardStats && dashboardStats.totalPoints > 0 && (
+        <section className="bg-card rounded-2xl border border-border/40 p-5 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-700 delay-50">
+           <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-1">Total Progress</p>
+                <h2 className="text-3xl font-bold tracking-tight">
+                  You are <span className="text-primary">{getBetterPercentage(dashboardStats.totalPoints)}%</span> better
+                </h2>
+              </div>
+              <div className="p-3 bg-primary/10 rounded-full text-primary">
+                <TrendingUp size={24} />
+              </div>
+           </div>
+        </section>
+      )}
+
       {/* Stats Overview */}
       {dashboardStats && (
         <section className="grid grid-cols-2 gap-3 animate-in fade-in slide-in-from-bottom-2 duration-700 delay-100">
@@ -249,7 +267,7 @@ export default function NewHomeClient({
                 <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Total Points</span>
              </div>
              <div className="flex items-baseline gap-2">
-                 <span className="text-2xl font-bold tracking-tight">{dashboardStats.totalPoints >= 1000 ? `${(dashboardStats.totalPoints/1000).toFixed(1)}k` : dashboardStats.totalPoints}</span>
+                 <span className="text-2xl font-bold tracking-tight">{dashboardStats.totalPoints >= 30 ? `${(dashboardStats.totalPoints).toLocaleString()}` : dashboardStats.totalPoints}</span>
                  {dashboardStats.improvement !== 0 && (
                      <div className="flex items-center text-[10px] font-medium">
                         <span className={dashboardStats.improvement > 0 ? "text-emerald-500" : "text-rose-500"}>
@@ -261,9 +279,12 @@ export default function NewHomeClient({
              </div>
           </div>
           <div className="bg-card rounded-2xl border border-border/40 p-4 flex flex-col justify-between shadow-sm relative overflow-hidden">
-             <div className="flex items-center gap-2 mb-1 relative z-10">
-                <Scale size={14} className="text-rose-500" />
-                <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Weight</span>
+             <div className="flex items-center justify-between mb-1 relative z-10 w-full">
+                <div className="flex items-center gap-2">
+                    <Scale size={14} className="text-primary" />
+                    <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Weight</span>
+                </div>
+                <span className="text-xs font-bold text-foreground">{initialWeight?.weight || '--'} kg</span>
              </div>
              {dashboardStats.weightHistory?.length > 1 ? (
                  <div className="h-10 w-full mt-1 -ml-1 relative z-10">
@@ -271,14 +292,15 @@ export default function NewHomeClient({
                         <AreaChart data={dashboardStats.weightHistory}>
                             <defs>
                                 <linearGradient id="miniWeight" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stopColor="hsl(var(--destructive))" stopOpacity={0.2}/>
-                                    <stop offset="100%" stopColor="hsl(var(--destructive))" stopOpacity={0}/>
+                                    <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.2}/>
+                                    <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
                                 </linearGradient>
                             </defs>
+                            <YAxis domain={['auto', 'auto']} hide />
                             <Area 
                               type="monotone" 
                               dataKey="weight" 
-                              stroke="hsl(var(--destructive))" 
+                              stroke="hsl(var(--primary))" 
                               strokeWidth={2} 
                               fill="url(#miniWeight)" 
                               dot={false}
@@ -351,10 +373,12 @@ export default function NewHomeClient({
                 onClick={() => handleToggleTask(task._id)}
                 className={cn(
                   "flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors",
-                  "border-muted-foreground/30 hover:border-primary text-transparent hover:text-primary/20" 
+                  "border-muted-foreground/30 hover:border-primary text-transparent hover:text-primary/20",
+                  task.status === 'completed' && "bg-primary border-primary text-primary-foreground hover:text-primary-foreground" 
                 )}
               >
-                <div className="w-2.5 h-2.5 rounded-full bg-current opacity-0 transition-opacity" />
+                {task.status === 'completed' && <CheckCircle2 size={14} className="animate-in zoom-in duration-200" />}
+                {task.status !== 'completed' && <div className="w-2.5 h-2.5 rounded-full bg-primary/20 opacity-0 group-hover:opacity-100 transition-opacity" />}
               </button>
 
               <div className="flex-1 min-w-0">
