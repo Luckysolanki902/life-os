@@ -21,17 +21,28 @@ const BOOK_TASK_POINTS = 20;
 const EXERCISE_TASK_POINTS = 25;
 const LEARNING_TASK_POINTS = 15;
 
-// Helper: Check if a day can be considered a rest day (alternate day pattern - yesterday had exercise)
+// Helper: Check if a day can be considered a rest day (after 2+ consecutive workout days)
 async function canBeRestDay(dateStr: string): Promise<boolean> {
   const checkDate = dayjs(dateStr).tz('Asia/Kolkata');
-  const yesterday = checkDate.subtract(1, 'day');
   
-  const { startOfDay, endOfDay } = getDateRange(yesterday.format('YYYY-MM-DD'));
+  // Count consecutive workout days before this date
+  let consecutiveWorkouts = 0;
+  let dayToCheck = checkDate.subtract(1, 'day');
   
-  const exerciseCount = await ExerciseLog.countDocuments({ date: { $gte: startOfDay, $lt: endOfDay } });
+  while (consecutiveWorkouts < 10) { // Check up to 10 days back (safety limit)
+    const { startOfDay, endOfDay } = getDateRange(dayToCheck.format('YYYY-MM-DD'));
+    const exerciseCount = await ExerciseLog.countDocuments({ date: { $gte: startOfDay, $lt: endOfDay } });
+    
+    if (exerciseCount > 0) {
+      consecutiveWorkouts++;
+      dayToCheck = dayToCheck.subtract(1, 'day');
+    } else {
+      break;
+    }
+  }
   
-  // Rest day allowed if yesterday had any exercise (alternate day pattern)
-  return exerciseCount > 0;
+  // Rest day allowed if there were 2+ consecutive workout days
+  return consecutiveWorkouts >= 2;
 }
 
 // Helper: Check if a day is valid for streak (either has exercise OR is a valid rest day)

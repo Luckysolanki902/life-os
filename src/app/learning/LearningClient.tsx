@@ -472,7 +472,7 @@ export default function LearningClient({ initialData }: LearningClientProps) {
                           setNewSkill({ ...newSkill, areaId: area._id });
                           setIsSkillModalOpen(true);
                         }}
-                        className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                        className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                       >
                         <Plus size={14} />
                       </button>
@@ -482,7 +482,7 @@ export default function LearningClient({ initialData }: LearningClientProps) {
                             e.stopPropagation();
                             setContextMenu(contextMenu?.id === area._id ? null : { type: 'area', id: area._id });
                           }}
-                          className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                          className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                         >
                           <MoreVertical size={14} />
                         </button>
@@ -494,7 +494,7 @@ export default function LearningClient({ initialData }: LearningClientProps) {
                                 setEditingItem({ type: 'area', id: area._id, title: area.title });
                                 setContextMenu(null);
                               }}
-                              className="w-full px-3 py-2 text-left text-sm hover:bg-secondary flex items-center gap-2"
+                              className="w-full px-3 py-2 text-left text-sm hover:bg-muted/50 flex items-center gap-2"
                             >
                               <Edit2 size={14} /> Rename
                             </button>
@@ -503,7 +503,7 @@ export default function LearningClient({ initialData }: LearningClientProps) {
                                 e.stopPropagation();
                                 handleDelete('area', area._id);
                               }}
-                              className="w-full px-3 py-2 text-left text-sm hover:bg-secondary flex items-center gap-2 text-rose-400"
+                              className="w-full px-3 py-2 text-left text-sm hover:bg-muted/50 flex items-center gap-2 text-rose-400"
                             >
                               <Trash2 size={14} /> Delete
                             </button>
@@ -563,7 +563,7 @@ export default function LearningClient({ initialData }: LearningClientProps) {
                                         e.stopPropagation();
                                         setContextMenu(contextMenu?.id === skill._id ? null : { type: 'skill', id: skill._id });
                                       }}
-                                      className="p-1 rounded hover:bg-secondary/50 text-muted-foreground"
+                                      className="p-1 rounded hover:bg-muted/50 text-muted-foreground"
                                     >
                                       <MoreVertical size={14} />
                                     </button>
@@ -576,7 +576,7 @@ export default function LearningClient({ initialData }: LearningClientProps) {
                                             setIsMediumModalOpen(true);
                                             setContextMenu(null);
                                           }}
-                                          className="w-full px-3 py-2 text-left text-sm hover:bg-secondary flex items-center gap-2"
+                                          className="w-full px-3 py-2 text-left text-sm hover:bg-muted/50 flex items-center gap-2"
                                         >
                                           <Plus size={14} /> Add Medium
                                         </button>
@@ -586,7 +586,7 @@ export default function LearningClient({ initialData }: LearningClientProps) {
                                             setEditingItem({ type: 'skill', id: skill._id, title: skill.title });
                                             setContextMenu(null);
                                           }}
-                                          className="w-full px-3 py-2 text-left text-sm hover:bg-secondary flex items-center gap-2"
+                                          className="w-full px-3 py-2 text-left text-sm hover:bg-muted/50 flex items-center gap-2"
                                         >
                                           <Edit2 size={14} /> Rename
                                         </button>
@@ -595,7 +595,7 @@ export default function LearningClient({ initialData }: LearningClientProps) {
                                             e.stopPropagation();
                                             handleDelete('skill', skill._id);
                                           }}
-                                          className="w-full px-3 py-2 text-left text-sm hover:bg-secondary flex items-center gap-2 text-rose-400"
+                                          className="w-full px-3 py-2 text-left text-sm hover:bg-muted/50 flex items-center gap-2 text-rose-400"
                                         >
                                           <Trash2 size={14} /> Delete
                                         </button>
@@ -651,7 +651,7 @@ export default function LearningClient({ initialData }: LearningClientProps) {
                                                 <span className="text-sm font-medium">{medium.title}</span>
                                               )}
                                               {medium.totalSessions > 0 && (
-                                                <span className="text-[10px] text-muted-foreground bg-secondary px-1.5 py-0.5 rounded">
+                                                <span className="text-[10px] text-muted-foreground bg-muted/40 px-1.5 py-0.5 rounded">
                                                   {medium.totalSessions} sessions
                                                 </span>
                                               )}
@@ -671,7 +671,7 @@ export default function LearningClient({ initialData }: LearningClientProps) {
                                                   setNewLog({ ...newLog, mediumId: medium._id });
                                                   setIsLogModalOpen(true);
                                                 }}
-                                                className="p-1 rounded hover:bg-primary/20 text-primary opacity-0 group-hover:opacity-100 transition-opacity"
+                                                className="p-1 rounded hover:bg-primary/10 text-primary opacity-0 group-hover:opacity-100 transition-opacity"
                                               >
                                                 <Plus size={14} />
                                               </button>
@@ -681,7 +681,7 @@ export default function LearningClient({ initialData }: LearningClientProps) {
                                                     e.stopPropagation();
                                                     setContextMenu(contextMenu?.id === medium._id ? null : { type: 'medium', id: medium._id });
                                                   }}
-                                                  className="p-1 rounded hover:bg-secondary text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                                                  className="p-1 rounded hover:bg-muted text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
                                                 >
                                                   <MoreVertical size={14} />
                                                 </button>
@@ -693,7 +693,7 @@ export default function LearningClient({ initialData }: LearningClientProps) {
                                                         setEditingItem({ type: 'medium', id: medium._id, title: medium.title });
                                                         setContextMenu(null);
                                                       }}
-                                                      className="w-full px-3 py-2 text-left text-sm hover:bg-secondary flex items-center gap-2"
+                                                      className="w-full px-3 py-2 text-left text-sm hover:bg-muted/50 flex items-center gap-2"
                                                     >
                                                       <Edit2 size={14} /> Rename
                                                     </button>
@@ -702,7 +702,7 @@ export default function LearningClient({ initialData }: LearningClientProps) {
                                                         e.stopPropagation();
                                                         handleDelete('medium', medium._id);
                                                       }}
-                                                      className="w-full px-3 py-2 text-left text-sm hover:bg-secondary flex items-center gap-2 text-rose-400"
+                                                      className="w-full px-3 py-2 text-left text-sm hover:bg-muted/50 flex items-center gap-2 text-rose-400"
                                                     >
                                                       <Trash2 size={14} /> Delete
                                                     </button>
@@ -833,7 +833,7 @@ export default function LearningClient({ initialData }: LearningClientProps) {
           <div className="bg-card w-full max-w-md p-6 rounded-3xl shadow-xl animate-in zoom-in-95">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold">New Learning Area</h3>
-              <button onClick={() => setIsAreaModalOpen(false)} className="p-1 rounded-lg hover:bg-secondary">
+              <button onClick={() => setIsAreaModalOpen(false)} className="p-1 rounded-lg hover:bg-muted">
                 <X size={18} />
               </button>
             </div>
@@ -883,8 +883,8 @@ export default function LearningClient({ initialData }: LearningClientProps) {
                       type="button"
                       onClick={() => setNewArea({ ...newArea, icon: key })}
                       className={cn(
-                        "p-2 rounded-lg transition-all",
-                        newArea.icon === key ? "bg-primary text-primary-foreground" : "bg-secondary hover:bg-secondary/80"
+                        "p-2 rounded-lg transition-all border",
+                        newArea.icon === key ? "bg-primary/10 border-primary text-foreground" : "bg-card border-border/40 hover:border-border"
                       )}
                     >
                       <Icon size={18} />
@@ -896,7 +896,7 @@ export default function LearningClient({ initialData }: LearningClientProps) {
                 <button
                   type="button"
                   onClick={() => setIsAreaModalOpen(false)}
-                  className="flex-1 py-2.5 rounded-xl bg-secondary text-secondary-foreground font-medium hover:opacity-80"
+                  className="flex-1 py-2.5 rounded-xl bg-muted/50 text-foreground font-medium hover:bg-muted transition-colors"
                 >
                   Cancel
                 </button>
@@ -946,7 +946,7 @@ export default function LearningClient({ initialData }: LearningClientProps) {
                 <button
                   type="button"
                   onClick={() => setIsSkillModalOpen(false)}
-                  className="flex-1 py-2.5 rounded-xl bg-secondary text-secondary-foreground font-medium hover:opacity-80"
+                  className="flex-1 py-2.5 rounded-xl bg-muted/50 text-foreground font-medium hover:bg-muted transition-colors"
                 >
                   Cancel
                 </button>
@@ -996,7 +996,7 @@ export default function LearningClient({ initialData }: LearningClientProps) {
                 <button
                   type="button"
                   onClick={() => setIsMediumModalOpen(false)}
-                  className="flex-1 py-2.5 rounded-xl bg-secondary text-secondary-foreground font-medium hover:opacity-80"
+                  className="flex-1 py-2.5 rounded-xl bg-muted/50 text-foreground font-medium hover:bg-muted transition-colors"
                 >
                   Cancel
                 </button>
@@ -1076,7 +1076,7 @@ export default function LearningClient({ initialData }: LearningClientProps) {
                 <button
                   type="button"
                   onClick={() => setIsLogModalOpen(false)}
-                  className="flex-1 py-2.5 rounded-xl bg-secondary text-secondary-foreground font-medium hover:opacity-80"
+                  className="flex-1 py-2.5 rounded-xl bg-muted/50 text-foreground font-medium hover:bg-muted transition-colors"
                 >
                   Cancel
                 </button>
@@ -1101,7 +1101,7 @@ export default function LearningClient({ initialData }: LearningClientProps) {
                 <Zap className="text-yellow-400" size={20} />
                 Quick Log
               </h3>
-              <button onClick={() => { setIsQuickLogOpen(false); setMediumSearch(''); setIsMediumDropdownOpen(false); }} className="p-1 rounded-lg hover:bg-secondary">
+              <button onClick={() => { setIsQuickLogOpen(false); setMediumSearch(''); setIsMediumDropdownOpen(false); }} className="p-1 rounded-lg hover:bg-muted">
                 <X size={18} />
               </button>
             </div>
@@ -1155,8 +1155,8 @@ export default function LearningClient({ initialData }: LearningClientProps) {
                               setMediumSearch('');
                             }}
                             className={cn(
-                              "w-full px-3 py-2.5 text-left text-sm hover:bg-secondary transition-colors flex items-center gap-2",
-                              quickLogData.mediumId === medium._id && "bg-primary/10"
+                              "w-full px-3 py-2.5 text-left text-sm hover:bg-muted/50 transition-colors flex items-center gap-2",
+                              quickLogData.mediumId === medium._id && "bg-primary/5 border-l-2 border-primary"
                             )}
                           >
                             <span className="text-base">{medium.icon || '📚'}</span>
@@ -1220,7 +1220,7 @@ export default function LearningClient({ initialData }: LearningClientProps) {
                 <button
                   type="button"
                   onClick={() => setIsQuickLogOpen(false)}
-                  className="flex-1 py-2.5 rounded-xl bg-secondary text-secondary-foreground font-medium hover:opacity-80"
+                  className="flex-1 py-2.5 rounded-xl bg-muted/50 text-foreground font-medium hover:bg-muted transition-colors"
                 >
                   Cancel
                 </button>
@@ -1324,7 +1324,7 @@ export default function LearningClient({ initialData }: LearningClientProps) {
             
             <button
               onClick={() => setViewingLog(null)}
-              className="w-full mt-4 py-2.5 rounded-xl bg-secondary text-secondary-foreground font-medium hover:opacity-80"
+              className="w-full mt-4 py-2.5 rounded-xl bg-muted/50 text-foreground font-medium hover:bg-muted transition-colors"
             >
               Close
             </button>
