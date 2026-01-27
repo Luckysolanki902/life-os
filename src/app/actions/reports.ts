@@ -158,6 +158,7 @@ export async function getOverallReport(period: string = 'thisWeek') {
   // Weight change
   const latestWeight = await WeightLog.findOne({ date: { $lt: end } }).sort({ date: -1 }).lean();
   const startWeight = await WeightLog.findOne({ date: { $lt: start } }).sort({ date: -1 }).lean();
+  const currentWeight = latestWeight ? Number(((latestWeight as any).weight).toFixed(1)) : null;
   const weightChange = latestWeight && startWeight 
     ? Number(((latestWeight as any).weight - (startWeight as any).weight).toFixed(1))
     : 0;
@@ -373,6 +374,7 @@ export async function getOverallReport(period: string = 'thisWeek') {
       pointsChange: totalPoints - prevTotalPoints,
       exerciseDays,
       exerciseChange: exerciseDays - prevExerciseDays,
+      currentWeight,
       weightChange,
       avgMood: Number(avgMood),
       booksCompleted,

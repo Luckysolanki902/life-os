@@ -266,15 +266,18 @@ export default function ShareableHealthReport({ data, period, periodLabel }: Sha
                               className={cn(
                                 'w-8 h-8 rounded-full flex items-center justify-center',
                                 day.hasWorkout
-                                  ? 'bg-rose-500'
+                                  ? 'bg-orange-500'
                                   : day.isRestDay
                                   ? 'bg-emerald-500'
-                                  : 'bg-rose-100'
+                                  : 'bg-gray-200'
                               )}
                               title={`${day.date}: ${day.hasWorkout ? day.sessions + ' exercises' : day.isRestDay ? 'Rest day' : 'No activity'}`}
                             >
-                              {day.hasWorkout && <Flame size={14} className="text-white" />}
-                              {day.isRestDay && <Leaf size={14} className="text-white" />}
+                              {day.hasWorkout ? (
+                                <Flame size={14} className="text-white" strokeWidth={2.5} />
+                              ) : day.isRestDay ? (
+                                <Leaf size={14} className="text-white" strokeWidth={2.5} />
+                              ) : null}
                             </div>
                             <span className="text-[9px] text-gray-600">
                               {new Date(day.date).toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 2)}

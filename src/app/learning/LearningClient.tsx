@@ -93,12 +93,12 @@ interface LearningClientProps {
 }
 
 const AREA_COLORS = [
-  { name: 'blue', bg: 'bg-blue-500/10', border: 'border-blue-500/30', text: 'text-blue-400', accent: 'bg-blue-500' },
-  { name: 'purple', bg: 'bg-purple-500/10', border: 'border-purple-500/30', text: 'text-purple-400', accent: 'bg-purple-500' },
-  { name: 'emerald', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', text: 'text-emerald-400', accent: 'bg-emerald-500' },
-  { name: 'orange', bg: 'bg-orange-500/10', border: 'border-orange-500/30', text: 'text-orange-400', accent: 'bg-orange-500' },
-  { name: 'rose', bg: 'bg-rose-500/10', border: 'border-rose-500/30', text: 'text-rose-400', accent: 'bg-rose-500' },
-  { name: 'cyan', bg: 'bg-cyan-500/10', border: 'border-cyan-500/30', text: 'text-cyan-400', accent: 'bg-cyan-500' },
+  { name: 'blue', bg: '', border: '', text: '', accent: 'bg-blue-500/70' },
+  { name: 'purple', bg: '', border: '', text: '', accent: 'bg-purple-500/70' },
+  { name: 'emerald', bg: '', border: '', text: '', accent: 'bg-emerald-500/70' },
+  { name: 'orange', bg: '', border: '', text: '', accent: 'bg-orange-500/70' },
+  { name: 'rose', bg: '', border: '', text: '', accent: 'bg-rose-500/70' },
+  { name: 'cyan', bg: '', border: '', text: '', accent: 'bg-cyan-500/70' },
 ];
 
 const AREA_ICONS: Record<string, typeof BookOpen> = {
@@ -361,8 +361,8 @@ export default function LearningClient({ initialData }: LearningClientProps) {
                 <TaskItem key={task._id} task={task} />
               ))
             ) : (
-              <div className="p-4 rounded-2xl bg-card border border-border/50 text-center text-sm">
-                <p className="font-medium">All done! 🎉</p>
+              <div className="p-4 rounded-2xl bg-card/30 border border-border/30 text-center text-sm">
+                <p className="font-medium text-muted-foreground/70">All done! 🎉</p>
               </div>
             )}
           </div>
@@ -416,8 +416,8 @@ export default function LearningClient({ initialData }: LearningClientProps) {
         </div>
         
         {areas.length === 0 ? (
-          <div className="p-8 rounded-2xl bg-card border border-border/50 text-center space-y-3">
-            <Target className="mx-auto text-muted-foreground" size={32} />
+          <div className="p-8 rounded-2xl bg-card/30 border border-border/30 text-center space-y-3">
+            <Target className="mx-auto text-muted-foreground/60" size={32} />
             <div>
               <p className="font-medium">No areas yet</p>
               <p className="text-sm text-muted-foreground mt-1">Create your first learning area</p>
@@ -436,10 +436,10 @@ export default function LearningClient({ initialData }: LearningClientProps) {
               const isExpanded = expandedAreas.has(area._id);
               
               return (
-                <div key={area._id} className="rounded-2xl bg-card border border-border/50 overflow-hidden">
+                <div key={area._id} className="rounded-2xl bg-card border border-border/40 overflow-hidden shadow-sm hover:shadow transition-shadow">
                   {/* Area Header - Minimal */}
                   <div 
-                    className="flex items-center justify-between p-4 cursor-pointer hover:bg-secondary/30 transition-colors"
+                    className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/50 transition-colors group"
                     onClick={() => toggleArea(area._id)}
                   >
                     <div className="flex items-center gap-3">
@@ -532,10 +532,10 @@ export default function LearningClient({ initialData }: LearningClientProps) {
                           const isSkillExpanded = expandedSkills.has(skill._id);
                           
                           return (
-                            <div key={skill._id} className="rounded-xl bg-secondary/30 overflow-hidden">
+                            <div key={skill._id} className="rounded-xl bg-muted/30 overflow-hidden border border-border/20">
                               {/* Skill Header - Minimal */}
                               <div 
-                                className="flex items-center justify-between p-2.5 hover:bg-secondary/50 cursor-pointer transition-colors"
+                                className="flex items-center justify-between p-2.5 hover:bg-muted/50 cursor-pointer transition-colors group"
                                 onClick={() => toggleSkill(skill._id)}
                               >
                                 <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -626,11 +626,11 @@ export default function LearningClient({ initialData }: LearningClientProps) {
                                       return (
                                         <div 
                                           key={medium._id}
-                                          className="rounded-lg bg-secondary/30 overflow-hidden"
+                                          className="rounded-lg bg-background border border-border/30 overflow-hidden hover:border-border/60 transition-colors"
                                         >
                                           {/* Medium Header */}
                                           <div 
-                                            className="flex items-center justify-between p-2.5 hover:bg-secondary/50 transition-colors group cursor-pointer"
+                                            className="flex items-center justify-between p-2.5 hover:bg-muted/40 transition-colors group cursor-pointer"
                                             onClick={() => toggleMedium(medium._id)}
                                           >
                                             <div className="flex items-center gap-2">
@@ -741,11 +741,11 @@ export default function LearningClient({ initialData }: LearningClientProps) {
                                                     </div>
                                                     <div className="flex items-center gap-2">
                                                       <span className={cn(
-                                                        "px-1.5 py-0.5 rounded text-[10px] font-medium",
-                                                        log.difficulty === 'easy' ? "bg-emerald-500/20 text-emerald-400" :
-                                                        log.difficulty === 'moderate' ? "bg-yellow-500/20 text-yellow-400" :
-                                                        log.difficulty === 'challenging' ? "bg-orange-500/20 text-orange-400" :
-                                                        "bg-rose-500/20 text-rose-400"
+                                                        "px-1.5 py-0.5 rounded text-[10px] font-medium bg-muted/50",
+                                                        log.difficulty === 'easy' ? "text-emerald-600 dark:text-emerald-400" :
+                                                        log.difficulty === 'moderate' ? "text-yellow-600 dark:text-yellow-400" :
+                                                        log.difficulty === 'challenging' ? "text-orange-600 dark:text-orange-400" :
+                                                        "text-rose-600 dark:text-rose-400"
                                                       )}>
                                                         {log.difficulty}
                                                       </span>
@@ -803,10 +803,10 @@ export default function LearningClient({ initialData }: LearningClientProps) {
               return (
                 <div 
                   key={log._id}
-                  className="flex items-center justify-between p-2.5 sm:p-3 rounded-xl bg-card border border-border/50 gap-2"
+                  className="flex items-center justify-between p-3 sm:p-3.5 rounded-xl bg-card/50 border border-border/30 gap-2 hover:bg-card hover:border-border/50 transition-all"
                 >
                   <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                    <div className={cn("w-1 h-8 rounded-full shrink-0", colorClasses.accent)} />
+                    <div className={cn("w-0.5 h-10 rounded-full shrink-0", colorClasses.accent)} />
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5 sm:gap-2">
                         <span className="shrink-0">{log.medium.icon || '📚'}</span>

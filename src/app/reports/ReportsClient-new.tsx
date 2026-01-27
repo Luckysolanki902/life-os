@@ -42,6 +42,7 @@ interface ReportData {
     pointsChange: number;
     exerciseDays: number;
     exerciseChange: number;
+    currentWeight: number | null;
     weightChange: number;
     avgMood: number;
     booksCompleted: number;
@@ -388,7 +389,15 @@ export default function ReportsClient() {
           </div>
           <div>
             <p className="text-sm font-semibold">
-              {summary.weightChange > 0 ? '+' : ''}{summary.weightChange}kg
+              {summary.currentWeight ? `${summary.currentWeight}kg` : '—'}
+              {summary.weightChange !== 0 && summary.currentWeight && (
+                <span className={cn(
+                  'text-[10px] ml-1',
+                  summary.weightChange > 0 ? 'text-amber-500' : 'text-emerald-500'
+                )}>
+                  {summary.weightChange > 0 ? '+' : ''}{summary.weightChange}
+                </span>
+              )}
             </p>
             <p className="text-[10px] text-muted-foreground">Weight</p>
           </div>
