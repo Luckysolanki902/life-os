@@ -272,12 +272,12 @@ function SortableExerciseCard({
       {ex.todaysLog && ex.todaysLog.sets.length > 0 && (
         <div className="space-y-2">
           <div className="flex items-center gap-2 mb-2">
-            <div className="h-px flex-1 bg-gradient-to-r from-emerald-500/50 to-transparent" />
+            <div className="h-px flex-1 bg-linear-to-r from-emerald-500/50 to-transparent" />
             <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
               <Check size={12} />
               Logged Sets
             </span>
-            <div className="h-px flex-1 bg-gradient-to-l from-emerald-500/50 to-transparent" />
+            <div className="h-px flex-1 bg-linear-to-l from-emerald-500/50 to-transparent" />
           </div>
           {ex.todaysLog.sets.map((set, i: number) => (
             <div key={set._id} className="group flex items-center justify-between p-3 bg-emerald-500/10 rounded-xl border border-emerald-500/20 hover:border-emerald-500/40 transition-all">
@@ -387,7 +387,7 @@ function SortableExerciseCard({
 
       {/* Last Log Info (Reference) - Only show if no today's log but has previous log */}
       {(!ex.todaysLog || ex.todaysLog.sets.length === 0) && ex.lastLog && ex.lastLog.sets.length > 0 && (
-        <div className="relative overflow-hidden rounded-xl border border-amber-500/30 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent p-3">
+        <div className="relative overflow-hidden rounded-xl border border-amber-500/30 bg-linear-to-r from-amber-500/10 via-amber-500/5 to-transparent p-3">
           <div className="absolute top-0 left-0 w-1 h-full bg-amber-500" />
           <div className="flex items-center gap-2 mb-2">
             <History size={14} className="text-amber-400" />
@@ -415,7 +415,7 @@ function SortableExerciseCard({
 
       {/* Initial Recommendation - Only show if NO log (today or past) AND has initial values set */}
       {(!ex.todaysLog || ex.todaysLog.sets.length === 0) && !ex.lastLog && (ex.initialSets || ex.initialReps) && (
-        <div className="relative overflow-hidden rounded-xl border border-primary/30 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-3">
+        <div className="relative overflow-hidden rounded-xl border border-primary/30 bg-linear-to-r from-primary/10 via-primary/5 to-transparent p-3">
           <div className="absolute top-0 left-0 w-1 h-full bg-primary" />
           <div className="flex items-center gap-2 mb-1">
             <Dumbbell size={14} className="text-primary" />
@@ -1420,7 +1420,7 @@ export default function WorkoutClient({ initialData }: WorkoutClientProps) {
                 return (
                   <div key={idx} className="rounded-xl border border-border overflow-hidden">
                     {isYouTube && youtubeId ? (
-                      <div className="aspect-[9/16] sm:aspect-video w-full">
+                      <div className="aspect-9/16 sm:aspect-video w-full">
                         <iframe
                           src={`https://www.youtube.com/embed/${youtubeId}?loop=1&playlist=${youtubeId}`}
                           className="w-full h-full"

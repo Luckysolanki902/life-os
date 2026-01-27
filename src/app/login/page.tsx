@@ -1,11 +1,35 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useEffect } from 'react';
 import { login } from '../actions/auth';
 import { Lock } from 'lucide-react';
+import { authStorage } from '@/lib/auth-storage';
+import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
   const [state, formAction, isPending] = useActionState(login, null);
+  const router = useRouter();
+
+  // Check if already authenticated
+  useEffect(() => {
+    const checkAuth = async () => {
+      const isValid = await authStorage.isTokenValid();
+      if (isValid) {
+        router.push('/');
+      }
+    };
+    checkAuth();
+  }, [router]);
+
+  // Handle successful login - store token in Capacitor
+  useEffect(() => {
+    if (state?.success) {
+      // Set a marker that we're authenticated (timestamp for 7 days)
+      authStorage.setToken('authenticated').then(() => {
+        router.push('/');
+      });
+    }
+  }, [state, router]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">

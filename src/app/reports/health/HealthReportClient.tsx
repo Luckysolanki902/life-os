@@ -41,13 +41,23 @@ const PERIODS = [
   { value: 'thisYear', label: 'This Year' },
 ];
 
+interface HealthReportData {
+  summary: any;
+  muscleWork: Array<{ muscle: string; count: number }>;
+  exercisesByType: Array<{ count: number; totalSets: number; totalReps: number; totalWeight: number; name: string }>;
+  weightLogs: Array<{ date: string; weight: number }>;
+  moodDistribution: Record<string, number>;
+  moodLogs: Array<{ date: string; mood: string }>;
+  dailyExercise: Array<{ date: string; sessions: number; sets: number }>;
+}
+
 interface HealthReportClientProps {
-  initialData: any;
+  initialData: HealthReportData;
   initialPeriod: string;
 }
 
 function MoodIcon({ mood, size = 16 }: { mood: string; size?: number }) {
-  const icons: Record<string, { icon: any; color: string }> = {
+  const icons: Record<string, { icon: typeof Smile; color: string }> = {
     great: { icon: Smile, color: 'text-emerald-500' },
     good: { icon: Smile, color: 'text-green-500' },
     okay: { icon: Meh, color: 'text-amber-500' },
@@ -59,7 +69,7 @@ function MoodIcon({ mood, size = 16 }: { mood: string; size?: number }) {
   return <Icon size={size} className={color} />;
 }
 
-function MuscleHeatmap({ muscleWork }: { muscleWork: any[] }) {
+function MuscleHeatmap({ muscleWork }: { muscleWork: Array<{ muscle: string; count: number }> }) {
   const maxCount = Math.max(...muscleWork.map(m => m.count), 1);
   
   const upperBody = ['Chest', 'Back', 'Shoulders', 'Traps', 'Lats'];
@@ -118,7 +128,7 @@ function MuscleHeatmap({ muscleWork }: { muscleWork: any[] }) {
   );
 }
 
-function WeightTrendChart({ data }: { data: any[] }) {
+function WeightTrendChart({ data }: { data: Array<{ date: string; weight: number }> }) {
   if (data.length === 0) return null;
   
   const weights = data.map(d => d.weight);
@@ -180,7 +190,7 @@ function WeightTrendChart({ data }: { data: any[] }) {
   );
 }
 
-function ExerciseSessionsChart({ data }: { data: any[] }) {
+function ExerciseSessionsChart({ data }: { data: Array<{ date: string; sessions: number; sets: number }> }) {
   // Only show days that have at least some activity in the period
   const filteredData = data.filter(d => d.sessions > 0);
   if (filteredData.length === 0) return null;
@@ -240,7 +250,7 @@ function ExerciseSessionsChart({ data }: { data: any[] }) {
   );
 }
 
-function MoodChart({ data, distribution }: { data: any[]; distribution: Record<string, number> }) {
+function MoodChart({ data, distribution }: { data: Array<{ date: string; mood: string }>; distribution: Record<string, number> }) {
   const moodColors: Record<string, string> = {
     great: 'bg-emerald-500',
     good: 'bg-green-500',
@@ -307,7 +317,7 @@ function MoodChart({ data, distribution }: { data: any[]; distribution: Record<s
   );
 }
 
-function WorkoutStreakCard({ dailyExercise, workoutStreak }: { dailyExercise: any[]; workoutStreak: number }) {
+function WorkoutStreakCard({ dailyExercise, workoutStreak }: { dailyExercise: Array<{ date: string; sessions: number }>; workoutStreak: number }) {
   // Only consider days from first activity
   const firstActivityIndex = dailyExercise.findIndex(d => d.sessions > 0);
   const relevantDays = firstActivityIndex >= 0 ? dailyExercise.slice(firstActivityIndex) : [];
@@ -361,7 +371,7 @@ function WorkoutStreakCard({ dailyExercise, workoutStreak }: { dailyExercise: an
 
 export default function HealthReportClient({ initialData, initialPeriod }: HealthReportClientProps) {
   const [period, setPeriod] = useState(initialPeriod);
-  const [data, setData] = useState(initialData);
+  const [data] = useState(initialData);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
 
@@ -372,7 +382,7 @@ export default function HealthReportClient({ initialData, initialPeriod }: Healt
     });
   };
 
-  const { summary, muscleWork, exercisesByType, weightLogs, moodDistribution, moodLogs, dailyExercise } = data;
+  const { summary, muscleWork, weightLogs, moodDistribution, moodLogs, dailyExercise } = data;
 
   return (
     <div className={cn('space-y-6 pb-24', isPending && 'opacity-60 pointer-events-none')}>

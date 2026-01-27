@@ -71,7 +71,7 @@ export default function HomePageClient() {
 
   if (!data) {
     return (
-      <div className="flex items-center justify-center min-h-[400px] text-muted-foreground">
+      <div className="flex items-center justify-center min-h-96 text-muted-foreground">
         <p>Failed to load dashboard data</p>
       </div>
     );

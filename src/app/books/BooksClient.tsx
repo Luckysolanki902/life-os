@@ -309,7 +309,7 @@ export default function BooksClient({ initialData }: BooksClientProps) {
           
           {/* Search Results Dropdown */}
           {(searchQuery.length >= 2 || searchResults.length > 0) && (
-            <div className="absolute left-0 right-0 top-full mt-2 bg-card border border-border rounded-xl shadow-lg z-20 max-h-[300px] overflow-y-auto">
+            <div className="absolute left-0 right-0 top-full mt-2 bg-card border border-border rounded-xl shadow-lg z-20 max-h-75 overflow-y-auto">
               {isSearching ? (
                 <div className="p-4 text-center text-muted-foreground text-sm">
                   Searching...
@@ -434,7 +434,7 @@ export default function BooksClient({ initialData }: BooksClientProps) {
                           <MoreVertical size={16} />
                         </button>
                         {contextMenu?.type === 'domain' && contextMenu.id === domain._id && (
-                          <div className="absolute right-0 top-full mt-1 bg-card border border-border rounded-xl shadow-lg z-10 min-w-[140px] overflow-hidden">
+                          <div className="absolute right-0 top-full mt-1 bg-card border border-border rounded-xl shadow-lg z-10 min-w-35 overflow-hidden">
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -747,7 +747,7 @@ export default function BooksClient({ initialData }: BooksClientProps) {
                     type="date"
                     value={newBook.startDate}
                     onChange={(e) => setNewBook({ ...newBook, startDate: e.target.value })}
-                    className="w-full rounded-xl border border-input bg-background px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20 [color-scheme:dark]"
+                    className="w-full rounded-xl border border-input bg-background px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20 scheme-dark"
                   />
                 </div>
               </div>
@@ -861,7 +861,7 @@ export default function BooksClient({ initialData }: BooksClientProps) {
                   type="date"
                   value={editingBook.startDate ? new Date(editingBook.startDate).toISOString().split('T')[0] : ''}
                   onChange={(e) => setEditingBook({ ...editingBook, startDate: e.target.value })}
-                  className="w-full rounded-xl border border-input bg-background px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20 [color-scheme:dark]"
+                  className="w-full rounded-xl border border-input bg-background px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20 scheme-dark"
                 />
               </div>
               {editingBook.status === 'completed' && (
@@ -872,7 +872,7 @@ export default function BooksClient({ initialData }: BooksClientProps) {
                       type="date"
                       value={editingBook.completedDate ? new Date(editingBook.completedDate).toISOString().split('T')[0] : ''}
                       onChange={(e) => setEditingBook({ ...editingBook, completedDate: e.target.value })}
-                      className="w-full rounded-xl border border-input bg-background px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20 [color-scheme:dark]"
+                      className="w-full rounded-xl border border-input bg-background px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20 scheme-dark"
                     />
                   </div>
                   <div>

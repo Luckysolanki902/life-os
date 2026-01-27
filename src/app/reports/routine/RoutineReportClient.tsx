@@ -379,7 +379,7 @@ export default function RoutineReportClient({ initialData, initialPeriod }: Rout
       {/* All Tasks */}
       <div className="bg-card border border-border/50 rounded-2xl p-4 md:p-5">
         <h3 className="font-semibold mb-4">All Tasks ({taskStats?.length || 0})</h3>
-        <div className="space-y-2 max-h-[500px] overflow-y-auto">
+        <div className="space-y-2 max-h-125 overflow-y-auto">
           {taskStats?.map((task: any) => (
             <TaskRow key={task._id} task={task} />
           ))}

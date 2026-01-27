@@ -13,7 +13,7 @@ import {
 } from '@/lib/server-date-utils';
 
 // Helper function to check if a task should appear on a given day
-function shouldShowTaskOnDay(task: any, dayOfWeek: number): boolean {
+function shouldShowTaskOnDay(task: { recurrenceType?: string; recurrenceDays?: number[] }, dayOfWeek: number): boolean {
   const recurrenceType = task.recurrenceType || 'daily';
   
   switch (recurrenceType) {
@@ -58,19 +58,20 @@ export async function getRoutine(dateStr?: string) {
   const tasks = await Task.find({ isActive: true }).sort({ order: 1 }).lean();
   
   // 2. Filter tasks by recurrence for today
-  const todaysTasks = tasks.filter((task: any) => shouldShowTaskOnDay(task, dayOfWeek));
+  const todaysTasks = tasks.filter((task) => shouldShowTaskOnDay(task, dayOfWeek));
 
   // 3. Get today's logs for these tasks (use date range for safety)
   const logs = await DailyLog.find({
     date: { $gte: startOfDay, $lt: endOfDay },
-    taskId: { $in: todaysTasks.map((t: any) => t._id) }
+    taskId: { $in: todaysTasks.map((t) => t._id) }
   }).lean();
 
   // 4. Merge them
-  const routine = todaysTasks.map((task: any) => {
-    const log = logs.find((l: any) => l.taskId.toString() === task._id.toString());
+  const routine = todaysTasks.map((task) => {
+    const log = logs.find((l) => l.taskId.toString() === task._id.toString());
     
     // Destructure to remove potential subtasks or other non-serializable fields from old schema
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { subtasks, ...cleanTask } = task;
 
     return {
@@ -105,18 +106,19 @@ export async function getRoutineForDate(dateStr: string) {
   const tasks = await Task.find({ isActive: true }).sort({ order: 1 }).lean();
   
   // 2. Filter tasks by recurrence for that day
-  const daysTasks = tasks.filter((task: any) => shouldShowTaskOnDay(task, dayOfWeek));
+  const daysTasks = tasks.filter((task) => shouldShowTaskOnDay(task, dayOfWeek));
   
   // 3. Get logs for these tasks on that date
   const logs = await DailyLog.find({
     date: { $gte: startOfDay, $lt: endOfDay },
-    taskId: { $in: daysTasks.map((t: any) => t._id) }
+    taskId: { $in: daysTasks.map((t) => t._id) }
   }).lean();
   
   // 4. Merge them
-  const routine = daysTasks.map((task: any) => {
-    const log = logs.find((l: any) => l.taskId.toString() === task._id.toString());
+  const routine = daysTasks.map((task) => {
+    const log = logs.find((l) => l.taskId.toString() === task._id.toString());
     
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { subtasks, ...cleanTask } = task;
 
     return {
@@ -145,7 +147,8 @@ export async function getAllTasks() {
   
   const tasks = await Task.find({ isActive: true }).sort({ order: 1 }).lean();
   
-  return tasks.map((task: any) => {
+  return tasks.map((task) => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { subtasks, ...cleanTask } = task;
     return {
       ...cleanTask,
@@ -362,7 +365,17 @@ export async function updateTaskOrder(items: { id: string; order: number }[]) {
   return { success: true };
 }
 
-export async function bulkCreateTasks(tasksData: any[]) {
+export async function bulkCreateTasks(tasksData: Array<{
+  title: string;
+  domainId?: string;
+  timeOfDay?: string;
+  basePoints?: string | number;
+  startTime?: string | null;
+  recurrenceType?: string;
+  recurrenceDays?: number[];
+  order?: number;
+  [key: string]: unknown;
+}>) {
   await connectDB();
   
   const tasksToInsert = tasksData.map((t, index) => ({

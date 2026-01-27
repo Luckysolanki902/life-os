@@ -108,7 +108,7 @@ export default function ShareableHealthReport({ data, period, periodLabel }: Sha
       {/* Share Button */}
       <button
         onClick={() => setIsOpen(true)}
-        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-rose-500 to-pink-500 text-white font-medium text-sm hover:opacity-90 transition-opacity"
+        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-linear-to-r from-rose-500 to-pink-500 text-white font-medium text-sm hover:opacity-90 transition-opacity"
       >
         <Share2 size={16} />
         Share Report
@@ -270,7 +270,7 @@ export default function ShareableHealthReport({ data, period, periodLabel }: Sha
                 disabled={isExporting}
                 className={cn(
                   'w-full flex items-center justify-center gap-2 py-3 rounded-xl font-medium transition-colors',
-                  'bg-gradient-to-r from-rose-500 to-pink-500 text-white hover:opacity-90',
+                  'bg-linear-to-r from-rose-500 to-pink-500 text-white hover:opacity-90',
                   isExporting && 'opacity-50 cursor-not-allowed'
                 )}
               >

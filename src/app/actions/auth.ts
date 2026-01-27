@@ -11,14 +11,14 @@ export async function login(prevState: any, formData: FormData) {
   const password = formData.get('password') as string;
 
   if (password !== APP_PASSWORD) {
-    return { error: 'Invalid password' };
+    return { error: 'Invalid password', success: false };
   }
 
   // Create JWT
   const token = await new SignJWT({ role: 'admin' })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
-    .setExpirationTime('24h')
+    .setExpirationTime('7d') // 7 days instead of 24h
     .sign(JWT_SECRET);
 
   // Set Cookie
@@ -26,10 +26,16 @@ export async function login(prevState: any, formData: FormData) {
   cookieStore.set('auth_token', token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
-    maxAge: 60 * 60 * 24, // 24 hours
+    sameSite: 'lax', // Changed from 'strict' for better Capacitor compatibility
+    maxAge: 60 * 60 * 24 * 7, // 7 days
     path: '/',
   });
 
-  redirect('/');
+  return { success: true, error: null };
+}
+
+export async function logout() {
+  const cookieStore = await cookies();
+  cookieStore.delete('auth_token');
+  redirect('/login');
 }

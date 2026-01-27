@@ -268,14 +268,14 @@ export default function TaskItem({ task, onOptimisticToggle, dateStr }: TaskItem
                   type="time"
                   value={startTime}
                   onChange={(e) => setStartTime(e.target.value)}
-                  className="rounded-lg border border-input bg-background px-2 py-1 text-xs outline-none [color-scheme:dark]"
+                  className="rounded-lg border border-input bg-background px-2 py-1 text-xs outline-none scheme-dark"
                 />
                 <span className="text-xs text-muted-foreground">to</span>
                 <input
                   type="time"
                   value={endTime}
                   onChange={(e) => setEndTime(e.target.value)}
-                  className="rounded-lg border border-input bg-background px-2 py-1 text-xs outline-none [color-scheme:dark]"
+                  className="rounded-lg border border-input bg-background px-2 py-1 text-xs outline-none scheme-dark"
                 />
               </div>
             )}

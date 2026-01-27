@@ -323,7 +323,7 @@ export default function BooksClient({ initialData, tableData }: BooksClientProps
               
               {/* Search Results Dropdown */}
               {searchQuery.length >= 2 && (
-                <div className="absolute left-0 right-0 top-full mt-2 bg-card border border-border rounded-xl shadow-lg z-20 max-h-[300px] overflow-y-auto">
+                <div className="absolute left-0 right-0 top-full mt-2 bg-card border border-border rounded-xl shadow-lg z-20 max-h-75 overflow-y-auto">
                   {searchResults.length === 0 ? (
                     <div className="p-4 text-center text-muted-foreground text-sm">
                       No books found
@@ -431,7 +431,7 @@ export default function BooksClient({ initialData, tableData }: BooksClientProps
                       </div>
                       <button
                         onClick={() => handleCheckIn(book._id)}
-                        className="p-2 rounded-lg bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 transition-colors flex-shrink-0 ml-2"
+                        className="p-2 rounded-lg bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 transition-colors shrink-0 ml-2"
                       >
                         <Plus size={16} />
                       </button>
@@ -481,7 +481,7 @@ export default function BooksClient({ initialData, tableData }: BooksClientProps
                       </div>
                       <button
                         onClick={() => handleDeleteLog(log._id)}
-                        className="p-1.5 rounded hover:bg-rose-500/20 text-muted-foreground hover:text-rose-500 flex-shrink-0"
+                        className="p-1.5 rounded hover:bg-rose-500/20 text-muted-foreground hover:text-rose-500 shrink-0"
                       >
                         <Trash2 size={14} />
                       </button>
