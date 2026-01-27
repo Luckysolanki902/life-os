@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   ArrowLeft,
@@ -23,6 +22,7 @@ import {
   Calendar,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getRoutineReport } from '../../actions/reports';
 
 const PERIODS = [
   { value: 'last7Days', label: '7 Days' },
@@ -34,11 +34,6 @@ const PERIODS = [
   { value: 'last3Months', label: '3 Months' },
   { value: 'last6Months', label: '6 Months' },
 ];
-
-interface RoutineReportClientProps {
-  initialData: any;
-  initialPeriod: string;
-}
 
 function TrendIndicator({ value, suffix = '' }: { value: number; suffix?: string }) {
   if (value === 0) return <span className="text-muted-foreground text-xs">—</span>;
@@ -212,18 +207,49 @@ function DailyChart({ data }: { data: any[] }) {
   );
 }
 
-export default function RoutineReportClient({ initialData, initialPeriod }: RoutineReportClientProps) {
-  const [period, setPeriod] = useState(initialPeriod);
-  const [data, setData] = useState(initialData);
-  const [isPending, startTransition] = useTransition();
-  const router = useRouter();
+export default function RoutineReportClient() {
+  const [period, setPeriod] = useState('last7Days');
+  const [data, setData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchData() {
+      setIsLoading(true);
+      try {
+        const result = await getRoutineReport(period);
+        setData(result);
+      } catch (error) {
+        console.error('Failed to fetch routine report:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchData();
+  }, [period]);
 
   const handlePeriodChange = (newPeriod: string) => {
     setPeriod(newPeriod);
-    startTransition(() => {
-      router.push(`/reports/routine?period=${newPeriod}`);
-    });
   };
+
+  if (isLoading || !data) {
+    return (
+      <div className="space-y-6 pb-24">
+        <div className="flex items-center gap-3">
+          <Link href="/reports" className="p-2 rounded-xl bg-secondary">
+            <ArrowLeft size={18} />
+          </Link>
+          <h1 className="text-2xl font-bold">Routine Report</h1>
+        </div>
+        <div className="grid gap-4">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="bg-card border rounded-2xl p-5 animate-pulse">
+              <div className="w-24 h-6 bg-muted rounded" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   const { summary, taskStats, byDomain, byTimeOfDay, bestTasks, worstTasks, dailyData } = data;
 
@@ -235,7 +261,7 @@ export default function RoutineReportClient({ initialData, initialPeriod }: Rout
   };
 
   return (
-    <div className={cn('space-y-6 pb-24', isPending && 'opacity-60 pointer-events-none')}>
+    <div className="space-y-6 pb-24">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-3">

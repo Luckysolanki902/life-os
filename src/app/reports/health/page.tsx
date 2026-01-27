@@ -1,14 +1,5 @@
-import { getHealthReport } from '../../actions/reports';
 import HealthReportClient from './HealthReportClient';
 
-export default async function HealthReportPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ period?: string }>;
-}) {
-  const params = await searchParams;
-  const period = params.period || 'last7Days';
-  const data = await getHealthReport(period);
-
-  return <HealthReportClient initialData={data} initialPeriod={period} />;
+export default function HealthReportPage() {
+  return <HealthReportClient />;
 }

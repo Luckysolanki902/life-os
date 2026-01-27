@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   ArrowLeft,
@@ -28,6 +27,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import ShareableHealthReport from './ShareableHealthReport';
+import { getHealthReport } from '../../actions/reports';
 
 const PERIODS = [
   { value: 'last7Days', label: '7 Days' },
@@ -49,11 +49,6 @@ interface HealthReportData {
   moodDistribution: Record<string, number>;
   moodLogs: Array<{ date: string; mood: string }>;
   dailyExercise: Array<{ date: string; sessions: number; sets: number }>;
-}
-
-interface HealthReportClientProps {
-  initialData: HealthReportData;
-  initialPeriod: string;
 }
 
 function MoodIcon({ mood, size = 16 }: { mood: string; size?: number }) {
@@ -369,23 +364,80 @@ function WorkoutStreakCard({ dailyExercise, workoutStreak }: { dailyExercise: Ar
   );
 }
 
-export default function HealthReportClient({ initialData, initialPeriod }: HealthReportClientProps) {
-  const [period, setPeriod] = useState(initialPeriod);
-  const [data] = useState(initialData);
-  const [isPending, startTransition] = useTransition();
-  const router = useRouter();
+export default function HealthReportClient() {
+  const [period, setPeriod] = useState('last7Days');
+  const [data, setData] = useState<HealthReportData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchData() {
+      setIsLoading(true);
+      try {
+        const result = await getHealthReport(period);
+        setData(result);
+      } catch (error) {
+        console.error('Failed to fetch health report:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchData();
+  }, [period]);
 
   const handlePeriodChange = (newPeriod: string) => {
     setPeriod(newPeriod);
-    startTransition(() => {
-      router.push(`/reports/health?period=${newPeriod}`);
-    });
   };
+
+  if (isLoading || !data) {
+    return (
+      <div className="space-y-6 pb-24">
+        <div className="flex items-center gap-3">
+          <Link
+            href="/reports"
+            className="p-2 rounded-xl bg-secondary hover:bg-secondary/80 transition-colors"
+          >
+            <ArrowLeft size={18} />
+          </Link>
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Health Report</h1>
+            <p className="text-muted-foreground mt-1">Loading...</p>
+          </div>
+        </div>
+        
+        <div className="flex flex-wrap gap-2">
+          {PERIODS.map((p) => (
+            <button
+              key={p.value}
+              onClick={() => handlePeriodChange(p.value)}
+              disabled={isLoading}
+              className={cn(
+                'px-4 py-2 rounded-xl text-sm font-medium transition-all',
+                period === p.value
+                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  : 'bg-secondary text-muted-foreground hover:bg-secondary/80'
+              )}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="bg-card border rounded-2xl p-5 animate-pulse">
+              <div className="w-24 h-6 bg-muted rounded mb-2" />
+              <div className="w-16 h-8 bg-muted rounded" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   const { summary, muscleWork, weightLogs, moodDistribution, moodLogs, dailyExercise } = data;
 
   return (
-    <div className={cn('space-y-6 pb-24', isPending && 'opacity-60 pointer-events-none')}>
+    <div className="space-y-6 pb-24">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-3">

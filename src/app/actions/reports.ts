@@ -5,6 +5,7 @@ import Task from '@/models/Task';
 import DailyLog from '@/models/DailyLog';
 import WeightLog from '@/models/WeightLog';
 import ExerciseLog from '@/models/ExerciseLog';
+import ExerciseDefinition from '@/models/ExerciseDefinition';
 import MoodLog from '@/models/MoodLog';
 import Book from '@/models/Book';
 import BookLog from '@/models/BookLog';

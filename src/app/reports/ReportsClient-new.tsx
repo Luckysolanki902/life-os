@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   AreaChart, Area, BarChart, Bar,
@@ -23,6 +22,7 @@ import {
   FileText,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getOverallReport } from '../actions/reports';
 
 const PERIODS = [
   { value: 'last7Days', label: '7D' },
@@ -34,40 +34,37 @@ const PERIODS = [
   { value: 'allTime', label: 'All' },
 ];
 
-interface ReportsClientProps {
-  initialData: {
-    summary: {
-      routineCompletionRate: number;
-      routineChange: number;
-      totalPoints: number;
-      pointsChange: number;
-      exerciseDays: number;
-      exerciseChange: number;
-      weightChange: number;
-      avgMood: number;
-      booksCompleted: number;
-      booksChange: number;
-      pagesRead: number;
-      pagesReadChange: number;
-      learningMinutes: number;
-      learningChange: number;
-    };
-    domainBreakdown: Array<{
-      domain: string;
-      completionRate: number;
-      points: number;
-    }>;
-    dailyBreakdown: Array<{
-      date: string;
-      dayName?: string;
-      completed: number;
-      total: number;
-      rate: number;
-      learningMinutes?: number;
-      pagesRead?: number;
-    }>;
+interface ReportData {
+  summary: {
+    routineCompletionRate: number;
+    routineChange: number;
+    totalPoints: number;
+    pointsChange: number;
+    exerciseDays: number;
+    exerciseChange: number;
+    weightChange: number;
+    avgMood: number;
+    booksCompleted: number;
+    booksChange: number;
+    pagesRead: number;
+    pagesReadChange: number;
+    learningMinutes: number;
+    learningChange: number;
   };
-  initialPeriod: string;
+  domainBreakdown: Array<{
+    domain: string;
+    completionRate: number;
+    points: number;
+  }>;
+  dailyBreakdown: Array<{
+    date: string;
+    dayName?: string;
+    completed: number;
+    total: number;
+    rate: number;
+    learningMinutes?: number;
+    pagesRead?: number;
+  }>;
 }
 
 function TrendBadge({ value, suffix = '' }: { value: number; suffix?: string }) {
@@ -82,6 +79,26 @@ function TrendBadge({ value, suffix = '' }: { value: number; suffix?: string }) 
       {isPositive ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
       {isPositive ? '+' : ''}{value}{suffix}
     </span>
+  );
+}
+
+// Loading Skeleton Components
+function StatCardSkeleton() {
+  return (
+    <div className="bg-card/50 backdrop-blur-sm border border-border/30 rounded-2xl p-4 animate-pulse">
+      <div className="flex items-center justify-between mb-3">
+        <div className="w-8 h-8 bg-muted rounded-xl" />
+        <div className="w-12 h-4 bg-muted rounded" />
+      </div>
+      <div className="w-16 h-8 bg-muted rounded mb-1" />
+      <div className="w-20 h-3 bg-muted rounded" />
+    </div>
+  );
+}
+
+function ChartSkeleton({ height = "h-24" }: { height?: string }) {
+  return (
+    <div className={cn("bg-muted/20 rounded-xl animate-pulse", height)} />
   );
 }
 
@@ -153,18 +170,90 @@ function MinimalTooltip({ active, payload, label }: TooltipProps) {
   );
 }
 
-export default function ReportsClient({ initialData, initialPeriod }: ReportsClientProps) {
-  const [period, setPeriod] = useState(initialPeriod);
-  const [data] = useState(initialData);
-  const [isPending, startTransition] = useTransition();
-  const router = useRouter();
+export default function ReportsClient() {
+  const [period, setPeriod] = useState('last7Days');
+  const [data, setData] = useState<ReportData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchData() {
+      setIsLoading(true);
+      try {
+        const result = await getOverallReport(period);
+        setData(result);
+      } catch (error) {
+        console.error('Failed to fetch report data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchData();
+  }, [period]);
 
   const handlePeriodChange = (newPeriod: string) => {
     setPeriod(newPeriod);
-    startTransition(() => {
-      router.push(`/reports?period=${newPeriod}`);
-    });
   };
+
+  if (isLoading || !data) {
+    return (
+      <div className="space-y-6 pb-24">
+        {/* Header */}
+        <div className="space-y-4">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Reports</h1>
+            <p className="text-sm text-muted-foreground">
+              Your progress at a glance
+            </p>
+          </div>
+          
+          {/* Period Pills */}
+          <div className="flex gap-1 p-1 bg-secondary/30 rounded-xl w-fit">
+            {PERIODS.map((p) => (
+              <button
+                key={p.value}
+                onClick={() => handlePeriodChange(p.value)}
+                disabled={isLoading}
+                className={cn(
+                  'px-3 py-1.5 rounded-lg text-xs font-medium transition-all',
+                  period === p.value
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Loading Skeletons */}
+        <div className="bg-linear-to-br from-primary/10 via-primary/5 to-transparent border border-primary/20 rounded-2xl p-5 animate-pulse">
+          <div className="w-32 h-10 bg-muted rounded mb-4" />
+          <ChartSkeleton />
+        </div>
+
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {[1, 2, 3, 4].map((i) => (
+            <StatCardSkeleton key={i} />
+          ))}
+        </div>
+
+        <div className="grid grid-cols-3 gap-3">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="bg-card/50 border border-border/30 rounded-xl p-3 animate-pulse">
+              <div className="w-12 h-12 bg-muted rounded-lg mb-2" />
+              <div className="w-16 h-4 bg-muted rounded" />
+            </div>
+          ))}
+        </div>
+
+        <div className="bg-card/50 border border-border/30 rounded-2xl p-4 animate-pulse">
+          <div className="w-32 h-4 bg-muted rounded mb-4" />
+          <ChartSkeleton height="h-36" />
+        </div>
+      </div>
+    );
+  }
 
   const { summary, domainBreakdown, dailyBreakdown } = data;
 
@@ -184,7 +273,7 @@ export default function ReportsClient({ initialData, initialPeriod }: ReportsCli
   };
 
   return (
-    <div className={cn('space-y-6 pb-24', isPending && 'opacity-50 pointer-events-none transition-opacity')}>
+    <div className="space-y-6 pb-24">
       {/* Header */}
       <div className="space-y-4">
         <div>

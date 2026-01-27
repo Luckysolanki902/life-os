@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useTransition, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   ArrowLeft,
@@ -40,6 +40,7 @@ import {
   PolarAngleAxis,
   Radar,
 } from 'recharts';
+import { getLearningReport } from '../../actions/reports';
 
 const PERIODS = [
   { value: 'last7Days', label: '7 Days' },
@@ -57,13 +58,6 @@ const CHART_COLORS = [
   '#f59e0b', '#8b5cf6', '#06b6d4', '#10b981', '#f43f5e',
   '#3b82f6', '#ec4899', '#84cc16', '#f97316', '#6366f1'
 ];
-
-interface LearningReportClientProps {
-  initialData: any;
-  initialPeriod: string;
-  initialSkillId?: string;
-  initialAreaId?: string;
-}
 
 // Custom Tooltip for Charts
 function CustomTooltip({ active, payload, label }: any) {
@@ -556,56 +550,66 @@ function TopMediumsList({ mediums }: { mediums: any[] }) {
   );
 }
 
-export default function LearningReportClient({ 
-  initialData, 
-  initialPeriod,
-  initialSkillId,
-  initialAreaId 
-}: LearningReportClientProps) {
-  const [period, setPeriod] = useState(initialPeriod);
-  const [areaId, setAreaId] = useState(initialAreaId || '');
-  const [skillId, setSkillId] = useState(initialSkillId || '');
-  const [data] = useState(initialData);
-  const [isPending, startTransition] = useTransition();
-  const router = useRouter();
+export default function LearningReportClient() {
+  const searchParams = useSearchParams();
+  const [period, setPeriod] = useState(searchParams.get('period') || 'last7Days');
+  const [areaId, setAreaId] = useState(searchParams.get('areaId') || '');
+  const [skillId, setSkillId] = useState(searchParams.get('skillId') || '');
+  const [data, setData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const buildUrl = (newPeriod?: string, newAreaId?: string, newSkillId?: string) => {
-    const params = new URLSearchParams();
-    params.set('period', newPeriod ?? period);
-    if (newAreaId !== undefined ? newAreaId : areaId) params.set('areaId', newAreaId !== undefined ? newAreaId : areaId);
-    if (newSkillId !== undefined ? newSkillId : skillId) params.set('skillId', newSkillId !== undefined ? newSkillId : skillId);
-    return `/reports/learning?${params.toString()}`;
-  };
+  useEffect(() => {
+    async function fetchData() {
+      setIsLoading(true);
+      try {
+        const result = await getLearningReport(period, skillId || undefined, areaId || undefined);
+        setData(result);
+      } catch (error) {
+        console.error('Failed to fetch learning report:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchData();
+  }, [period, skillId, areaId]);
 
   const handlePeriodChange = (newPeriod: string) => {
     setPeriod(newPeriod);
-    startTransition(() => {
-      router.push(buildUrl(newPeriod));
-    });
   };
 
   const handleAreaChange = (newAreaId: string) => {
     setAreaId(newAreaId);
     setSkillId(''); // Reset skill when area changes
-    startTransition(() => {
-      router.push(buildUrl(undefined, newAreaId, ''));
-    });
   };
 
   const handleSkillChange = (newSkillId: string) => {
     setSkillId(newSkillId);
-    startTransition(() => {
-      router.push(buildUrl(undefined, undefined, newSkillId));
-    });
   };
 
   const clearFilters = () => {
     setAreaId('');
     setSkillId('');
-    startTransition(() => {
-      router.push(`/reports/learning?period=${period}`);
-    });
   };
+
+  if (isLoading || !data) {
+    return (
+      <div className="space-y-6 pb-24">
+        <div className="flex items-center gap-3">
+          <Link href="/reports" className="p-2 rounded-xl bg-secondary">
+            <ArrowLeft size={18} />
+          </Link>
+          <h1 className="text-2xl font-bold">Learning Report</h1>
+        </div>
+        <div className="grid gap-4 md:grid-cols-3">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="bg-card border rounded-2xl p-5 animate-pulse">
+              <div className="w-24 h-6 bg-muted rounded" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   const { summary, byArea, bySkill, difficultyDist, ratingDist, topMediums, dailyLearning, weeklyTrend, recentSessions, filters } = data;
 
@@ -626,7 +630,7 @@ export default function LearningReportClient({
   const hasActiveFilters = areaId || skillId;
 
   return (
-    <div className={cn('space-y-6 pb-24', isPending && 'opacity-60 pointer-events-none')}>
+    <div className="space-y-6 pb-24">
       {/* Header */}
       <div className="flex flex-col gap-4">
         <div className="flex items-center gap-3">
