@@ -3,7 +3,7 @@
 import { useState, useRef } from 'react';
 import { 
   Share2, X, Activity, Scale, Smile, Target, Flame, 
-  TrendingUp, TrendingDown, Dumbbell, Calendar
+  TrendingUp, TrendingDown, Dumbbell, Calendar, Leaf
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { shareImage } from '@/lib/share';
@@ -33,19 +33,33 @@ export default function ShareableHealthReport({ data, period, periodLabel }: Sha
 
   const { summary, muscleWork, exercisesByType, dailyExercise } = data;
   
-  // Calculate workout days
-  const totalWorkoutDays = dailyExercise?.filter((d: any) => d.sessions > 0).length || 0;
-  const totalDays = dailyExercise?.length || 0;
-  
-  // Calculate streak
-  let currentStreak = 0;
-  if (dailyExercise) {
-    const reversedData = [...dailyExercise].reverse();
-    for (const day of reversedData) {
-      if (day.sessions > 0) currentStreak++;
-      else break;
+  // Calculate workout days for last 7 days and determine rest days
+  const last7Days = dailyExercise?.slice(-7) || [];
+  const daysWithStatus = last7Days.map((day: any, index: number, array: any[]) => {
+    const hasWorkout = day.sessions > 0;
+    
+    // Check if this is a valid rest day (no workout but after 2 consecutive workout days)
+    let isRestDay = false;
+    if (!hasWorkout && index > 0) {
+      // Count consecutive workout days before this day
+      let consecutiveWorkouts = 0;
+      for (let i = index - 1; i >= 0; i--) {
+        if (array[i].sessions > 0) {
+          consecutiveWorkouts++;
+        } else {
+          break;
+        }
+      }
+      isRestDay = consecutiveWorkouts >= 2;
     }
-  }
+    
+    return { ...day, hasWorkout, isRestDay };
+  });
+  
+  const totalWorkoutDays = last7Days.filter((d: any) => d.sessions > 0).length;
+  
+  // Use the streak from summary (already calculated correctly)
+  const currentStreak = summary.workoutStreak || 0;
 
   async function handleExport() {
     if (!cardRef.current) return;
@@ -164,8 +178,8 @@ export default function ShareableHealthReport({ data, period, periodLabel }: Sha
                       <div className="flex justify-center mb-2">
                         <Calendar size={20} className="text-emerald-500" />
                       </div>
-                      <p className="text-2xl font-bold text-gray-800">{totalWorkoutDays}/{totalDays}</p>
-                      <p className="text-xs text-gray-600">Workout Days</p>
+                      <p className="text-2xl font-bold text-gray-800">{totalWorkoutDays}/7</p>
+                      <p className="text-xs text-gray-600">Last 7 Days</p>
                     </div>
                     
                     <div className="bg-white/70 rounded-xl p-4 text-center backdrop-blur-sm">
@@ -241,20 +255,31 @@ export default function ShareableHealthReport({ data, period, periodLabel }: Sha
                     </div>
                   )}
 
-                  {/* Daily Activity Preview */}
-                  {dailyExercise && dailyExercise.length > 0 && (
+                  {/* Daily Activity Preview - Last 7 Days with Rest Day Support */}
+                  {daysWithStatus && daysWithStatus.length > 0 && (
                     <div className="bg-white/70 rounded-xl p-4 backdrop-blur-sm">
-                      <p className="text-xs text-gray-600 mb-2">Activity</p>
-                      <div className="flex gap-1">
-                        {dailyExercise.slice(-14).map((day: any, i: number) => (
-                          <div
-                            key={i}
-                            className={cn(
-                              'flex-1 h-6 rounded',
-                              day.sessions > 0 ? 'bg-rose-400' : 'bg-rose-100'
-                            )}
-                            title={`${day.date}: ${day.sessions} exercises`}
-                          />
+                      <p className="text-xs text-gray-600 mb-3">Last 7 Days</p>
+                      <div className="flex justify-between gap-2">
+                        {daysWithStatus.map((day: any, i: number) => (
+                          <div key={i} className="flex flex-col items-center gap-1">
+                            <div
+                              className={cn(
+                                'w-8 h-8 rounded-full flex items-center justify-center',
+                                day.hasWorkout
+                                  ? 'bg-rose-500'
+                                  : day.isRestDay
+                                  ? 'bg-emerald-500'
+                                  : 'bg-rose-100'
+                              )}
+                              title={`${day.date}: ${day.hasWorkout ? day.sessions + ' exercises' : day.isRestDay ? 'Rest day' : 'No activity'}`}
+                            >
+                              {day.hasWorkout && <Flame size={14} className="text-white" />}
+                              {day.isRestDay && <Leaf size={14} className="text-white" />}
+                            </div>
+                            <span className="text-[9px] text-gray-600">
+                              {new Date(day.date).toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 2)}
+                            </span>
+                          </div>
                         ))}
                       </div>
                     </div>

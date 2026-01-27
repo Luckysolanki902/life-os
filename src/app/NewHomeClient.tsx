@@ -26,6 +26,7 @@ import {
   Eye,
   EyeOff,
   Target,
+  Leaf,
 } from 'lucide-react';
 import { toggleTaskStatus, skipTask, unskipTask } from './actions/routine';
 import { logWeight, updateWeight } from './actions/health';
@@ -296,13 +297,16 @@ export default function HomeClient({
               <div key={day.date} className="flex-1 flex flex-col items-center gap-1">
                 <div className={cn(
                   "w-8 h-8 rounded-full flex items-center justify-center transition-all",
-                  day.valid 
-                    ? "bg-orange-500" 
+                  day.valid && !day.isRestDay
+                    ? "bg-orange-500"
+                    : day.valid && day.isRestDay
+                    ? "bg-emerald-500"
                     : index === 6 
                       ? "border-2 border-dashed border-orange-500/40" 
                       : "bg-secondary/50"
                 )}>
-                  {day.valid && <Flame size={14} className="text-white" />}
+                  {day.valid && !day.isRestDay && <Flame size={14} className="text-white" />}
+                  {day.valid && day.isRestDay && <Leaf size={14} className="text-white" />}
                 </div>
                 <span className="text-[10px] text-muted-foreground">{getDayAbbr(day.date)}</span>
               </div>

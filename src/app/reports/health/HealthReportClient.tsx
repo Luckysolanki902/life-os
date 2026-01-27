@@ -13,6 +13,7 @@ import {
   Meh,
   Target,
   Flame,
+  Leaf,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -313,13 +314,31 @@ function MoodChart({ data, distribution }: { data: Array<{ date: string; mood: s
 }
 
 function WorkoutStreakCard({ dailyExercise, workoutStreak }: { dailyExercise: Array<{ date: string; sessions: number }>; workoutStreak: number }) {
-  // Only consider days from first activity
-  const firstActivityIndex = dailyExercise.findIndex(d => d.sessions > 0);
-  const relevantDays = firstActivityIndex >= 0 ? dailyExercise.slice(firstActivityIndex) : [];
+  // Calculate which days are workout days and which are valid rest days
+  const last7Days = dailyExercise.slice(-7);
+  const daysWithStatus = last7Days.map((day, index, array) => {
+    const hasWorkout = day.sessions > 0;
+    
+    // Check if this is a valid rest day (no workout but after 2 consecutive workout days)
+    let isRestDay = false;
+    if (!hasWorkout && index > 0) {
+      // Count consecutive workout days before this day
+      let consecutiveWorkouts = 0;
+      for (let i = index - 1; i >= 0; i--) {
+        if (array[i].sessions > 0) {
+          consecutiveWorkouts++;
+        } else {
+          break;
+        }
+      }
+      isRestDay = consecutiveWorkouts >= 2;
+    }
+    
+    return { ...day, hasWorkout, isRestDay };
+  });
   
-  const totalWorkoutDays = relevantDays.filter(d => d.sessions > 0).length;
-  const totalDays = relevantDays.length;
-  const workoutPercentage = totalDays > 0 ? Math.round((totalWorkoutDays / totalDays) * 100) : 0;
+  const totalWorkoutDays = last7Days.filter(d => d.sessions > 0).length;
+  const workoutPercentage = Math.round((totalWorkoutDays / 7) * 100);
   
   return (
     <div className="bg-card border border-border/50 rounded-2xl p-4 md:p-5">
@@ -335,24 +354,34 @@ function WorkoutStreakCard({ dailyExercise, workoutStreak }: { dailyExercise: Ar
         </div>
         <div className="h-12 w-px bg-border" />
         <div>
-          <p className="text-3xl font-bold">{totalWorkoutDays}/{totalDays}</p>
-          <p className="text-sm text-muted-foreground">workout days ({workoutPercentage}%)</p>
+          <p className="text-3xl font-bold">{totalWorkoutDays}/7</p>
+          <p className="text-sm text-muted-foreground">last 7 days ({workoutPercentage}%)</p>
         </div>
       </div>
       
-      <div className="flex flex-wrap gap-1 mb-2">
-        {relevantDays.slice(-21).map((day, i) => (
-          <div
-            key={i}
-            className={cn(
-              'w-6 h-6 rounded flex items-center justify-center text-xs font-medium',
-              day.sessions > 0 
-                ? 'bg-orange-500/20 text-orange-500' 
-                : 'bg-secondary text-muted-foreground'
-            )}
-            title={`${day.date}: ${day.sessions} exercises`}
-          >
-            {day.sessions > 0 ? '✓' : '·'}
+      <div className="flex justify-between gap-1 mb-2">
+        {daysWithStatus.map((day, i) => (
+          <div key={i} className="flex flex-col items-center gap-1">
+            <div
+              className={cn(
+                'w-8 h-8 rounded-full flex items-center justify-center',
+                day.hasWorkout
+                  ? 'bg-orange-500'
+                  : day.isRestDay
+                  ? 'bg-emerald-500'
+                  : 'bg-secondary/50'
+              )}
+              title={`${day.date}: ${day.hasWorkout ? day.sessions + ' exercises' : day.isRestDay ? 'Rest day' : 'No activity'}`}
+            >
+              {day.hasWorkout ? (
+                <Flame size={14} className="text-white" />
+              ) : day.isRestDay ? (
+                <Leaf size={14} className="text-white" />
+              ) : null}
+            </div>
+            <span className="text-[10px] text-muted-foreground">
+              {new Date(day.date).toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 2)}
+            </span>
           </div>
         ))}
       </div>
