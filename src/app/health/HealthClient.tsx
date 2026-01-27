@@ -556,8 +556,6 @@ export default function HealthClient({ initialData }: HealthClientProps) {
                 "group p-4 rounded-xl transition-all flex items-center justify-between",
                 page.cycleStatus === "today"
                   ? "bg-primary/10 border-2 border-primary shadow-md shadow-primary/10"
-                  : page.cycleStatus === "current"
-                  ? "bg-primary/10 border-2 border-primary shadow-md shadow-primary/10"
                   : page.cycleStatus === "done"
                   ? "bg-card/50 border border-border/30 opacity-60 hover:opacity-100"
                   : "bg-card border border-border/50 hover:border-primary/50 hover:shadow-md"
@@ -575,7 +573,7 @@ export default function HealthClient({ initialData }: HealthClientProps) {
                     <h3
                       className={cn(
                         "font-medium transition-colors",
-                        (page.cycleStatus === "today" || page.cycleStatus === "current")
+                        page.cycleStatus === "today"
                           ? "text-primary"
                           : "group-hover:text-primary"
                       )}
@@ -585,11 +583,6 @@ export default function HealthClient({ initialData }: HealthClientProps) {
                     {page.cycleStatus === "today" && (
                       <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary text-primary-foreground">
                         Today
-                      </span>
-                    )}
-                    {page.cycleStatus === "current" && (
-                      <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary text-primary-foreground">
-                        Next
                       </span>
                     )}
                   </div>
@@ -604,7 +597,7 @@ export default function HealthClient({ initialData }: HealthClientProps) {
                 size={18}
                 className={cn(
                   "transition-transform",
-                  (page.cycleStatus === "today" || page.cycleStatus === "current")
+                  page.cycleStatus === "today"
                     ? "text-primary"
                     : "text-muted-foreground group-hover:translate-x-1"
                 )}

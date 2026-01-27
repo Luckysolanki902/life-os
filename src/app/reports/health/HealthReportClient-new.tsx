@@ -120,7 +120,7 @@ export default function HealthReportClient() {
           break;
         }
       }
-      isRestDay = consecutiveWorkouts >= 2;
+      isRestDay = consecutiveWorkouts >= 1;
     }
     
     return { ...day, hasWorkout, isRestDay };
@@ -220,7 +220,7 @@ export default function HealthReportClient() {
             </div>
           ))}
         </div>
-        <p className="text-[10px] text-muted-foreground mt-3">💡 Rest days allowed after 2 consecutive workout days</p>
+        <p className="text-[10px] text-muted-foreground mt-3">💡 Rest days allowed after 1 consecutive workout day</p>
       </div>
 
       {/* Charts */}

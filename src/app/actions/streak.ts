@@ -41,8 +41,8 @@ async function canBeRestDay(dateStr: string): Promise<boolean> {
     }
   }
   
-  // Rest day allowed if there were 2+ consecutive workout days
-  return consecutiveWorkouts >= 2;
+  // Rest day allowed if there was 1+ consecutive workout day (alternate day pattern)
+  return consecutiveWorkouts >= 1;
 }
 
 // Helper: Check if a day is valid for streak (either has exercise OR is a valid rest day)
@@ -107,7 +107,15 @@ export async function updateStreakForDate(dateStr: string) {
   });
   
   const hasExercise = exerciseLogs > 0;
-  const streakValid = completedTasks >= MIN_ROUTINE_TASKS && hasExercise;
+  
+  // Check if today is a valid rest day
+  // Valid if: has enough tasks AND (is workout day OR can be rest day)
+  const canRest = await canBeRestDay(dateStr);
+  
+  // Streak is valid if:
+  // 1. Tasks done + Exercise done (Standard)
+  // 2. Tasks done + No Exercise but can be rest day (Rest Day)
+  const streakValid = completedTasks >= MIN_ROUTINE_TASKS && (hasExercise || canRest);
   
   // Calculate current streak to determine milestones
   let currentStreak = 0;

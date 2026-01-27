@@ -288,7 +288,7 @@ export default function SimpleLearningClient({ initialData }: SimpleLearningClie
                     </div>
                   </div>
                   
-                  <div className="absolute right-4 opacity-0 group-hover:opacity-100 transition-opacity bg-primary text-primary-foreground p-2 rounded-full shadow-lg scale-90 group-hover:scale-100">
+                  <div className="absolute right-4 bg-primary text-primary-foreground p-2 rounded-full shadow-lg scale-90 active:scale-95 transition-transform">
                     <Play size={14} fill="currentColor" />
                   </div>
                 </div>
@@ -330,7 +330,7 @@ export default function SimpleLearningClient({ initialData }: SimpleLearningClie
                       </div>
                     </div>
                     
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex items-center gap-1">
                       <button
                         onClick={() => openEditLog(log)}
                         className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
@@ -377,7 +377,7 @@ export default function SimpleLearningClient({ initialData }: SimpleLearningClie
                     {stat && <span className="text-xs text-muted-foreground font-medium">{formatDuration(stat.totalMinutes)}</span>}
                     <button 
                       onClick={() => openEditSkill(skill)}
-                      className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-secondary text-muted-foreground/60 hover:text-foreground transition-all"
+                      className="p-1.5 rounded-lg hover:bg-secondary text-muted-foreground/60 hover:text-foreground transition-all"
                     >
                       <Pencil size={12} />
                     </button>

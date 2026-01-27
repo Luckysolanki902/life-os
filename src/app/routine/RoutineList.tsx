@@ -8,7 +8,8 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
-  DragEndEvent
+  DragEndEvent,
+  TouchSensor
 } from '@dnd-kit/core';
 import {
   arrayMove,
@@ -18,7 +19,7 @@ import {
   useSortable
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
+import { GripVertical, CalendarDays, ChevronLeft, ChevronRight, XCircle } from 'lucide-react';
 import TaskItem from './TaskItem';
 import { updateTaskOrder, getRoutine, getRoutineForDate } from '@/app/actions/routine';
 import { cn } from '@/lib/utils';
@@ -72,17 +73,19 @@ function SortableTaskItem({ task, dateStr }: { task: any; dateStr?: string }) {
 
   return (
     <div ref={setNodeRef} style={style} className={isDragging ? 'opacity-50' : ''}>
-      <div className="relative group">
-        {/* Drag Handle - Absolute positioned to left or integrated */}
+      <div className="flex items-center gap-2 group">
+        {/* Drag Handle - Always visible now, properly positioned */}
         <div 
           {...attributes} 
           {...listeners}
-          className="absolute -left-8 top-1/2 -translate-y-1/2 p-2 cursor-grab active:cursor-grabbing text-muted-foreground/30 hover:text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity hidden md:block"
+          className="p-2 cursor-grab active:cursor-grabbing text-muted-foreground/20 hover:text-muted-foreground transition-colors touch-none"
         >
-          <GripVertical size={20} />
+          <GripVertical size={18} />
         </div>
         
-        <TaskItem task={task} dateStr={dateStr} />
+        <div className="flex-1 min-w-0">
+           <TaskItem task={task} dateStr={dateStr} />
+        </div>
       </div>
     </div>
   );
@@ -101,7 +104,6 @@ export default function RoutineList({ initialTasks, allTasks = [], initialSpecia
   const [filterOpen, setFilterOpen] = useState(false);
   const [timeFilter, setTimeFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
-  const [recurrenceFilter, setRecurrenceFilter] = useState('all');
   
   // Custom date picker state
   const [customDate, setCustomDate] = useState<string>('');
@@ -205,6 +207,7 @@ export default function RoutineList({ initialTasks, allTasks = [], initialSpecia
 
   const sensors = useSensors(
     useSensor(PointerSensor),
+    useSensor(TouchSensor), // Added touch sensor for mobile drag
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })
@@ -264,7 +267,7 @@ export default function RoutineList({ initialTasks, allTasks = [], initialSpecia
   const activeFilters = [timeFilter, typeFilter].filter(f => f !== 'all').length;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6 pb-20">
       {/* Minimal Header with View Toggle + Filter Button */}
       <div className="flex items-center justify-between gap-3">
         {/* View Mode Toggle */}
@@ -438,20 +441,20 @@ export default function RoutineList({ initialTasks, allTasks = [], initialSpecia
 
       {/* Special Tasks Section (Auto-completed from logs) */}
       {specialTasks.length > 0 && (
-        <div className="mt-4 pt-4 border-t border-primary/20">
-          <p className="text-xs font-medium text-primary mb-3 px-1 flex items-center gap-2">
-            <span>✨ Auto-Completed Tasks</span>
-            <span className="px-1.5 py-0.5 rounded-full bg-primary/10 text-[10px]">
+        <div className="mt-8">
+          <p className="text-xs font-medium text-muted-foreground mb-3 px-1 flex items-center gap-2 uppercase tracking-widest">
+            <span>Completed Elsewhere</span>
+            <span className="px-1.5 py-0.5 rounded-full bg-secondary text-[10px]">
               {specialTasks.length}
             </span>
           </p>
-          <div className="space-y-2">
+          <div className="space-y-2 opacity-80">
             {specialTasks.map((task) => (
               <div
                 key={task._id}
-                className="flex items-center gap-3 p-3 rounded-xl bg-primary/5 border border-primary/20"
+                className="flex items-center gap-3 p-3 rounded-xl bg-card border border-border/40"
               >
-                <div className="p-2 rounded-lg bg-primary/20">
+                <div className="p-2 rounded-lg bg-secondary/50">
                   <span className="text-lg">
                     {task.type === 'health' ? '💪' : task.type === 'books' ? '📚' : '🧠'}
                   </span>
@@ -466,7 +469,7 @@ export default function RoutineList({ initialTasks, allTasks = [], initialSpecia
                   <p className="text-xs text-muted-foreground mt-0.5">{task.source}</p>
                 </div>
                 <div className="shrink-0 w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center">
-                  <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                   <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                   </svg>
                 </div>
@@ -476,18 +479,22 @@ export default function RoutineList({ initialTasks, allTasks = [], initialSpecia
         </div>
       )}
 
-      {/* Skipped Tasks Section */}
+      {/* Skipped Tasks Section - Cleaned up */}
       {skippedTasks.length > 0 && (
-        <div className="mt-4 pt-4 border-t border-amber-500/20">
-          <p className="text-xs font-medium text-amber-500 mb-3 px-1 flex items-center gap-2">
-            <span>Skipped Tasks</span>
-            <span className="px-1.5 py-0.5 rounded-full bg-amber-500/10 text-[10px]">
+        <div className="mt-8 border-t border-dashed border-border/50 pt-6">
+          <p className="text-xs font-medium text-muted-foreground mb-4 px-1 flex items-center gap-2 uppercase tracking-widest">
+            <XCircle size={12} />
+            <span>Skipped</span>
+            <span className="px-1.5 py-0.5 rounded-full bg-secondary text-[10px]">
               {skippedTasks.length}
             </span>
           </p>
-          <div className="space-y-2">
+          <div className="space-y-2 opacity-75 grayscale-[0.5]">
             {skippedTasks.map((task) => (
-              <TaskItem key={task._id} task={task} dateStr={customDate || todayIST} />
+              <div key={task._id} className="pl-6 md:pl-0">
+                 {/* No drag handle for skipped items, simply nested */}
+                 <TaskItem task={task} dateStr={customDate || todayIST} />
+              </div>
             ))}
           </div>
         </div>

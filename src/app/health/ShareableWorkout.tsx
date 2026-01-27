@@ -367,7 +367,7 @@ export default function ShareableWorkout({ canShare, hasWeight, isRestDay = fals
                           </div>
                           <div style={{ fontSize: '13px', color: '#9ca3af', fontWeight: '500', marginTop: '4px' }}>day streak</div>
                         </div>
-                        <div style={{ display: 'table-cell', width: '80px', verticalAlign: 'middle', textAlign: 'right' }}>
+                        {/* <div style={{ display: 'table-cell', width: '80px', verticalAlign: 'middle', textAlign: 'right' }}>
                           <span style={{ 
                             display: 'inline-block',
                             padding: '6px 12px',
@@ -379,7 +379,7 @@ export default function ShareableWorkout({ canShare, hasWeight, isRestDay = fals
                           }}>
                             {summary.streakData.todayValid ? '✓ Done' : `${summary.streakData.todayRoutineTasks}/5`}
                           </span>
-                        </div>
+                        </div> */}
                       </div>
                       
                       {/* Last 7 Days */}
@@ -472,7 +472,7 @@ export default function ShareableWorkout({ canShare, hasWeight, isRestDay = fals
                     )}
 
                     {/* Today's Workout by Page OR Rest Day */}
-                    {summary.isRestDay ? (
+                    {summary.isRestDay && summary.exercises.length === 0 ? (
                       // Rest Day Card
                       <div style={{ 
                         width: '100%',

@@ -218,37 +218,13 @@ export async function getHealthDashboardData(dateStr?: string) {
     canBeRestDay = yesterdayExerciseCount >= 1;
   }
 
-  // Calculate next workout index
-  // If today has NO exercises, mark the next-in-sequence as "TODAY"
-  // If today has exercises, mark the actual next workout as "NEXT"
-  let nextWorkoutIndex = -1;
+  // Calculate today's workout index
+  // Always show the current workout in the cycle as "TODAY"
   let todayWorkoutIndex = -1;
   
   if (pageIds.length > 0) {
-    // Determine what should be shown as "current"
-    if (todaysExerciseCount === 0) {
-      // No exercise today - show the next workout in sequence as "TODAY"
-      todayWorkoutIndex = (lastWorkoutPageIndex + 1) % pageIds.length;
-    } else {
-      // Has exercise today - find which page was worked today and mark next as "NEXT"
-      const todaysLogs = await ExerciseLog.find({
-        exerciseId: { $in: exerciseIds },
-        date: { $gte: targetDate, $lt: nextDay }
-      }).lean();
-      
-      if (todaysLogs.length > 0) {
-        const exerciseToPage: Record<string, string> = {};
-        allExercises.forEach((ex: any) => {
-          exerciseToPage[ex._id.toString()] = ex.pageId.toString();
-        });
-        
-        const todayLoggedPageId = exerciseToPage[(todaysLogs[0] as any).exerciseId?.toString()];
-        if (todayLoggedPageId) {
-          const todayPageIndex = pageIds.indexOf(todayLoggedPageId);
-          nextWorkoutIndex = (todayPageIndex + 1) % pageIds.length;
-        }
-      }
-    }
+    // The next workout in sequence is always "today's workout"
+    todayWorkoutIndex = (lastWorkoutPageIndex + 1) % pageIds.length;
   }
 
   // 5. Mood for that date
@@ -265,13 +241,11 @@ export async function getHealthDashboardData(dateStr?: string) {
       _id: p._id.toString(),
       cycleStatus: 
         index === todayWorkoutIndex ? 'today' :
-        index === nextWorkoutIndex ? 'current' :
         index <= lastWorkoutPageIndex ? 'done' : 'upcoming'
     })),
     cycleInfo: {
       lastWorkoutPageIndex,
       lastWorkoutDate: lastWorkoutDate?.toISOString() || null,
-      nextWorkoutIndex,
       todayWorkoutIndex
     },
     mood: moodLog ? { mood: moodLog.mood, note: moodLog.note } : null,
@@ -1100,8 +1074,9 @@ export async function getTodaysWorkoutSummary() {
     }).lean();
     const dayBeforeExerciseCount = dayBeforeLogs.filter((l: any) => l?.sets && l.sets.length > 0).length;
     
-    // Rest day is valid if last 2 days both had 5+ exercises and today has less than 5
-    isRestDay = yesterdayExerciseCount >= 5 && dayBeforeExerciseCount >= 5 && exercisesWithLogs.length < 5;
+    // Rest day is valid if yesterday had at least 1 exercise
+    // And today has no exercises logged yet (or very few)
+    isRestDay = yesterdayExerciseCount >= 1 && exercisesWithLogs.length === 0;
   }
   
   return {

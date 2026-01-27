@@ -369,7 +369,7 @@ export default function TaskItem({ task, onOptimisticToggle, dateStr }: TaskItem
       isCompleted 
         ? "bg-secondary/30 border-transparent opacity-60" 
         : isSkipped
-        ? "bg-amber-500/5 border-amber-500/20 opacity-70"
+        ? "bg-secondary/10 border-border/30 opacity-60 grayscale-[0.5]"
         : "bg-card border-border/50 hover:shadow-md hover:border-primary/20"
     )}>
       {/* Main Row */}
@@ -377,16 +377,18 @@ export default function TaskItem({ task, onOptimisticToggle, dateStr }: TaskItem
         {/* Checkbox / Status */}
         <button
           onClick={handleToggle}
+          disabled={isSkipped}
           className={cn(
             "w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all active:scale-90",
             isCompleted
               ? "bg-primary border-primary text-primary-foreground"
               : isSkipped
-              ? "border-amber-500/50 hover:border-primary"
+              ? "border-muted-foreground/30 cursor-not-allowed"
               : "border-muted-foreground/30 hover:border-primary"
           )}
         >
           {isCompleted && <Check size={14} strokeWidth={3} />}
+          {isSkipped && <X size={14} className="text-muted-foreground/50" />}
         </button>
 
         {/* Content */}
@@ -394,17 +396,17 @@ export default function TaskItem({ task, onOptimisticToggle, dateStr }: TaskItem
           <h3 className={cn(
             "font-medium truncate transition-all",
             isCompleted && "line-through text-muted-foreground",
-            isSkipped && "text-amber-500/70"
+            isSkipped && "text-muted-foreground line-through decoration-dotted"
           )}>
             {task.title}
-            {isSkipped && <span className="ml-2 text-xs text-amber-500">(skipped)</span>}
           </h3>
           <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5 flex-wrap">
             <span className={cn(
-              "px-1.5 py-0.5 rounded-md bg-secondary font-medium uppercase tracking-wider text-[10px]",
-              task.domainId === 'health' && "text-rose-500 bg-rose-500/10",
-              task.domainId === 'career' && "text-blue-500 bg-blue-500/10",
-              task.domainId === 'learning' && "text-amber-500 bg-amber-500/10",
+              "px-1.5 py-0.5 rounded-md font-medium uppercase tracking-wider text-[10px]",
+               task.domainId === 'health' ? "text-rose-500 bg-rose-500/10" :
+               task.domainId === 'career' ? "text-blue-500 bg-blue-500/10" :
+               task.domainId === 'learning' ? "text-amber-500 bg-amber-500/10" :
+               "bg-secondary text-muted-foreground"
             )}>
               {task.domainId}
             </span>
@@ -434,8 +436,8 @@ export default function TaskItem({ task, onOptimisticToggle, dateStr }: TaskItem
             className={cn(
               "p-2 rounded-lg transition-all active:scale-90",
               isSkipped
-                ? "text-amber-500 bg-amber-500/10 hover:bg-amber-500/20"
-                : "text-muted-foreground/50 hover:text-amber-500 hover:bg-amber-500/10 opacity-0 group-hover:opacity-100"
+                ? "text-primary bg-primary/10 hover:bg-primary/20"
+                : "text-muted-foreground/40 hover:text-foreground/80 hover:bg-secondary"
             )}
             title={isSkipped ? "Undo skip" : "Skip task"}
           >
@@ -446,7 +448,7 @@ export default function TaskItem({ task, onOptimisticToggle, dateStr }: TaskItem
         {/* Edit Button */}
         <button
           onClick={() => setIsEditing(true)}
-          className="p-2 rounded-lg text-muted-foreground/50 hover:text-foreground hover:bg-secondary opacity-0 group-hover:opacity-100 transition-all"
+          className="p-2 rounded-lg text-muted-foreground/40 hover:text-foreground hover:bg-secondary transition-all"
         >
           <Edit2 size={16} />
         </button>
