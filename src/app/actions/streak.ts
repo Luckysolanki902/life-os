@@ -21,19 +21,17 @@ const BOOK_TASK_POINTS = 20;
 const EXERCISE_TASK_POINTS = 25;
 const LEARNING_TASK_POINTS = 15;
 
-// Helper: Check if a day can be considered a rest day (valid if 2 consecutive exercise days before)
+// Helper: Check if a day can be considered a rest day (alternate day pattern - yesterday had exercise)
 async function canBeRestDay(dateStr: string): Promise<boolean> {
   const checkDate = dayjs(dateStr).tz('Asia/Kolkata');
-  const day1 = checkDate.subtract(1, 'day');
-  const day2 = checkDate.subtract(2, 'day');
+  const yesterday = checkDate.subtract(1, 'day');
   
-  const { startOfDay: start1, endOfDay: end1 } = getDateRange(day1.format('YYYY-MM-DD'));
-  const { startOfDay: start2, endOfDay: end2 } = getDateRange(day2.format('YYYY-MM-DD'));
+  const { startOfDay, endOfDay } = getDateRange(yesterday.format('YYYY-MM-DD'));
   
-  const exercise1 = await ExerciseLog.countDocuments({ date: { $gte: start1, $lt: end1 } });
-  const exercise2 = await ExerciseLog.countDocuments({ date: { $gte: start2, $lt: end2 } });
+  const exerciseCount = await ExerciseLog.countDocuments({ date: { $gte: startOfDay, $lt: endOfDay } });
   
-  return exercise1 > 0 && exercise2 > 0;
+  // Rest day allowed if yesterday had any exercise (alternate day pattern)
+  return exerciseCount > 0;
 }
 
 // Helper: Check if a day is valid for streak (either has exercise OR is a valid rest day)
@@ -270,10 +268,10 @@ export async function getStreakData(): Promise<StreakData> {
 }
 
 // Get special tasks for domains (auto-generated based on activity)
-export async function getSpecialTasks() {
+export async function getSpecialTasks(dateStr?: string) {
   await connectDB();
   
-  const today = getTodayDateString();
+  const today = dateStr || getTodayDateString();
   const { startOfDay, endOfDay } = getDateRange(today);
   
   const specialTasks: Array<{
@@ -335,27 +333,50 @@ export async function getSpecialTasks() {
   // Check for learning logs today
   const learningLogs = await SimpleLearningLog.find({
     date: { $gte: startOfDay, $lt: endOfDay }
-  });
+  }).populate('skillId').lean();
+  
+  console.log('[getSpecialTasks] Learning logs found:', learningLogs.length);
+  console.log('[getSpecialTasks] Date range:', { startOfDay, endOfDay, today });
+  console.log('[getSpecialTasks] Raw learning logs:', learningLogs);
   
   // Group by skill name
   const skillMap = new Map<string, number>();
   for (const log of learningLogs) {
-    const current = skillMap.get((log as { skillName: string }).skillName) || 0;
-    skillMap.set((log as { skillName: string }).skillName, current + (log as { duration: number }).duration);
+    const skill = (log as any).skillId;
+    const skillName = skill?.name || 'Unknown Skill';
+    const duration = (log as any).duration;
+    
+    console.log('[getSpecialTasks] Processing learning log:', { 
+      skillName, 
+      duration, 
+      logDate: (log as any).date,
+      hasSkillId: !!(log as any).skillId,
+      skillIdType: typeof (log as any).skillId
+    });
+    
+    const current = skillMap.get(skillName) || 0;
+    skillMap.set(skillName, current + duration);
   }
+  
+  console.log('[getSpecialTasks] Skill map:', Array.from(skillMap.entries()));
   
   for (const [skillName, duration] of skillMap) {
     if (duration >= 1) { // At least 1 minute
-      specialTasks.push({
+      const task = {
         _id: `special-learning-${skillName}-${today}`,
         title: `Learnt ${skillName}`,
-        type: 'learning',
+        type: 'learning' as const,
         points: LEARNING_TASK_POINTS,
         completed: true,
         source: `${duration} minutes`
-      });
+      };
+      console.log('[getSpecialTasks] Adding learning task:', task);
+      specialTasks.push(task);
     }
   }
+  
+  console.log('[getSpecialTasks] Final special tasks count:', specialTasks.length);
+  console.log('[getSpecialTasks] All special tasks:', specialTasks);
   
   return specialTasks;
 }

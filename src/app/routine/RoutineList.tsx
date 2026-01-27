@@ -135,7 +135,10 @@ export default function RoutineList({ initialTasks, allTasks = [], initialSpecia
   const fetchCustomDate = async (dateStr: string) => {
     setIsLoadingCustom(true);
     try {
+      console.log('[RoutineList] Fetching custom date:', dateStr);
       const { routine: customTasks, specialTasks: customSpecial } = await getRoutineForDate(dateStr);
+      console.log('[RoutineList] Custom date result:', { tasksCount: customTasks.length, specialTasksCount: customSpecial.length });
+      console.log('[RoutineList] Special tasks received:', customSpecial);
       setTasks(customTasks);
       setSpecialTasks(customSpecial);
     } finally {
@@ -165,12 +168,16 @@ export default function RoutineList({ initialTasks, allTasks = [], initialSpecia
   };
 
   // Switch to today mode
-  const switchToToday = () => {
+  const switchToToday = async () => {
     setViewMode('today');
+    console.log('[RoutineList] Switching to today view');
     // Refetch today's tasks
     const fetchToday = async () => {
       const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      console.log('[RoutineList] Fetching today with timezone:', timezone);
       const { routine: todaysTasks, specialTasks: todaysSpecial } = await getRoutine(timezone);
+      console.log('[RoutineList] Today result:', { tasksCount: todaysTasks.length, specialTasksCount: todaysSpecial.length });
+      console.log('[RoutineList] Today special tasks:', todaysSpecial);
       setTasks(todaysTasks);
       setSpecialTasks(todaysSpecial);
     };
@@ -190,6 +197,8 @@ export default function RoutineList({ initialTasks, allTasks = [], initialSpecia
 
   // Sync with server data if it changes (e.g. new task added)
   useEffect(() => {
+    console.log('[RoutineList] Initial tasks updated:', { tasksCount: initialTasks.length, specialTasksCount: initialSpecialTasks.length });
+    console.log('[RoutineList] Initial special tasks:', initialSpecialTasks);
     setTasks(initialTasks);
     setSpecialTasks(initialSpecialTasks);
   }, [initialTasks, initialSpecialTasks]);

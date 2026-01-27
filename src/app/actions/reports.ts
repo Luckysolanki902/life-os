@@ -899,8 +899,8 @@ export async function getLearningReport(period: string = 'thisWeek', skillId?: s
   
   // By skill breakdown (more detailed)
   const skillsWithData = await Promise.all(allSkills.map(async (skill: any) => {
-    const area = allAreas.find((a: any) => a._id.toString() === skill.areaId.toString());
-    const mediums = allMediums.filter((m: any) => m.skillId.toString() === skill._id.toString());
+    const area = skill.areaId ? allAreas.find((a: any) => a._id.toString() === skill.areaId.toString()) : null;
+    const mediums = allMediums.filter((m: any) => m.skillId?.toString() === skill._id?.toString());
     const mediumIds = mediums.map((m: any) => m._id);
     
     const skillLogs = await LearningLog.find({
@@ -913,7 +913,7 @@ export async function getLearningReport(period: string = 'thisWeek', skillId?: s
     return {
       _id: skill._id.toString(),
       name: skill.name,
-      areaId: skill.areaId.toString(),
+      areaId: skill.areaId?.toString() || '',
       areaName: area?.name || 'Unknown',
       areaColor: area?.color || '#888',
       sessions: skillLogs.length,
@@ -1070,7 +1070,7 @@ export async function getLearningReport(period: string = 'thisWeek', skillId?: s
       skills: allSkills.map((s: any) => ({ 
         _id: s._id.toString(), 
         name: s.name, 
-        areaId: s.areaId.toString() 
+        areaId: s.areaId?.toString() || '' 
       })),
       selectedArea: areaId || null,
       selectedSkill: skillId || null

@@ -230,11 +230,11 @@ function WeeklyTrendChart({ data }: { data: any[] }) {
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
             <XAxis 
               dataKey="week" 
-              tick={{ fill: 'var(--muted-foreground)', fontSize: 12 }}
+              tick={{ fill: 'hsl(var(--foreground))', opacity: 0.6, fontSize: 12 }}
               tickLine={false}
             />
             <YAxis 
-              tick={{ fill: 'var(--muted-foreground)', fontSize: 12 }}
+              tick={{ fill: 'hsl(var(--foreground))', opacity: 0.6, fontSize: 12 }}
               tickLine={false}
               axisLine={false}
             />
@@ -334,12 +334,12 @@ function DailyLearningChart({ data }: { data: any[] }) {
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
             <XAxis 
               dataKey="dayName" 
-              tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }}
+              tick={{ fill: 'hsl(var(--foreground))', opacity: 0.6, fontSize: 11 }}
               tickLine={false}
               axisLine={false}
             />
             <YAxis 
-              tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }}
+              tick={{ fill: 'hsl(var(--foreground))', opacity: 0.6, fontSize: 11 }}
               tickLine={false}
               axisLine={false}
               tickFormatter={(v) => `${v}m`}
@@ -429,7 +429,7 @@ function DifficultyRadarChart({ distribution }: { distribution: Record<string, n
             <PolarGrid stroke="var(--border)" />
             <PolarAngleAxis 
               dataKey="subject" 
-              tick={{ fill: 'var(--muted-foreground)', fontSize: 12 }}
+              tick={{ fill: 'hsl(var(--foreground))', opacity: 0.6, fontSize: 12 }}
             />
             <PolarRadiusAxis tick={false} axisLine={false} />
             <Radar

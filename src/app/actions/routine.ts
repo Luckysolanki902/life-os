@@ -38,8 +38,19 @@ function shouldShowTaskOnDay(task: any, dayOfWeek: number): boolean {
 export async function getRoutine(dateStr?: string) {
   await connectDB();
   
+  console.log('[getRoutine] Called with dateStr:', dateStr);
+  
   // Use IST midnight for consistent date handling
-  const targetDateStr = dateStr || getTodayDateString();
+  let targetDateStr = dateStr || getTodayDateString();
+  
+  // Validate date string before use
+  if (!targetDateStr || typeof targetDateStr !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(targetDateStr)) {
+    console.error('[getRoutine] Invalid date string:', dateStr);
+    targetDateStr = getTodayDateString();
+  }
+  
+  console.log('[getRoutine] Using date:', targetDateStr);
+  
   const { startOfDay, endOfDay } = getDateRange(targetDateStr);
   const dayOfWeek = getDayOfWeek(targetDateStr);
 
@@ -75,7 +86,9 @@ export async function getRoutine(dateStr?: string) {
 
   // 5. Get special tasks (auto-generated from activity logs)
   const { getSpecialTasks } = await import('./streak');
-  const specialTasks = await getSpecialTasks();
+  console.log('[getRoutine] Fetching special tasks for date:', targetDateStr);
+  const specialTasks = await getSpecialTasks(targetDateStr);
+  console.log('[getRoutine] Special tasks returned:', specialTasks.length);
 
   return { routine, specialTasks };
 }
@@ -117,9 +130,11 @@ export async function getRoutineForDate(dateStr: string) {
     };
   });
 
-  // 5. Get special tasks for this date (pass dateStr to getDateRange inside getSpecialTasks)
-  // Note: getSpecialTasks currently only works for today, would need modification for past dates
-  const specialTasks: any[] = []; // For now, only show special tasks on today's view
+  // 5. Get special tasks for this date
+  const { getSpecialTasks } = await import('./streak');
+  console.log('[getRoutineForDate] Fetching special tasks for date:', dateStr);
+  const specialTasks = await getSpecialTasks(dateStr);
+  console.log('[getRoutineForDate] Special tasks returned:', specialTasks.length);
 
   return { routine, specialTasks };
 }

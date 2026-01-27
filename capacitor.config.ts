@@ -19,8 +19,8 @@ const config: CapacitorConfig = {
       launchShowDuration: 2000,
       backgroundColor: '#0a0a0a',
       showSpinner: false,
-      androidSpinnerStyle: 'small',
-      spinnerColor: '#f59e0b'
+      androidSplashResourceName: 'splash',
+      androidScaleType: 'CENTER_INSIDE'
     },
     StatusBar: {
       style: 'Dark',

@@ -240,7 +240,7 @@ export default function ReportsClient({ initialData, initialPeriod }: ReportsCli
                 </defs>
                 <XAxis 
                   dataKey="shortDate" 
-                  tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }}
+                  tick={{ fontSize: 9, fill: 'hsl(var(--foreground))', opacity: 0.6 }}
                   axisLine={false}
                   tickLine={false}
                 />
@@ -426,12 +426,12 @@ export default function ReportsClient({ initialData, initialPeriod }: ReportsCli
                 </defs>
                 <XAxis 
                   dataKey="shortDate" 
-                  tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                  tick={{ fontSize: 10, fill: 'hsl(var(--foreground))', opacity: 0.6 }}
                   axisLine={false}
                   tickLine={false}
                 />
                 <YAxis 
-                  tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                  tick={{ fontSize: 10, fill: 'hsl(var(--foreground))', opacity: 0.6 }}
                   axisLine={false}
                   tickLine={false}
                 />
@@ -473,12 +473,12 @@ export default function ReportsClient({ initialData, initialPeriod }: ReportsCli
                 </defs>
                 <XAxis 
                   dataKey="shortDate" 
-                  tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                  tick={{ fontSize: 10, fill: 'hsl(var(--foreground))', opacity: 0.6 }}
                   axisLine={false}
                   tickLine={false}
                 />
                 <YAxis 
-                  tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                  tick={{ fontSize: 10, fill: 'hsl(var(--foreground))', opacity: 0.6 }}
                   axisLine={false}
                   tickLine={false}
                 />

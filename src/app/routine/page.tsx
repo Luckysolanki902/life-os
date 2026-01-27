@@ -7,9 +7,12 @@ import { headers } from 'next/headers';
 export const dynamic = 'force-dynamic';
 
 export default async function RoutinePage() {
+  console.log('[RoutinePage] Loading routine page');
   // Get tasks for today (server-side uses IST day)
   // Client will re-fetch with correct timezone
   const { routine: tasks, specialTasks } = await getRoutine();
+  console.log('[RoutinePage] Tasks loaded:', { tasksCount: tasks.length, specialTasksCount: specialTasks.length });
+  console.log('[RoutinePage] Special tasks:', specialTasks);
   const allTasks = await getAllTasks();
 
   return (

@@ -143,13 +143,13 @@ function WeightTrendChart({ data }: { data: any[] }) {
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
             <XAxis 
               dataKey="date" 
-              tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+              tick={{ fontSize: 10, fill: 'hsl(var(--foreground))', opacity: 0.6 }}
               tickLine={false}
               axisLine={false}
             />
             <YAxis 
               domain={[minWeight, maxWeight]}
-              tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+              tick={{ fontSize: 10, fill: 'hsl(var(--foreground))', opacity: 0.6 }}
               tickLine={false}
               axisLine={false}
               tickFormatter={(v) => `${v}kg`}
@@ -204,12 +204,12 @@ function ExerciseSessionsChart({ data }: { data: any[] }) {
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} vertical={false} />
             <XAxis 
               dataKey="day" 
-              tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+              tick={{ fontSize: 10, fill: 'hsl(var(--foreground))', opacity: 0.6 }}
               tickLine={false}
               axisLine={false}
             />
             <YAxis 
-              tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+              tick={{ fontSize: 10, fill: 'hsl(var(--foreground))', opacity: 0.6 }}
               tickLine={false}
               axisLine={false}
               width={25}

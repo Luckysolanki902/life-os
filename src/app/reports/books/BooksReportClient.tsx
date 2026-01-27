@@ -277,12 +277,12 @@ export default function BooksReportClient({ initialData, initialPeriod }: BooksR
               <BarChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
                 <XAxis 
                   dataKey="date" 
-                  tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
-                  axisLine={false}
+                  tick={{ fontSize: 10, fill: 'hsl(var(--foreground))', opacity: 0.6 }}
                   tickLine={false}
+                  axisLine={false}
                 />
                 <YAxis 
-                  tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                  tick={{ fontSize: 10, fill: 'hsl(var(--foreground))', opacity: 0.6 }}
                   axisLine={false}
                   tickLine={false}
                 />

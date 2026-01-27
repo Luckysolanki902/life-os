@@ -485,14 +485,14 @@ export default function HomeClient({
                 </defs>
                 <XAxis 
                   dataKey="day" 
-                  tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                  tick={{ fontSize: 11, fill: 'hsl(var(--foreground))', opacity: 0.6 }}
                   tickLine={false}
                   axisLine={false}
                 />
                 <YAxis 
                   domain={[0, 100]}
                   ticks={[0, 25, 50, 75, 100]}
-                  tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                  tick={{ fontSize: 11, fill: 'hsl(var(--foreground))', opacity: 0.6 }}
                   tickLine={false}
                   axisLine={false}
                 />
@@ -608,9 +608,6 @@ export default function HomeClient({
                   </div>
                   
                   <h3 className="font-medium text-sm">{domain.name}</h3>
-                  <p className="text-xs text-muted-foreground">
-                    {domain.points.toLocaleString()} pts
-                  </p>
                   
                   <ArrowRight 
                     size={14} 
