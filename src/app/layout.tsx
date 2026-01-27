@@ -19,12 +19,15 @@ export const metadata: Metadata = {
   description: "A gamified personal operating system.",
   icons: {
     icon: [
-      { url: '/penguin_logo.png', sizes: 'any' },
+      { url: '/penguin_logo.png', sizes: 'any', type: 'image/png' },
       { url: '/penguin_logo.png', sizes: '16x16', type: 'image/png' },
       { url: '/penguin_logo.png', sizes: '32x32', type: 'image/png' },
+      { url: '/penguin_logo.png', sizes: '64x64', type: 'image/png' },
     ],
+    shortcut: '/penguin_logo.png',
     apple: [
       { url: '/penguin_logo.png', sizes: '180x180', type: 'image/png' },
+      { url: '/penguin_logo.png', sizes: '192x192', type: 'image/png' },
     ],
   },
 };
