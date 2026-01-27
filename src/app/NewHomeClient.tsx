@@ -1,659 +1,494 @@
 'use client';
 
-import { useState, useTransition, useOptimistic, useCallback } from 'react';
+import { useState, useOptimistic, useTransition, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import {
-  AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer
-} from 'recharts';
-import {
-  Heart,
-  Library,
-  CheckCircle2,
-  Circle,
-  Scale,
-  Clock,
-  ChevronRight,
-  ArrowRight,
-  SkipForward,
-  Pencil,
-  BarChart3,
-  Brain,
-  Flame,
-  BookMarked,
-  Loader2,
-  RotateCcw,
-  Eye,
-  EyeOff,
-  Target,
-  Leaf,
+import { 
+  Trophy, Flame, Wind, Droplets, Dumbbell, BookOpen, Target, 
+  CheckCircle2, Circle, MoreHorizontal, ArrowRight,
+  TrendingUp, Calendar, Clock, ChevronRight, BarChart3,
+  RotateCcw, Trash2, Edit2, Archive, Play, SkipForward, Eye, EyeOff,
+  Scale, Pencil, Loader2, Leaf
 } from 'lucide-react';
-import { toggleTaskStatus, skipTask, unskipTask } from './actions/routine';
-import { logWeight, updateWeight } from './actions/health';
-import { getLocalDateString, dayjs } from '@/lib/date-utils';
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { cn } from '@/lib/utils';
-import { hapticTaskComplete, hapticTaskSkip, hapticTaskUnskip } from '@/lib/haptics';
+import { toggleTaskStatus, skipTask, unskipTask } from '@/app/actions/routine';
+import { logWeight } from '@/app/actions/health';
+import { format } from 'date-fns';
 
-const iconMap: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
-  Heart,
-  Brain,
-  Library,
-  BookMarked,
-};
+// Fallback toast hook if '@/components/ui/use-toast' is unavailable
+function useToast() {
+  return {
+    toast: (opts: { title?: string; description?: string; variant?: 'destructive' | string } = {}) => {
+      if (typeof window !== 'undefined') {
+        // Minimal non-blocking fallback: log to console (and optionally show alert during development)
+        if (opts.variant === 'destructive') {
+          console.error('Toast:', opts.title ?? '', opts.description ?? '');
+        } else {
+          console.log('Toast:', opts.title ?? '', opts.description ?? '');
+        }
+      }
+    }
+  };
+}
 
-interface Task {
+type Task = {
   _id: string;
   title: string;
   domainId: string;
   timeOfDay?: string;
   points: number;
-  status?: 'pending' | 'completed' | 'skipped';
-}
+  status: 'pending' | 'completed' | 'skipped';
+  completedAt?: string;
+};
 
-interface SpecialTask {
-  _id: string;
-  title: string;
-  type: 'health' | 'books' | 'learning';
-  points: number;
-  completed: boolean;
-  source: string;
-}
-
-interface Domain {
-  id: string;
-  name: string;
-  icon: string;
-  points: number;
-  color: string;
-  bg: string;
-  border: string;
-}
-
-interface TodaysWeight {
-  _id: string;
-  weight: number;
-  date: Date;
-}
-
-interface StreakData {
-  currentStreak: number;
-  longestStreak: number;
-  todayValid: boolean;
-  todayRoutineTasks: number;
-  todayHasExercise: boolean;
-  todayIsRestDay: boolean;
-  todayCanBeRestDay: boolean;
-  last7Days: { date: string; valid: boolean; isRestDay?: boolean }[];
-  nextTarget: { days: number; points: number; label: string } | null;
-  totalStreakPoints: number;
-  reachedMilestones: { days: number; points: number; label: string }[];
-}
-
-interface DayCompletion {
-  date: string;
-  day: string;
-  completed: number;
-  total: number;
-  rate: number;
-}
-
-interface Props {
+type Props = {
   incompleteTasks: Task[];
-  domains: Domain[];
-  todaysWeight: TodaysWeight | null;
-  streakData: StreakData;
-  specialTasks: SpecialTask[];
+  domains: any[];
+  todaysWeight: any;
+  streakData: {
+    currentStreak: number;
+    last7Days: Array<{
+      date: string;
+      valid: boolean;
+      points: number;
+      isRestDay: boolean; // Added backend support for rest days
+    }>;
+    todayValid: boolean;
+    todayRoutineTasks: number;
+    todayCanBeRestDay: boolean;
+    todayIsRestDay: boolean;
+  };
+  specialTasks: any[]; // Kept for types but not used in new design yet
   totalPoints: number;
-  last7DaysCompletion: DayCompletion[];
-}
+  last7DaysCompletion: any[];
+  user?: {
+    name: string;
+  }
+};
 
-export default function HomeClient({ 
-  incompleteTasks, 
+export default function NewHomeClient({ 
+  incompleteTasks: initialTasks, 
   domains, 
-  todaysWeight,
+  todaysWeight: initialWeight,
   streakData,
-  specialTasks,
   totalPoints,
-  last7DaysCompletion
+  last7DaysCompletion,
+  user
 }: Props) {
-  const router = useRouter();
+  const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
-  
-  // Optimistic state for tasks - instant UI updates
-  type TaskAction = 
-    | { type: 'complete'; taskId: string }
-    | { type: 'uncomplete'; taskId: string }
-    | { type: 'skip'; taskId: string }
-    | { type: 'unskip'; taskId: string };
-  
-  const [optimisticTasks, updateOptimisticTasks] = useOptimistic(
-    incompleteTasks,
-    (currentTasks, action: TaskAction) => {
-      switch (action.type) {
-        case 'complete':
-          return currentTasks.map(task => 
-            task._id === action.taskId ? { ...task, status: 'completed' as const } : task
-          );
-        case 'uncomplete':
-          return currentTasks.map(task => 
-            task._id === action.taskId ? { ...task, status: 'pending' as const } : task
-          );
-        case 'skip':
-          return currentTasks.map(task => 
-            task._id === action.taskId ? { ...task, status: 'skipped' as const } : task
-          );
-        case 'unskip':
-          return currentTasks.map(task => 
-            task._id === action.taskId ? { ...task, status: 'pending' as const } : task
-          );
-        default:
-          return currentTasks;
-      }
-    }
-  );
-  
-  // Weight logging state
-  const [weight, setWeight] = useState<string>('');
-  const [weightLoading, setWeightLoading] = useState(false);
-  const [weightSuccess, setWeightSuccess] = useState(false);
-  const [isEditingWeight, setIsEditingWeight] = useState(false);
-  
-  // Skipped tasks visibility
   const [showSkippedTasks, setShowSkippedTasks] = useState(false);
 
-  const handleToggleTask = useCallback(async (taskId: string) => {
-    // Instant haptic feedback
-    hapticTaskComplete();
-    
-    startTransition(async () => {
-      // Optimistic update - instant UI change
-      updateOptimisticTasks({ type: 'complete', taskId });
-      
-      // Server action in background
-      await toggleTaskStatus(taskId, true);
-    });
-  }, [updateOptimisticTasks]);
-
-  const handleSkipTask = useCallback(async (taskId: string, isCurrentlySkipped: boolean) => {
-    // Instant haptic feedback
-    if (isCurrentlySkipped) {
-      hapticTaskUnskip();
-    } else {
-      hapticTaskSkip();
-    }
-    
-    startTransition(async () => {
-      // Optimistic update - instant UI change
-      updateOptimisticTasks({ 
-        type: isCurrentlySkipped ? 'unskip' : 'skip', 
-        taskId 
+  // Optimistic Tasks
+  const [optimisticTasks, addOptimisticTask] = useOptimistic(
+    initialTasks,
+    (state, { taskId, type }: { taskId: string, type: 'toggle' | 'skip' | 'unskip' }) => {
+      return state.map(task => {
+        if (task._id === taskId) {
+          if (type === 'toggle') {
+            return {
+              ...task,
+              status: task.status === 'completed' ? 'pending' : 'completed',
+              completedAt: task.status === 'completed' ? undefined : new Date().toISOString()
+            };
+          } else if (type === 'skip') {
+            return { ...task, status: 'skipped' };
+          } else if (type === 'unskip') {
+            return { ...task, status: 'pending' };
+          }
+        }
+        return task;
       });
-      
-      // Server action in background
-      if (isCurrentlySkipped) {
-        await unskipTask(taskId);
-      } else {
-        await skipTask(taskId);
+    }
+  );
+
+  // Weight Logic
+  const [weight, setWeight] = useState('');
+  const [isEditingWeight, setIsEditingWeight] = useState(false);
+  const [todaysWeight, setTodaysWeight] = useState(initialWeight);
+  const [weightLoading, setWeightLoading] = useState(false);
+  const [weightSuccess, setWeightSuccess] = useState(false);
+
+  // Sort tasks: pending first, then time of day
+  const sortedTasks = [...optimisticTasks].sort((a, b) => {
+    // 1. Status priority: pending < skipped < completed
+    const statusScore = (status: string) => {
+      if (status === 'pending') return 0;
+      if (status === 'skipped') return 1;
+      return 2;
+    };
+    const scoreA = statusScore(a.status);
+    const scoreB = statusScore(b.status);
+    if (scoreA !== scoreB) return scoreA - scoreB;
+
+    // 2. Time of day
+    const times = { morning: 0, afternoon: 1, evening: 2, any: 3 };
+    const timeA = times[a.timeOfDay as keyof typeof times] ?? 3;
+    const timeB = times[b.timeOfDay as keyof typeof times] ?? 3;
+    return timeA - timeB;
+  });
+
+  async function handleToggleTask(taskId: string) {
+    const task = optimisticTasks.find(t => t._id === taskId);
+    if (!task) return;
+
+    startTransition(async () => {
+      addOptimisticTask({ taskId, type: 'toggle' });
+      try {
+        await toggleTaskStatus(taskId, task.status === 'completed');
+      } catch (error) {
+        // Revert on error would need more complex optimistic logic or full revalidation
+        toast({ title: "Error", description: "Failed to update task", variant: "destructive" });
       }
     });
-  }, [updateOptimisticTasks]);
+  }
 
-  const handleLogWeight = async (e: React.FormEvent) => {
+  async function handleSkipTask(taskId: string, isUnskip: boolean) {
+    startTransition(async () => {
+      addOptimisticTask({ taskId, type: isUnskip ? 'unskip' : 'skip' });
+      try {
+        if (isUnskip) {
+          await unskipTask(taskId);
+        } else {
+          await skipTask(taskId);
+        }
+      } catch (error) {
+        toast({ title: "Error", description: "Failed to skip task", variant: "destructive" });
+      }
+    });
+  }
+
+  async function handleLogWeight(e: React.FormEvent) {
     e.preventDefault();
     if (!weight) return;
-    
+
     setWeightLoading(true);
     try {
-      const today = getLocalDateString();
-      
-      if (isEditingWeight && todaysWeight) {
-        await updateWeight(todaysWeight._id, parseFloat(weight));
-      } else {
-        await logWeight(parseFloat(weight), today);
-      }
+      const result = await logWeight(parseFloat(weight), new Date().toISOString());
+      setTodaysWeight(result);
       setWeightSuccess(true);
-      setWeight('');
-      setIsEditingWeight(false);
-      setTimeout(() => setWeightSuccess(false), 2000);
-      router.refresh();
+      setTimeout(() => {
+        setWeightSuccess(false);
+        setIsEditingWeight(false);
+        setWeight('');
+      }, 1500);
+      toast({ title: "Weight Logged", description: "Your weight has been recorded." });
     } catch (error) {
-      console.error('Error logging weight:', error);
+      toast({ title: "Error", description: "Failed to log weight", variant: "destructive" });
     } finally {
       setWeightLoading(false);
     }
+  }
+
+  function startEditingWeight() {
+    setIsEditingWeight(true);
+    setWeight(todaysWeight?.weight?.toString() || '');
+  }
+
+  const iconMap: Record<string, any> = {
+    'dumbbell': Dumbbell,
+    'book-open': BookOpen,
+    'brain': Target,
+    'droplet': Droplets,
+    'moon': Wind,
   };
 
-  const startEditingWeight = () => {
-    if (todaysWeight) {
-      setWeight(todaysWeight.weight.toString());
-      setIsEditingWeight(true);
-    }
+  const getDayAbbr = (dateStr: string) => {
+    return new Date(dateStr).toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 1);
   };
 
   const getDomainColor = (domainId: string) => {
-    const colors: Record<string, string> = {
-      health: 'text-rose-500',
-      discipline: 'text-violet-500',
-      personality: 'text-emerald-500',
-      startups: 'text-blue-500',
-      career: 'text-cyan-500',
-      learning: 'text-violet-500',
-      books: 'text-amber-500',
-    };
-    return colors[domainId] || 'text-muted-foreground';
+    switch (domainId) {
+      case 'health': return 'text-rose-500';
+      case 'learning': return 'text-sky-500';
+      case 'routine': return 'text-amber-500';
+      default: return 'text-primary';
+    }
   };
 
   const getDomainBg = (domainId: string) => {
-    const bgs: Record<string, string> = {
-      health: 'bg-rose-500/10',
-      discipline: 'bg-violet-500/10',
-      personality: 'bg-emerald-500/10',
-      startups: 'bg-blue-500/10',
-      career: 'bg-cyan-500/10',
-      learning: 'bg-violet-500/10',
-      books: 'bg-amber-500/10',
-    };
-    return bgs[domainId] || 'bg-secondary';
-  };
-
-  // Get day abbreviation
-  const getDayAbbr = (dateStr: string) => {
-    return dayjs(dateStr).format('dd')[0];
+    switch (domainId) {
+      case 'health': return 'bg-rose-500/10';
+      case 'learning': return 'bg-sky-500/10';
+      case 'routine': return 'bg-amber-500/10';
+      default: return 'bg-primary/10';
+    }
   };
 
   return (
-    <>
-      <div className="space-y-6">
-        {/* Streak Card - Minimal & Clean */}
-        <section className="p-4 rounded-2xl bg-card border border-border/50">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className={cn(
-                "w-12 h-12 rounded-xl flex items-center justify-center transition-all",
-                streakData.currentStreak > 0 
-                  ? "bg-linear-to-br from-orange-500 to-amber-500" 
-                  : "bg-secondary"
-              )}>
-                <Flame size={24} className={streakData.currentStreak > 0 ? "text-white" : "text-muted-foreground"} />
-              </div>
-              <div>
-                <h3 className="text-2xl font-bold">{streakData.currentStreak}</h3>
-                <p className="text-xs text-muted-foreground">day streak</p>
+    <div className="space-y-6 pb-24 animate-in fade-in-0 duration-500">
+      
+      {/* Header */}
+      <header className="flex items-center justify-between py-2">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">
+            {new Date().getHours() < 12 ? 'Good morning' : new Date().getHours() < 18 ? 'Good afternoon' : 'Good evening'}
+          </h1>
+          <p className="text-muted-foreground text-sm">
+            {format(new Date(), 'EEEE, MMMM do')}
+          </p>
+        </div>
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-secondary/50 border border-border/50">
+          <Flame size={16} className={streakData.todayValid ? "text-orange-500 fill-orange-500" : "text-muted-foreground"} />
+          <span className="text-sm font-semibold">{streakData.currentStreak}</span>
+        </div>
+      </header>
+
+      {/* Week Glance */}
+      <section className="bg-card rounded-2xl border border-border/40 p-5">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-sm font-medium text-muted-foreground">Last 7 Days</h3>
+          <span className={cn(
+            "text-xs font-medium px-2 py-0.5 rounded-full",
+            streakData.todayValid 
+              ? "bg-emerald-500/10 text-emerald-500" 
+              : "bg-amber-500/10 text-amber-500"
+          )}>
+            {streakData.todayValid ? "Day Complete" : "In Progress"}
+          </span>
+        </div>
+        <div className="flex justify-between items-center">
+          {streakData.last7Days.map((day, index) => (
+            <div key={index} className="flex flex-col items-center gap-2">
+              <div 
+                className={cn(
+                  "w-9 h-9 rounded-full flex items-center justify-center transition-all shadow-sm",
+                  day.valid && !day.isRestDay ? "bg-orange-500 text-white shadow-orange-500/20" : 
+                  day.valid && day.isRestDay ? "bg-emerald-500 text-white shadow-emerald-500/20" :
+                  index === 6 ? "bg-card border-2 border-dashed border-muted text-muted-foreground" :
+                  "bg-secondary/40 text-muted-foreground/40"
+                )}
+              >
+                {day.valid ? (
+                  day.isRestDay ? <Leaf size={14} /> : <Flame size={14} className="fill-white" />
+                ) : (
+                  <span className="text-[10px] font-bold">{getDayAbbr(day.date)}</span>
+                )}
               </div>
             </div>
-            {streakData.nextTarget && (
-              <div className="text-right">
-                <p className="text-xs text-muted-foreground">Next milestone</p>
-                <p className="text-sm font-medium text-orange-400">
-                  {streakData.nextTarget.days - streakData.currentStreak} {streakData.nextTarget.days - streakData.currentStreak === 1 ? 'day' : 'days'} more
-                </p>
-              </div>
-            )}
-          </div>
-          
-          {/* Last 7 Days - Simple dots */}
-          <div className="flex justify-between gap-1">
-            {streakData.last7Days.map((day, index) => (
-              <div key={day.date} className="flex-1 flex flex-col items-center gap-1">
-                <div className={cn(
-                  "w-8 h-8 rounded-full flex items-center justify-center transition-all",
-                  day.valid && !day.isRestDay
-                    ? "bg-orange-500"
-                    : day.valid && day.isRestDay
-                    ? "bg-emerald-500"
-                    : index === 6 
-                      ? "border-2 border-dashed border-orange-500/40" 
-                      : "bg-secondary/50"
-                )}>
-                  {day.valid && !day.isRestDay && <Flame size={14} className="text-white" />}
-                  {day.valid && day.isRestDay && <Leaf size={14} className="text-white" />}
+          ))}
+        </div>
+      </section>
+
+      {/* Today's Tasks */}
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold tracking-tight">Today&apos;s Focus</h2>
+          <Link href="/routine" className="text-xs font-medium text-primary hover:underline">
+            View All
+          </Link>
+        </div>
+
+        <div className="space-y-2.5">
+          {sortedTasks.filter(t => t.status !== 'completed' && t.status !== 'skipped').slice(0, 4).map((task) => (
+            <div
+              key={task._id}
+              className="group flex items-center gap-3 p-3.5 rounded-xl bg-card border border-border/40 hover:border-border/80 transition-all shadow-sm active:scale-[0.99]"
+            >
+              <button
+                onClick={() => handleToggleTask(task._id)}
+                className={cn(
+                  "flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors",
+                  "border-muted-foreground/30 hover:border-primary text-transparent hover:text-primary/20" 
+                )}
+              >
+                <div className="w-2.5 h-2.5 rounded-full bg-current opacity-0 transition-opacity" />
+              </button>
+
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-sm truncate">{task.title}</p>
+                <div className="flex items-center gap-2 text-[10px] text-muted-foreground uppercase tracking-wider font-medium">
+                  <span className={getDomainColor(task.domainId)}>{task.domainId}</span>
+                  {task.timeOfDay && (
+                    <>
+                      <span>•</span>
+                      <span>{task.timeOfDay}</span>
+                    </>
+                  )}
+                  <span>•</span>
+                  <span>{task.points} pts</span>
                 </div>
-                <span className="text-[10px] text-muted-foreground">{getDayAbbr(day.date)}</span>
+              </div>
+
+              <button
+                onClick={() => handleSkipTask(task._id, false)}
+                className="opacity-0 group-hover:opacity-100 p-2 rounded-lg text-muted-foreground hover:bg-secondary transition-all"
+                title="Skip"
+              >
+                <SkipForward size={16} />
+              </button>
+            </div>
+          ))}
+
+          {sortedTasks.filter(t => t.status !== 'completed' && t.status !== 'skipped').length === 0 && (
+             <div className="py-8 text-center bg-card/30 rounded-xl border border-border/30 border-dashed">
+               <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-emerald-500/10 text-emerald-500 mb-3">
+                 <CheckCircle2 size={24} />
+               </div>
+               <p className="text-sm font-medium">All tasks completed!</p>
+               <p className="text-xs text-muted-foreground mt-1">Great job today</p>
+             </div>
+          )}
+        </div>
+
+        {/* Skipped Tasks Toggle */}
+        {sortedTasks.some(t => t.status === 'skipped') && (
+           <div className="pt-2">
+              <button
+                onClick={() => setShowSkippedTasks(!showSkippedTasks)}
+                className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors mx-auto"
+              >
+                {showSkippedTasks ? <EyeOff size={12} /> : <Eye size={12} />}
+                <span>{showSkippedTasks ? 'Hide' : 'Show'} skipped tasks</span>
+              </button>
+           </div>
+        )}
+
+        {/* Skipped Tasks List */}
+        {showSkippedTasks && (
+          <div className="space-y-2 opacity-75">
+            {sortedTasks.filter(t => t.status === 'skipped').map((task) => (
+              <div
+                key={task._id}
+                className="flex items-center gap-3 p-3 rounded-xl bg-secondary/30 border border-border/30 text-muted-foreground"
+              >
+                 <SkipForward size={16} className="text-amber-500" />
+                 <span className="flex-1 text-sm line-through decoration-amber-500/50">{task.title}</span>
+                 <button
+                    onClick={() => handleSkipTask(task._id, true)}
+                    className="p-1.5 hover:bg-secondary rounded-lg text-muted-foreground hover:text-primary transition-colors"
+                  >
+                    <RotateCcw size={14} />
+                 </button>
               </div>
             ))}
           </div>
+        )}
+      </section>
+
+      {/* Metrics Grid */}
+      <section className="grid grid-cols-2 gap-4">
+        {/* Completion Rate */}
+        <div className="p-4 rounded-2xl bg-card border border-border/40 flex flex-col justify-between h-32 relative overflow-hidden group">
+          <div className="flex items-start justify-between relative z-10">
+            <div>
+              <p className="text-xs text-muted-foreground font-medium">Completion</p>
+              <div className="flex items-baseline gap-1 mt-1">
+                <span className="text-xl font-bold">
+                  {Math.round(last7DaysCompletion[last7DaysCompletion.length - 1]?.rate || 0)}%
+                </span>
+                <TrendingUp size={12} className="text-emerald-500" />
+              </div>
+            </div>
+            <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
+              <Target size={14} />
+            </div>
+          </div>
           
-          {/* Today's Progress - Compact */}
-          <div className="mt-4 pt-3 border-t border-border/30">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Today</span>
-              <span className={cn(
-                "text-xs font-medium px-2 py-0.5 rounded-full",
-                streakData.todayValid 
-                  ? "bg-emerald-500/20 text-emerald-400" 
-                  : (streakData.todayRoutineTasks >= 5 && streakData.todayCanBeRestDay)
-                    ? "bg-cyan-500/20 text-cyan-400"
-                    : "bg-orange-500/20 text-orange-400"
-              )}>
-                {streakData.todayValid 
-                  ? (streakData.todayIsRestDay ? "Rest Day ✓" : "Complete ✓") 
-                  : streakData.todayRoutineTasks >= 5 
-                    ? (streakData.todayCanBeRestDay ? "Rest Day OK" : "Need Exercise")
-                    : `${streakData.todayRoutineTasks}/5 tasks`
-                }
-              </span>
-            </div>
-          </div>
-        </section>
-
-        {/* Next Tasks Section */}
-        <section className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold tracking-tight">Next Up</h2>
-            <Link href="/routine" className="text-sm text-primary hover:underline flex items-center gap-1">
-              All Tasks <ChevronRight size={14} />
-            </Link>
-          </div>
-
-          <div className="space-y-2">
-            {(() => {
-              // Filter tasks by status
-              const pendingTasks = optimisticTasks.filter(t => t.status !== 'skipped' && t.status !== 'completed');
-              const skippedTasks = optimisticTasks.filter(t => t.status === 'skipped');
-              
-              // Show first 3 pending tasks
-              const displayTasks = pendingTasks.slice(0, 3);
-              const remainingCount = pendingTasks.length - 3;
-              
-              if (pendingTasks.length === 0 && skippedTasks.length === 0) {
-                return (
-                  <div className="bg-card rounded-2xl border border-emerald-500/30 p-6 text-center">
-                    <CheckCircle2 className="mx-auto mb-2 text-emerald-500" size={32} />
-                    <p className="font-medium text-emerald-500">All done for today! 🎉</p>
-                    <p className="text-sm text-muted-foreground mt-1">You&apos;ve completed all your tasks</p>
-                  </div>
-                );
-              }
-              
-              return (
-                <>
-                  {displayTasks.map((task) => (
-                    <div
-                      key={task._id}
-                      className="w-full flex items-center gap-3 p-4 rounded-2xl bg-card border border-border/50 
-                        hover:border-primary/30 hover:bg-primary/5 transition-all text-left group
-                        animate-in fade-in-0 slide-in-from-bottom-2 duration-200"
-                    >
-                      <button
-                        onClick={() => handleToggleTask(task._id)}
-                        className={`p-2 rounded-xl ${getDomainBg(task.domainId)} active:scale-90 transition-transform`}
-                      >
-                        <Circle size={20} className={getDomainColor(task.domainId)} />
-                      </button>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium truncate">{task.title}</p>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <span className="capitalize">{task.domainId}</span>
-                          {task.timeOfDay && (
-                            <>
-                              <span>•</span>
-                              <span className="capitalize">{task.timeOfDay}</span>
-                            </>
-                          )}
-                          <span>•</span>
-                          <span>{task.points} pts</span>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => handleSkipTask(task._id, false)}
-                        className="p-2 rounded-lg text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10 
-                          transition-all active:scale-90"
-                        title="Skip task"
-                      >
-                        <SkipForward size={18} />
-                      </button>
-                    </div>
-                  ))}
-                  
-                  {/* Show remaining count */}
-                  {remainingCount > 0 && (
-                    <Link 
-                      href="/routine"
-                      className="block text-center py-3 rounded-2xl bg-secondary/30 border border-border/30 
-                        text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-all"
-                    >
-                      +{remainingCount} more task{remainingCount > 1 ? 's' : ''}
-                    </Link>
-                  )}
-                  
-                  {/* Skipped tasks - hidden by default, show in chip like health page */}
-                  {skippedTasks.length > 0 && (
-                    <>
-                      <button
-                        onClick={() => setShowSkippedTasks(!showSkippedTasks)}
-                        className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors px-2.5 py-1.5 rounded-lg bg-secondary/50 hover:bg-secondary"
-                      >
-                        {showSkippedTasks ? <EyeOff size={14} /> : <Eye size={14} />}
-                        {showSkippedTasks ? 'Hide' : 'Show'} skipped ({skippedTasks.length})
-                      </button>
-                      
-                      {showSkippedTasks && (
-                        <div className="space-y-2 opacity-60">
-                          {skippedTasks.map((task) => (
-                            <div
-                              key={task._id}
-                              className="w-full flex items-center gap-3 p-3 rounded-xl bg-amber-500/5 border border-amber-500/10 
-                                text-left group animate-in fade-in-0 duration-200"
-                            >
-                              <div className="flex-1 min-w-0">
-                                <p className="font-medium truncate text-sm">{task.title}</p>
-                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                  <span className="capitalize">{task.domainId}</span>
-                                  {task.timeOfDay && (
-                                    <>
-                                      <span>•</span>
-                                      <span className="capitalize">{task.timeOfDay}</span>
-                                    </>
-                                  )}
-                                  <span>•</span>
-                                  <span>{task.points} pts</span>
-                                </div>
-                              </div>
-                              <button
-                                onClick={() => handleSkipTask(task._id, true)}
-                                className="p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 
-                                  transition-all active:scale-90"
-                                title="Unskip task"
-                              >
-                                <RotateCcw size={16} />
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </>
-                  )}
-                </>
-              );
-            })()}
-          </div>
-        </section>
-
-        {/* Daily Completion Chart */}
-        <section className="p-4 rounded-2xl bg-card border border-border/50">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <Target size={18} className="text-primary" />
-              <h3 className="text-sm font-semibold text-muted-foreground">Completion Rate</h3>
-            </div>
-            <Link href="/reports" className="text-xs text-primary hover:underline">
-              Details
-            </Link>
-          </div>
-          <div className="h-40">
+          <div className="absolute bottom-0 left-0 right-0 h-16 w-full opacity-50 group-hover:opacity-70 transition-opacity">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={last7DaysCompletion}>
                 <defs>
-                  <linearGradient id="completionGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.4} />
+                  <linearGradient id="miniCompletion" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
                     <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <XAxis 
-                  dataKey="day" 
-                  tick={{ fontSize: 11, fill: 'hsl(var(--foreground))', opacity: 0.6 }}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <YAxis 
-                  domain={[0, 100]}
-                  ticks={[0, 25, 50, 75, 100]}
-                  tick={{ fontSize: 11, fill: 'hsl(var(--foreground))', opacity: 0.6 }}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <Tooltip 
-                  contentStyle={{
-                    backgroundColor: 'hsl(var(--popover))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px',
-                    fontSize: '12px'
-                  }}
-                  formatter={(value: number | undefined) => value !== undefined ? [`${value}%`, 'Completion'] : ['', '']}
-                />
                 <Area 
                   type="monotone" 
                   dataKey="rate" 
                   stroke="hsl(var(--primary))" 
                   strokeWidth={2}
-                  fill="url(#completionGradient)" 
+                  fill="url(#miniCompletion)" 
                 />
               </AreaChart>
             </ResponsiveContainer>
           </div>
-        </section>
+        </div>
 
-        {/* Quick Actions */}
-        <section className="bg-card rounded-2xl border border-border/50 p-4">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="p-2 rounded-xl bg-rose-500/10">
-              <Scale size={18} className="text-rose-500" />
-            </div>
-            <h3 className="font-semibold">Log Weight</h3>
+        {/* Quick Weight */}
+        <div className="p-4 rounded-2xl bg-card border border-border/40 flex flex-col h-32 relative overflow-hidden">
+          <div className="flex items-start justify-between relative z-10 mb-2">
+             <div>
+              <p className="text-xs text-muted-foreground font-medium">Weight</p>
+              {!isEditingWeight && todaysWeight ? (
+                <p className="text-xl font-bold mt-1 max-w-[80px] truncate">{todaysWeight.weight} <span className="text-xs font-normal text-muted-foreground">kg</span></p>
+              ) : null}
+            </div> 
+            <button 
+              onClick={isEditingWeight ? () => setIsEditingWeight(false) : startEditingWeight}
+              className="p-1.5 rounded-lg bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 transition-colors"
+            >
+              <Scale size={14} />
+            </button>
           </div>
 
-          {todaysWeight && !isEditingWeight ? (
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-muted-foreground">Today&apos;s Weight</p>
-                <p className="text-2xl font-bold">{todaysWeight.weight} <span className="text-sm font-normal text-muted-foreground">kg</span></p>
-              </div>
-              <button
-                onClick={startEditingWeight}
-                className="p-3 rounded-xl bg-secondary/50 hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
-                title="Edit weight"
-              >
-                <Pencil size={18} />
-              </button>
-            </div>
-          ) : (
-            <form onSubmit={handleLogWeight} className="space-y-3">
-              <div className="flex gap-2">
+          <div className="flex-1 flex items-end relative z-10">
+            {isEditingWeight || !todaysWeight ? (
+              <form onSubmit={handleLogWeight} className="flex gap-2 w-full">
                 <input
                   type="number"
                   step="0.1"
-                  placeholder="Weight in kg"
+                  autoFocus
+                  placeholder="0.0"
                   value={weight}
                   onChange={(e) => setWeight(e.target.value)}
-                  className="flex-1 px-4 py-3 rounded-xl bg-secondary/50 border border-border/50 
-                    focus:outline-none focus:border-primary/50 text-sm"
+                  className="w-full min-w-0 bg-secondary/50 border border-border/50 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-primary/50"
                 />
                 <button
                   type="submit"
                   disabled={!weight || weightLoading}
-                  className={`px-6 py-3 rounded-xl font-medium text-sm transition-all
-                    ${weightSuccess 
-                      ? 'bg-emerald-500 text-white' 
-                      : 'bg-primary text-primary-foreground hover:bg-primary/90'}
-                    disabled:opacity-50 disabled:cursor-not-allowed`}
+                  className="flex-shrink-0 p-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
                 >
-                  {weightLoading ? (
-                    <Loader2 size={18} className="animate-spin" />
-                  ) : weightSuccess ? (
-                    <CheckCircle2 size={18} />
-                  ) : isEditingWeight ? (
-                    'Update'
-                  ) : (
-                    'Log'
-                  )}
+                  {weightLoading ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
                 </button>
-              </div>
-              {isEditingWeight && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsEditingWeight(false);
-                    setWeight('');
-                  }}
-                  className="text-xs text-muted-foreground hover:text-foreground"
-                >
-                  Cancel editing
-                </button>
-              )}
-            </form>
-          )}
-        </section>
-
-        {/* Domain Cards */}
-        <section className="space-y-3">
-          <h2 className="text-lg font-semibold tracking-tight">Domains</h2>
-          
-          <div className="grid gap-3 grid-cols-2 sm:grid-cols-4">
-            {domains.map((domain) => {
-              const Icon = iconMap[domain.icon] || Heart;
-              
-              return (
-                <Link
-                  key={domain.id}
-                  href={`/${domain.id}`}
-                  className={`group relative overflow-hidden p-4 rounded-2xl bg-card border ${domain.border} 
-                    hover:shadow-lg transition-all duration-300 hover:-translate-y-1`}
-                >
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${domain.bg} ${domain.color} mb-2`}>
-                    <Icon size={20} />
-                  </div>
-                  
-                  <h3 className="font-medium text-sm">{domain.name}</h3>
-                  
-                  <ArrowRight 
-                    size={14} 
-                    className="absolute bottom-3 right-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" 
-                  />
-                </Link>
-              );
-            })}
+              </form>
+            ) : (
+                <p className="text-xs text-muted-foreground">Recorded today.</p>
+            )}
           </div>
-        </section>
+        </div>
+      </section>
 
-        {/* Quick Links */}
-        <section className="grid grid-cols-2 gap-3">
-          <Link 
-            href="/routine"
-            className="flex items-center gap-3 p-4 bg-card rounded-2xl border border-border/50 
-              hover:border-primary/30 hover:bg-primary/5 transition-all group"
-          >
-            <Clock size={20} className="text-primary" />
-            <div className="flex-1 min-w-0">
-              <p className="font-medium text-sm">Routine</p>
-              <p className="text-xs text-muted-foreground truncate">Manage habits</p>
-            </div>
-            <ChevronRight size={14} className="text-muted-foreground group-hover:translate-x-1 transition-all" />
-          </Link>
-          
-          <Link 
-            href="/reports"
-            className="flex items-center gap-3 p-4 bg-card rounded-2xl border border-border/50 
-              hover:border-primary/30 hover:bg-primary/5 transition-all group"
-          >
-            <BarChart3 size={20} className="text-primary" />
-            <div className="flex-1 min-w-0">
-              <p className="font-medium text-sm">Reports</p>
-              <p className="text-xs text-muted-foreground truncate">View analytics</p>
-            </div>
-            <ChevronRight size={14} className="text-muted-foreground group-hover:translate-x-1 transition-all" />
-          </Link>
-        </section>
-      </div>
-    </>
+      {/* Navigation Cards */}
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold tracking-tight">Browse</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {domains.map((domain) => {
+             const Icon = iconMap[domain.icon] || Heart;
+             return (
+               <Link
+                 key={domain.id}
+                 href={`/${domain.id}`}
+                 className={`p-4 rounded-2xl bg-card border border-border/40 hover:border-${domain.color.replace('text-', '')}/50 transition-all group`}
+               >
+                 <div className={`w-9 h-9 rounded-xl ${domain.bg} ${domain.color} flex items-center justify-center mb-3 group-hover:scale-110 transition-transform`}>
+                   <Icon size={18} />
+                 </div>
+                 <h3 className="font-medium text-sm">{domain.name}</h3>
+                 <p className="text-[10px] text-muted-foreground mt-1">View Details</p>
+               </Link>
+             )
+          })}
+        </div>
+      </section>
+    </div>
   );
 }
+
+// Temporary Icon Helpers
+const Heart = ({ size, className }: { size?: number, className?: string }) => (
+  <svg 
+    width={size} 
+    height={size} 
+    viewBox="0 0 24 24" 
+    fill="none" 
+    stroke="currentColor" 
+    strokeWidth="2" 
+    strokeLinecap="round" 
+    strokeLinejoin="round" 
+    className={className}
+  >
+    <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+  </svg>
+);

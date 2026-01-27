@@ -2,596 +2,452 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import {
-  ArrowLeft,
-  TrendingUp,
-  TrendingDown,
-  Activity,
-  Scale,
-  Smile,
-  Frown,
-  Meh,
-  Target,
-  Flame,
-  Leaf,
+import { 
+  ArrowLeft, Activity, Scale, Smile, Flame, 
+  TrendingUp, TrendingDown, Leaf, Dumbbell, 
+  Calendar, Timer, Trophy
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import {
-  LineChart,
-  Line,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
+import { 
+  LineChart, Line, BarChart, Bar, XAxis, YAxis, 
+  CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area 
 } from 'recharts';
 import ShareableHealthReport from './ShareableHealthReport';
 import { getHealthReport } from '../../actions/reports';
+import MuscleMap from '@/components/MuscleMap';
 
 const PERIODS = [
-  { value: 'last7Days', label: '7 Days' },
-  { value: 'last14Days', label: '14 Days' },
-  { value: 'thisWeek', label: 'This Week' },
-  { value: 'lastWeek', label: 'Last Week' },
-  { value: 'thisMonth', label: 'This Month' },
-  { value: 'lastMonth', label: 'Last Month' },
-  { value: 'last3Months', label: '3 Months' },
-  { value: 'last6Months', label: '6 Months' },
-  { value: 'thisYear', label: 'This Year' },
+  { value: 'last7Days', label: '7D' },
+  { value: 'last14Days', label: '14D' },
+  { value: 'thisWeek', label: 'Week' },
+  { value: 'thisMonth', label: 'Month' },
+  { value: 'last3Months', label: '3M' },
+  { value: 'thisYear', label: 'Year' },
 ];
 
-interface HealthReportData {
-  summary: any;
-  muscleWork: Array<{ muscle: string; count: number }>;
-  exercisesByType: Array<{ count: number; totalSets: number; totalReps: number; totalWeight: number; name: string }>;
-  weightLogs: Array<{ date: string; weight: number }>;
-  moodDistribution: Record<string, number>;
-  moodLogs: Array<{ date: string; mood: string }>;
-  dailyExercise: Array<{ date: string; sessions: number; sets: number }>;
+function TrendBadge({ value, suffix = '' }: { value: number; suffix?: string }) {
+  if (value === 0) return null;
+  const isPositive = value > 0;
+  return (
+    <span className={cn(
+      'inline-flex items-center gap-0.5 text-[10px] font-medium',
+      isPositive ? 'text-emerald-500' : 'text-rose-500'
+    )}>
+      {isPositive ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
+      {isPositive ? '+' : ''}{value}{suffix}
+    </span>
+  );
 }
 
-function MoodIcon({ mood, size = 16 }: { mood: string; size?: number }) {
-  const icons: Record<string, { icon: typeof Smile; color: string }> = {
-    great: { icon: Smile, color: 'text-emerald-500' },
-    good: { icon: Smile, color: 'text-green-500' },
-    okay: { icon: Meh, color: 'text-amber-500' },
-    low: { icon: Frown, color: 'text-orange-500' },
-    bad: { icon: Frown, color: 'text-rose-500' },
+function StatCard({ 
+  label, 
+  value, 
+  icon: Icon, 
+  change, 
+  color = 'primary' 
+}: { 
+  label: string; 
+  value: string | number; 
+  icon: any; 
+  change?: number;
+  color?: string;
+}) {
+  const colorMap: Record<string, string> = {
+    primary: 'text-primary',
+    rose: 'text-rose-500',
+    amber: 'text-amber-500',
+    emerald: 'text-emerald-500',
+    blue: 'text-blue-500',
+    orange: 'text-orange-500',
   };
-  
-  const { icon: Icon, color } = icons[mood] || icons.okay;
-  return <Icon size={size} className={color} />;
-}
+  const textColor = colorMap[color] || 'text-foreground';
 
-function MuscleHeatmap({ muscleWork }: { muscleWork: Array<{ muscle: string; count: number }> }) {
-  const maxCount = Math.max(...muscleWork.map(m => m.count), 1);
-  
-  const upperBody = ['Chest', 'Back', 'Shoulders', 'Traps', 'Lats'];
-  const arms = ['Biceps', 'Triceps', 'Forearms'];
-  const core = ['Abs', 'Obliques'];
-  const lowerBody = ['Quads', 'Hamstrings', 'Glutes', 'Calves'];
-  const other = ['Cardio'];
-  
-  const groups = [
-    { name: 'Upper Body', muscles: upperBody },
-    { name: 'Arms', muscles: arms },
-    { name: 'Core', muscles: core },
-    { name: 'Lower Body', muscles: lowerBody },
-    { name: 'Other', muscles: other },
-  ];
-  
   return (
-    <div className="bg-card border border-border/50 rounded-2xl p-4 md:p-5">
-      <h3 className="font-semibold mb-4">Muscle Groups Worked</h3>
-      <div className="space-y-4">
-        {groups.map((group) => {
-          const groupMuscles = muscleWork.filter(m => group.muscles.includes(m.muscle));
-          if (groupMuscles.length === 0 && !group.muscles.some(m => muscleWork.find(mw => mw.muscle === m))) {
-            return null;
-          }
-          
-          return (
-            <div key={group.name}>
-              <p className="text-sm text-muted-foreground mb-2">{group.name}</p>
-              <div className="flex flex-wrap gap-2">
-                {group.muscles.map((muscle) => {
-                  const data = muscleWork.find(m => m.muscle === muscle);
-                  const intensity = data ? data.count / maxCount : 0;
-                  
-                  return (
-                    <div
-                      key={muscle}
-                      className={cn(
-                        'px-3 py-1.5 rounded-lg text-sm font-medium transition-colors',
-                        intensity === 0 && 'bg-secondary/50 text-muted-foreground',
-                        intensity > 0 && intensity <= 0.33 && 'bg-rose-500/20 text-rose-400',
-                        intensity > 0.33 && intensity <= 0.66 && 'bg-rose-500/40 text-rose-300',
-                        intensity > 0.66 && 'bg-rose-500 text-white'
-                      )}
-                    >
-                      {muscle} {data ? `(${data.count})` : ''}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
+    <div className="bg-card border border-border/40 rounded-xl p-5 hover:border-border/80 transition-all shadow-sm">
+      <div className="flex items-center justify-between mb-4">
+        <Icon size={16} className={cn("opacity-80", textColor)} />
+        {change !== undefined && change !== 0 && (
+          <TrendBadge value={change} />
+        )}
       </div>
+      <p className="text-2xl font-bold tracking-tight">{value}</p>
+      <p className="text-[11px] font-medium text-muted-foreground mt-1 uppercase tracking-wide">{label}</p>
     </div>
   );
 }
 
-function WeightTrendChart({ data }: { data: Array<{ date: string; weight: number }> }) {
-  if (data.length === 0) return null;
-  
-  const weights = data.map(d => d.weight);
-  const minWeight = Math.min(...weights) - 0.5;
-  const maxWeight = Math.max(...weights) + 0.5;
-  
-  const chartData = data.map(d => {
-    const dateObj = new Date(d.date);
-    return {
-      date: dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-      weight: d.weight,
-      fullDate: d.date,
-    };
-  });
-  
+// Minimalist Tooltip
+function MinimalTooltip({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null;
   return (
-    <div className="bg-card border border-border/50 rounded-2xl p-4 md:p-5">
-      <h3 className="font-semibold mb-4">Weight Trend</h3>
-      <div className="h-48">
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={chartData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
-            <XAxis 
-              dataKey="date" 
-              tick={{ fontSize: 10, fill: 'hsl(var(--foreground))', opacity: 0.6 }}
-              tickLine={false}
-              axisLine={false}
-            />
-            <YAxis 
-              domain={[minWeight, maxWeight]}
-              tick={{ fontSize: 10, fill: 'hsl(var(--foreground))', opacity: 0.6 }}
-              tickLine={false}
-              axisLine={false}
-              tickFormatter={(v) => `${v}kg`}
-              width={45}
-            />
-            <Tooltip 
-              contentStyle={{ 
-                backgroundColor: 'hsl(var(--card))', 
-                border: '1px solid hsl(var(--border))',
-                borderRadius: '8px',
-                fontSize: '12px',
-              }}
-              formatter={(value) => [`${value}kg`, 'Weight']}
-              labelFormatter={(_label, payload) => payload?.[0]?.payload?.fullDate || _label}
-            />
-            <Line 
-              type="monotone" 
-              dataKey="weight" 
-              stroke="#22d3ee"
-              strokeWidth={2}
-              dot={{ fill: '#22d3ee', strokeWidth: 0, r: 3 }}
-              activeDot={{ r: 5, fill: '#22d3ee' }}
-            />
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
-    </div>
-  );
-}
-
-function ExerciseSessionsChart({ data }: { data: Array<{ date: string; sessions: number; sets: number }> }) {
-  // Only show days that have at least some activity in the period
-  const filteredData = data.filter(d => d.sessions > 0);
-  if (filteredData.length === 0) return null;
-  
-  const chartData = filteredData.map(d => {
-    const dateObj = new Date(d.date);
-    return {
-      day: dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-      sessions: d.sessions,
-      sets: d.sets,
-      date: d.date,
-    };
-  });
-  
-  return (
-    <div className="bg-card border border-border/50 rounded-2xl p-4 md:p-5">
-      <h3 className="font-semibold mb-4">Workout Sessions</h3>
-      <div className="h-48">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={chartData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} vertical={false} />
-            <XAxis 
-              dataKey="day" 
-              tick={{ fontSize: 10, fill: 'hsl(var(--foreground))', opacity: 0.6 }}
-              tickLine={false}
-              axisLine={false}
-            />
-            <YAxis 
-              tick={{ fontSize: 10, fill: 'hsl(var(--foreground))', opacity: 0.6 }}
-              tickLine={false}
-              axisLine={false}
-              width={25}
-              allowDecimals={false}
-            />
-            <Tooltip 
-              contentStyle={{ 
-                backgroundColor: 'hsl(var(--card))', 
-                border: '1px solid hsl(var(--border))',
-                borderRadius: '8px',
-                fontSize: '12px',
-              }}
-              formatter={(value, name) => [
-                name === 'sessions' ? `${value} exercises` : `${value} sets`,
-                name === 'sessions' ? 'Exercises' : 'Sets'
-              ]}
-              labelFormatter={(_label, payload) => payload?.[0]?.payload?.date || _label}
-            />
-            <Bar 
-              dataKey="sessions" 
-              fill="#f43f5e"
-              radius={[4, 4, 0, 0]}
-            />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-    </div>
-  );
-}
-
-function MoodChart({ data, distribution }: { data: Array<{ date: string; mood: string }>; distribution: Record<string, number> }) {
-  const moodColors: Record<string, string> = {
-    great: 'bg-emerald-500',
-    good: 'bg-green-500',
-    okay: 'bg-amber-500',
-    low: 'bg-orange-500',
-    bad: 'bg-rose-500',
-  };
-  
-  const total = Object.values(distribution).reduce((acc, v) => acc + v, 0);
-  
-  return (
-    <div className="bg-card border border-border/50 rounded-2xl p-4 md:p-5">
-      <h3 className="font-semibold mb-4">Mood Distribution</h3>
-      
-      {total > 0 ? (
-        <>
-          <div className="space-y-2 mb-4">
-            {['great', 'good', 'okay', 'low', 'bad'].map((mood) => {
-              const count = distribution[mood] || 0;
-              const percentage = total > 0 ? (count / total) * 100 : 0;
-              
-              return (
-                <div key={mood} className="flex items-center gap-3">
-                  <div className="w-16 flex items-center gap-1.5">
-                    <MoodIcon mood={mood} size={14} />
-                    <span className="text-xs capitalize">{mood}</span>
-                  </div>
-                  <div className="flex-1 h-4 bg-secondary rounded-full overflow-hidden">
-                    <div
-                      className={cn('h-full rounded-full transition-all duration-500', moodColors[mood])}
-                      style={{ width: `${percentage}%` }}
-                    />
-                  </div>
-                  <span className="text-xs font-medium w-8 text-right">{count}</span>
-                </div>
-              );
-            })}
-          </div>
-          
-          {data.length > 0 && (
-            <div className="pt-4 border-t border-border/50">
-              <p className="text-sm text-muted-foreground mb-2">Recent Days</p>
-              <div className="flex gap-1 flex-wrap">
-                {data.slice(-14).map((day, i) => (
-                  <div
-                    key={i}
-                    className={cn(
-                      'w-8 h-8 rounded-lg flex items-center justify-center',
-                      moodColors[day.mood] + '/20'
-                    )}
-                    title={`${day.date}: ${day.mood}`}
-                  >
-                    <MoodIcon mood={day.mood} size={16} />
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </>
-      ) : (
-        <p className="text-muted-foreground text-sm">No mood data for this period</p>
-      )}
-    </div>
-  );
-}
-
-function WorkoutStreakCard({ dailyExercise, workoutStreak }: { dailyExercise: Array<{ date: string; sessions: number }>; workoutStreak: number }) {
-  // Calculate which days are workout days and which are valid rest days
-  const last7Days = dailyExercise.slice(-7);
-  const daysWithStatus = last7Days.map((day, index, array) => {
-    const hasWorkout = day.sessions > 0;
-    
-    // Check if this is a valid rest day (no workout but after 2 consecutive workout days)
-    let isRestDay = false;
-    if (!hasWorkout && index > 0) {
-      // Count consecutive workout days before this day
-      let consecutiveWorkouts = 0;
-      for (let i = index - 1; i >= 0; i--) {
-        if (array[i].sessions > 0) {
-          consecutiveWorkouts++;
-        } else {
-          break;
-        }
-      }
-      isRestDay = consecutiveWorkouts >= 2;
-    }
-    
-    return { ...day, hasWorkout, isRestDay };
-  });
-  
-  const totalWorkoutDays = last7Days.filter(d => d.sessions > 0).length;
-  const workoutPercentage = Math.round((totalWorkoutDays / 7) * 100);
-  
-  return (
-    <div className="bg-card border border-border/50 rounded-2xl p-4 md:p-5">
-      <div className="flex items-center gap-2 mb-4">
-        <Flame size={18} className="text-orange-500" />
-        <h3 className="font-semibold">Workout Streak</h3>
-      </div>
-      
-      <div className="flex items-center gap-6 mb-4">
-        <div>
-          <p className="text-3xl font-bold text-orange-500">{workoutStreak}</p>
-          <p className="text-sm text-muted-foreground">day streak</p>
+    <div className="bg-popover border border-border/50 rounded-lg px-3 py-2 shadow-xl">
+      <p className="text-[10px] font-semibold text-foreground mb-1 border-b border-border/30 pb-1">{label}</p>
+      {payload.map((entry: any, i: number) => (
+        <div key={i} className="flex items-center justify-between gap-3 text-[10px] text-muted-foreground">
+          <span className="flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: entry.color }} />
+            {entry.name}
+          </span>
+          <span className="font-mono font-medium text-foreground">{entry.value}</span>
         </div>
-        <div className="h-12 w-px bg-border" />
-        <div>
-          <p className="text-3xl font-bold">{totalWorkoutDays}/7</p>
-          <p className="text-sm text-muted-foreground">last 7 days ({workoutPercentage}%)</p>
-        </div>
+      ))}
+    </div>
+  );
+}
+
+function LoadingSkeleton() {
+  return (
+    <div className="space-y-6 pb-24 animate-pulse max-w-5xl mx-auto">
+      <div className="flex items-center justify-between">
+        <div className="w-32 h-8 bg-muted rounded" />
+        <div className="w-24 h-8 bg-muted rounded" />
       </div>
-      
-      <div className="flex justify-between gap-1 mb-2">
-        {daysWithStatus.map((day, i) => (
-          <div key={i} className="flex flex-col items-center gap-1">
-            <div
-              className={cn(
-                'w-8 h-8 rounded-full flex items-center justify-center',
-                day.hasWorkout
-                  ? 'bg-orange-500'
-                  : day.isRestDay
-                  ? 'bg-emerald-500'
-                  : 'bg-secondary/50'
-              )}
-              title={`${day.date}: ${day.hasWorkout ? day.sessions + ' exercises' : day.isRestDay ? 'Rest day' : 'No activity'}`}
-            >
-              {day.hasWorkout ? (
-                <Flame size={14} className="text-white" />
-              ) : day.isRestDay ? (
-                <Leaf size={14} className="text-white" />
-              ) : null}
-            </div>
-            <span className="text-[10px] text-muted-foreground">
-              {new Date(day.date).toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 2)}
-            </span>
-          </div>
+      <div className="flex gap-2">
+        {[1, 2, 3, 4, 5, 6].map(i => (
+          <div key={i} className="w-12 h-8 bg-muted rounded-lg" />
         ))}
       </div>
-      
-      <p className="text-xs text-muted-foreground">
-        💡 Rest days allowed after 2 consecutive workout days
-      </p>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {[1, 2, 3, 4].map(i => (
+          <div key={i} className="h-28 bg-muted rounded-xl" />
+        ))}
+      </div>
+      <div className="h-64 bg-muted rounded-xl" />
     </div>
   );
 }
 
 export default function HealthReportClient() {
   const [period, setPeriod] = useState('last7Days');
-  const [data, setData] = useState<HealthReportData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchData() {
-      setIsLoading(true);
+      setLoading(true);
       try {
         const result = await getHealthReport(period);
         setData(result);
       } catch (error) {
         console.error('Failed to fetch health report:', error);
       } finally {
-        setIsLoading(false);
+        setLoading(false);
       }
     }
     fetchData();
   }, [period]);
 
-  const handlePeriodChange = (newPeriod: string) => {
-    setPeriod(newPeriod);
-  };
+  if (loading) return <LoadingSkeleton />;
+  if (!data) return <div className="text-center py-12 text-muted-foreground">Failed to load report</div>;
 
-  if (isLoading || !data) {
-    return (
-      <div className="space-y-6 pb-24">
-        <div className="flex items-center gap-3">
-          <Link
-            href="/reports"
-            className="p-2 rounded-xl bg-secondary hover:bg-secondary/80 transition-colors"
-          >
-            <ArrowLeft size={18} />
-          </Link>
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Health Report</h1>
-            <p className="text-muted-foreground mt-1">Loading...</p>
-          </div>
-        </div>
-        
-        <div className="flex flex-wrap gap-2">
-          {PERIODS.map((p) => (
-            <button
-              key={p.value}
-              onClick={() => handlePeriodChange(p.value)}
-              disabled={isLoading}
-              className={cn(
-                'px-4 py-2 rounded-xl text-sm font-medium transition-all',
-                period === p.value
-                  ? 'bg-primary text-primary-foreground shadow-sm'
-                  : 'bg-secondary text-muted-foreground hover:bg-secondary/80'
-              )}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
+  const { summary, muscleWork, weightLogs, dailyExercise } = data;
+  
+  // Format data
+  const workoutChartData = dailyExercise?.map((d: any) => ({
+    date: new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    fullDate: new Date(d.date).toLocaleDateString(),
+    shortDate: new Date(d.date).toLocaleDateString('en-US', { weekday: 'short' }),
+    sessions: d.sessions,
+    sets: d.sets,
+  })) || [];
 
-        <div className="grid gap-4 md:grid-cols-4">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="bg-card border rounded-2xl p-5 animate-pulse">
-              <div className="w-24 h-6 bg-muted rounded mb-2" />
-              <div className="w-16 h-8 bg-muted rounded" />
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
+  const weightChartData = weightLogs?.map((d: any) => ({
+    date: new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    weight: d.weight,
+  })) || [];
 
-  const { summary, muscleWork, weightLogs, moodDistribution, moodLogs, dailyExercise } = data;
+  // Streak logic
+  const last7Days = dailyExercise?.slice(-7) || [];
+  const daysWithStatus = last7Days.map((day: any, index: number, array: any[]) => {
+    const hasWorkout = day.sessions > 0;
+    let isRestDay = false;
+    if (!hasWorkout && index > 0) {
+      // Simple check for previous workout
+      let consecutiveWorkouts = 0;
+      for (let i = index - 1; i >= 0; i--) {
+        if (array[i].sessions > 0) consecutiveWorkouts++;
+        else break;
+      }
+      isRestDay = consecutiveWorkouts >= 1;
+    }
+    return { ...day, hasWorkout, isRestDay };
+  });
+
+  // Muscle Visualization Data
+  const topMuscles = muscleWork?.slice(0, 10) || [];
+  const allMuscleCounts = muscleWork?.map((m: any) => m.count) || [];
+  const maxMuscleCount = Math.max(...allMuscleCounts, 1);
+  
+  const muscleScores = (muscleWork || []).reduce((acc: Record<string, number>, curr: any) => {
+    acc[curr.muscle.toLowerCase()] = curr.count / maxMuscleCount;
+    return acc;
+  }, {});
 
   return (
-    <div className="space-y-6 pb-24">
+    <div className="space-y-6 pb-24 max-w-5xl mx-auto">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <Link
-            href={`/reports?period=${period}`}
-            className="p-2 rounded-xl bg-secondary hover:bg-secondary/80 transition-colors"
-          >
-            <ArrowLeft size={18} />
+          <Link href="/reports" className="group p-2 -ml-2 rounded-lg hover:bg-secondary/50 transition-colors">
+            <ArrowLeft size={20} className="text-muted-foreground group-hover:text-foreground transition-colors" />
           </Link>
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Health Report</h1>
-            <p className="text-muted-foreground mt-1">
-              Track your fitness journey and wellness
-            </p>
+            <h1 className="text-2xl font-bold tracking-tight">Health Report</h1>
+            <p className="text-sm text-muted-foreground">Fitness analytics</p>
           </div>
         </div>
         
         <div className="flex items-center gap-3">
-          <ShareableHealthReport 
-            data={data} 
-            period={period} 
-            periodLabel={PERIODS.find(p => p.value === period)?.label || period}
-          />
+           {/* Period Selector */}
+           <div className="flex gap-1 p-1 bg-secondary/50 rounded-lg border border-border/40 overflow-x-auto">
+            {PERIODS.map((p) => (
+              <button
+                key={p.value}
+                onClick={() => setPeriod(p.value)}
+                className={cn(
+                  'px-3 py-1.5 rounded-md text-[10px] font-medium transition-all whitespace-nowrap uppercase tracking-wide',
+                  period === p.value
+                    ? 'bg-background text-foreground shadow-sm border border-border/20'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-background/50'
+                )}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+          <ShareableHealthReport data={data} period={period} periodLabel={PERIODS.find(p => p.value === period)?.label || period} />
         </div>
       </div>
-      
-      {/* Period Selector */}
-      <div className="flex flex-wrap gap-2">
-        {PERIODS.map((p) => (
-          <button
-            key={p.value}
-            onClick={() => handlePeriodChange(p.value)}
-            className={cn(
-              'px-3 py-1.5 rounded-lg text-sm font-medium transition-colors',
-              period === p.value
-                ? 'bg-rose-500 text-white'
-                : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+
+      {/* Stats Grid */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <StatCard
+          label="Sessions"
+          value={summary.totalExerciseSessions}
+          icon={Dumbbell}
+          change={summary.sessionChange}
+          color="orange"
+        />
+        <StatCard
+          label="Weight"
+          value={summary.currentWeight ? `${summary.currentWeight}kg` : '—'}
+          icon={Scale}
+          change={summary.weightChange}
+          color="blue"
+        />
+        <StatCard
+          label="Avg Mood"
+          value={summary.avgMood > 0 ? `${summary.avgMood}/5` : '—'}
+          icon={Smile}
+          color="emerald"
+        />
+        <StatCard
+          label="Tasks"
+          value={`${summary.healthTasksCompletionRate}%`}
+          icon={Activity}
+          color="rose"
+        />
+      </div>
+
+      <div className="grid md:grid-cols-3 gap-4">
+        {/* Workout Streak - Spans 2 cols */}
+        <div className="md:col-span-2 bg-card border border-border/40 rounded-xl p-6 relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-6 opacity-5">
+             <Flame size={120} />
+          </div>
+          
+          <div className="flex items-start justify-between mb-8 relative z-10">
+            <div>
+               <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Consistency</h3>
+               <div className="flex items-baseline gap-2">
+                 <span className="text-4xl font-bold tracking-tight">{summary.workoutStreak}</span>
+                 <span className="text-sm text-muted-foreground font-medium">day streak</span>
+               </div>
+            </div>
+            <div className="text-right">
+              <div className="text-2xl font-bold text-orange-500">
+                {last7Days.filter((d: any) => d.sessions > 0).length}<span className="text-muted-foreground text-sm font-medium">/7</span>
+              </div>
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Last 7 Days</div>
+            </div>
+          </div>
+          
+          <div className="flex justify-between items-end gap-2 relative z-10 h-16">
+            {daysWithStatus.map((day: any, i: number) => (
+              <div key={i} className="flex flex-col items-center gap-2 flex-1 group">
+                 <div className="relative w-full flex justify-center">
+                    <div className={cn(
+                      'w-8 h-8 rounded-full flex items-center justify-center transition-all duration-500',
+                      day.hasWorkout ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20' : 
+                      day.isRestDay ? 'bg-emerald-500/10 text-emerald-500 ring-1 ring-emerald-500/50' : 
+                      'bg-secondary text-muted-foreground'
+                    )}>
+                      {day.hasWorkout ? <Flame size={14} fill="currentColor" /> : 
+                       day.isRestDay ? <Leaf size={14} /> : 
+                       <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/30" />}
+                    </div>
+                    {/* Tooltip for day */}
+                    <div className="absolute bottom-full mb-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none bg-popover border border-border text-[10px] px-2 py-1 rounded whitespace-nowrap z-20">
+                      {day.hasWorkout ? `${day.sessions} sessions` : day.isRestDay ? 'Rest Day' : 'No Activity'}
+                    </div>
+                 </div>
+                <span className="text-[10px] font-medium text-muted-foreground uppercase">
+                  {new Date(day.date).toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 2)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Quick Stats / Info */}
+        <div className="bg-card border border-border/40 rounded-xl p-6 flex flex-col justify-between">
+            <div>
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4">Insights</h3>
+               <div className="space-y-4">
+                 <div className="flex items-center gap-3">
+                   <div className="p-2 rounded-lg bg-orange-500/10 text-orange-500"><Trophy size={16} /></div>
+                   <div>
+                     <p className="text-xs text-muted-foreground">Most trained</p>
+                     <p className="font-medium capitalize">{topMuscles[0]?.muscle || '—'}</p>
+                   </div>
+                 </div>
+                 <div className="flex items-center gap-3">
+                   <div className="p-2 rounded-lg bg-blue-500/10 text-blue-500"><Timer size={16} /></div>
+                   <div>
+                     <p className="text-xs text-muted-foreground">Active Time</p>
+                     <p className="font-medium">~{Math.round(summary.totalExerciseSessions * 45)} mins</p>
+                   </div>
+                 </div>
+               </div>
+            </div>
+            <div className="mt-4 pt-4 border-t border-border/40">
+               <p className="text-[10px] text-muted-foreground leading-relaxed">
+                 <span className="text-emerald-500 font-medium">Tip:</span> Rest days are earned after at least 1 consecutive workout day to maximize recovery.
+               </p>
+            </div>
+        </div>
+      </div>
+
+      {/* Muscle Focus Visualization */}
+      <div className="bg-card border border-border/40 rounded-xl p-0 overflow-hidden">
+        <div className="p-5 border-b border-border/40 flex items-center justify-between">
+           <h3 className="font-semibold flex items-center gap-2">
+             <Activity size={16} className="text-rose-500" />
+             <span className="text-sm">Muscle Focus Distribution</span>
+           </h3>
+           <span className="text-[10px] text-muted-foreground uppercase tracking-wide">
+             {topMuscles.length} Muscle Groups Targeted
+           </span>
+        </div>
+        
+        <div className="grid lg:grid-cols-2">
+          {/* Left: Anatomical Map */}
+          <div className="bg-background/50 p-6 flex items-center justify-center border-b lg:border-b-0 lg:border-r border-border/40 min-h-[300px]">
+            {muscleWork && muscleWork.length > 0 ? (
+               <div className="scale-125 transform transition-transform hover:scale-150 duration-700">
+                  <MuscleMap muscleScores={muscleScores} />
+               </div>
+            ) : (
+               <div className="text-center text-muted-foreground text-sm">
+                 No muscle data recorded for this period
+               </div>
             )}
-          >
-            {p.label}
-          </button>
-        ))}
-      </div>
+          </div>
 
-      {/* Summary Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-        <div className="bg-card border border-border/50 rounded-2xl p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <Activity size={16} className="text-rose-500" />
-            <span className="text-sm text-muted-foreground">Exercises</span>
+          {/* Right: Comparative Chart */}
+          <div className="p-6">
+             <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-6">Volume by Muscle Group</h4>
+             <div className="space-y-4">
+                {topMuscles.map((item: any, i: number) => (
+                  <div key={i} className="group">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-sm font-medium capitalize flex items-center gap-2">
+                         <span className="w-1.5 h-1.5 rounded-full bg-rose-500/50"></span>
+                         {item.muscle}
+                      </span>
+                      <span className="text-xs font-mono text-muted-foreground">{item.count} sets</span>
+                    </div>
+                    <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                       <div 
+                         className="h-full bg-rose-500 rounded-full transition-all duration-1000 ease-out group-hover:bg-rose-400"
+                         style={{ width: `${(item.count / maxMuscleCount) * 100}%` }}
+                       />
+                    </div>
+                  </div>
+                ))}
+                {topMuscles.length === 0 && (
+                   <p className="text-sm text-muted-foreground italic">Start logging sets to see your muscle breakdown.</p>
+                )}
+             </div>
           </div>
-          <p className="text-2xl font-bold">{summary.totalExerciseSessions}</p>
-          {summary.sessionChange !== 0 && (
-            <p className={cn(
-              'text-xs flex items-center gap-1 mt-1',
-              summary.sessionChange > 0 ? 'text-emerald-500' : 'text-rose-500'
-            )}>
-              {summary.sessionChange > 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-              {summary.sessionChange > 0 ? '+' : ''}{summary.sessionChange} vs prev
-            </p>
-          )}
-        </div>
-        
-        <div className="bg-card border border-border/50 rounded-2xl p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <Scale size={16} className="text-cyan-500" />
-            <span className="text-sm text-muted-foreground">Current Weight</span>
-          </div>
-          <p className="text-2xl font-bold">
-            {summary.currentWeight ? `${summary.currentWeight}kg` : 'N/A'}
-          </p>
-          {summary.weightChange !== 0 && (
-            <p className={cn(
-              'text-xs flex items-center gap-1 mt-1',
-              summary.weightChange < 0 ? 'text-emerald-500' : 'text-amber-500'
-            )}>
-              {summary.weightChange > 0 ? '+' : ''}{summary.weightChange}kg
-            </p>
-          )}
-        </div>
-        
-        <div className="bg-card border border-border/50 rounded-2xl p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <Smile size={16} className="text-amber-500" />
-            <span className="text-sm text-muted-foreground">Avg Mood</span>
-          </div>
-          <p className="text-2xl font-bold">
-            {summary.avgMood > 0 ? summary.avgMood.toFixed(1) : 'N/A'}
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">/5</p>
-        </div>
-        
-        <div className="bg-card border border-border/50 rounded-2xl p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <Target size={16} className="text-emerald-500" />
-            <span className="text-sm text-muted-foreground">Tasks Done</span>
-          </div>
-          <p className="text-2xl font-bold">{summary.healthTasksCompletionRate}%</p>
-          <p className="text-xs text-muted-foreground mt-1">completion rate</p>
         </div>
       </div>
-
-      {/* Workout Streak */}
-      {dailyExercise && dailyExercise.length > 0 && (
-        <WorkoutStreakCard dailyExercise={dailyExercise} workoutStreak={summary.workoutStreak || 0} />
-      )}
 
       {/* Charts Row */}
       <div className="grid md:grid-cols-2 gap-4">
-        {dailyExercise && dailyExercise.length > 0 && (
-          <ExerciseSessionsChart data={dailyExercise} />
+        {/* Workout Sessions */}
+        {workoutChartData.length > 0 && (
+          <div className="bg-card border border-border/40 rounded-xl p-5">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-6">Workout Volume</h3>
+            <div className="h-48">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={workoutChartData} barSize={32}>
+                  <XAxis 
+                     dataKey="shortDate" 
+                     tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} 
+                     axisLine={false} 
+                     tickLine={false} 
+                     dy={10}
+                  />
+                  <Tooltip content={<MinimalTooltip />} cursor={{ fill: 'var(--secondary)', opacity: 0.3 }} />
+                  <Bar 
+                    dataKey="sessions" 
+                    fill="hsl(var(--orange-500))" 
+                    radius={[4, 4, 0, 0]} 
+                    name="Sessions"
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
         )}
-        {weightLogs && weightLogs.length > 0 && (
-          <WeightTrendChart data={weightLogs} />
+
+        {/* Weight Trend */}
+        {weightChartData.length > 0 && (
+          <div className="bg-card border border-border/40 rounded-xl p-5">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-6">Weight Trend</h3>
+            <div className="h-48">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={weightChartData}>
+                  <defs>
+                    <linearGradient id="weightGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="hsl(var(--blue-500))" stopOpacity={0.2} />
+                      <stop offset="95%" stopColor="hsl(var(--blue-500))" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis 
+                     dataKey="date" 
+                     tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} 
+                     axisLine={false} 
+                     tickLine={false} 
+                     dy={10}
+                  />
+                  <Tooltip content={<MinimalTooltip />} />
+                  <Area 
+                    type="monotone" 
+                    dataKey="weight" 
+                    stroke="hsl(var(--blue-500))" 
+                    strokeWidth={2} 
+                    fill="url(#weightGradient)" 
+                    name="kg"
+                    dot={{ r: 3, fill: 'hsl(var(--blue-500))', strokeWidth: 0 }}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
         )}
       </div>
-
-      {/* Muscle Heatmap & Mood */}
-      <div className="grid md:grid-cols-2 gap-4">
-        {muscleWork && muscleWork.length > 0 && (
-          <MuscleHeatmap muscleWork={muscleWork} />
-        )}
-        <MoodChart data={moodLogs || []} distribution={moodDistribution || {}} />
-      </div>
-
     </div>
   );
 }

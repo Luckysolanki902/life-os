@@ -1,4 +1,4 @@
-import ReportsClient from './ReportsClient-new';
+import ReportsClient from './ReportsClient';
 
 export default function ReportsPage() {
   return <ReportsClient />;

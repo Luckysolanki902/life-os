@@ -19,6 +19,8 @@ import {
   BookOpen,
   Calendar,
   X,
+  Layers,
+  Sparkles
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -63,10 +65,10 @@ const CHART_COLORS = [
 function CustomTooltip({ active, payload, label }: any) {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-popover border border-border px-3 py-2 rounded-lg shadow-lg">
-        <p className="text-sm font-medium mb-1">{label}</p>
+      <div className="bg-popover border border-border/50 px-3 py-2 rounded-lg shadow-xl text-xs">
+        <p className="font-semibold mb-1">{label}</p>
         {payload.map((p: any, i: number) => (
-          <p key={i} className="text-xs" style={{ color: p.color }}>
+          <p key={i} style={{ color: p.color }}>
             {p.name}: {p.value} {p.name === 'minutes' ? 'min' : ''}
           </p>
         ))}
@@ -97,17 +99,17 @@ function FilterDropdown({
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3 py-2 rounded-xl bg-secondary hover:bg-secondary/80 transition-colors text-sm"
+        className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border/40 hover:bg-secondary/40 transition-colors text-xs font-medium"
       >
         {selected && (
           <div 
-            className="w-2.5 h-2.5 rounded-full" 
+            className="w-2 h-2 rounded-full" 
             style={{ backgroundColor: selected.color || '#f59e0b' }}
           />
         )}
         <span className="text-muted-foreground">{label}:</span>
-        <span className="font-medium">{selected?.name || placeholder}</span>
-        <ChevronDown size={14} className={cn('transition-transform', isOpen && 'rotate-180')} />
+        <span className="text-foreground">{selected?.name || placeholder}</span>
+        <ChevronDown size={12} className={cn('text-muted-foreground transition-transform', isOpen && 'rotate-180')} />
       </button>
       
       {isOpen && (
@@ -116,12 +118,12 @@ function FilterDropdown({
             className="fixed inset-0 z-40" 
             onClick={() => setIsOpen(false)} 
           />
-          <div className="absolute top-full mt-1 left-0 z-50 w-56 bg-popover border border-border rounded-xl shadow-xl overflow-hidden">
+          <div className="absolute top-full mt-1 left-0 z-50 w-48 bg-popover border border-border/50 rounded-lg shadow-xl overflow-hidden py-1">
             <button
               onClick={() => { onChange(''); setIsOpen(false); }}
               className={cn(
-                'w-full px-3 py-2 text-left text-sm hover:bg-secondary transition-colors',
-                !value && 'bg-secondary'
+                'w-full px-3 py-1.5 text-left text-xs hover:bg-secondary/40 transition-colors',
+                !value && 'bg-secondary/20 text-foreground font-medium'
               )}
             >
               All {label}s
@@ -131,12 +133,12 @@ function FilterDropdown({
                 key={option._id}
                 onClick={() => { onChange(option._id); setIsOpen(false); }}
                 className={cn(
-                  'w-full px-3 py-2 text-left text-sm hover:bg-secondary transition-colors flex items-center gap-2',
-                  value === option._id && 'bg-secondary'
+                  'w-full px-3 py-1.5 text-left text-xs hover:bg-secondary/40 transition-colors flex items-center gap-2',
+                  value === option._id && 'bg-secondary/20 text-foreground font-medium'
                 )}
               >
                 <div 
-                  className="w-2.5 h-2.5 rounded-full" 
+                  className="w-2 h-2 rounded-full" 
                   style={{ backgroundColor: option.color || '#f59e0b' }}
                 />
                 {option.name}
@@ -156,42 +158,38 @@ function SkillsGrid({ skills, onSelectSkill }: { skills: any[]; onSelectSkill: (
   const maxMinutes = Math.max(...skills.map(s => s.minutes), 1);
   
   return (
-    <div className="bg-card border border-border/50 rounded-2xl p-4 md:p-6">
-      <h3 className="font-semibold mb-4 flex items-center gap-2">
-        <Target size={18} className="text-amber-500" />
-        Skills Breakdown
-      </h3>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+    <div className="bg-card border border-border/40 rounded-xl p-5 shadow-sm">
+      <div className="flex items-center justify-between mb-4">
+         <h3 className="font-semibold text-sm">Skills Breakdown</h3>
+         <Target size={14} className="text-muted-foreground" />
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {skills.map((skill) => {
           const intensity = skill.minutes / maxMinutes;
           return (
             <button
               key={skill._id}
               onClick={() => onSelectSkill(skill._id)}
-              className="text-left p-4 rounded-xl bg-secondary/30 hover:bg-secondary/50 transition-all border border-transparent hover:border-amber-500/30 group"
+              className="text-left p-3 rounded-lg border border-border/40 hover:border-amber-500/30 hover:bg-amber-500/5 transition-all group"
             >
               <div className="flex items-center justify-between mb-2">
-                <span className="font-medium text-sm truncate pr-2">{skill.name}</span>
+                <span className="font-medium text-xs truncate pr-2">{skill.name}</span>
                 <span 
-                  className="px-2 py-0.5 rounded-full text-xs font-bold"
-                  style={{ 
-                    backgroundColor: `rgba(245, 158, 11, ${Math.max(intensity, 0.2)})`,
-                    color: intensity > 0.5 ? 'white' : 'inherit'
-                  }}
+                  className="text-[10px] font-mono font-medium text-amber-600"
                 >
                   {Math.floor(skill.minutes / 60)}h {skill.minutes % 60}m
                 </span>
               </div>
-              <div className="h-1.5 bg-background rounded-full overflow-hidden">
+              <div className="h-1 bg-secondary rounded-full overflow-hidden">
                 <div 
-                  className="h-full rounded-full bg-amber-500 transition-all duration-500"
+                  className="h-full rounded-full bg-amber-500/80 transition-all duration-500"
                   style={{ width: `${intensity * 100}%` }}
                 />
               </div>
-              <div className="flex items-center justify-between mt-2 text-xs text-muted-foreground">
-                <span>{skill.sessions} sessions</span>
-                <span className="opacity-0 group-hover:opacity-100 transition-opacity text-amber-500">
-                  View details →
+              <div className="flex items-center justify-between mt-2 text-[10px] text-muted-foreground">
+                <span>{skill.sessions} sess.</span>
+                <span className="opacity-0 group-hover:opacity-100 transition-opacity text-amber-600 font-medium flex items-center gap-0.5">
+                  View <ArrowLeft className="rotate-180" size={8} />
                 </span>
               </div>
             </button>
@@ -207,32 +205,35 @@ function WeeklyTrendChart({ data }: { data: any[] }) {
   if (!data || data.length === 0) return null;
   
   return (
-    <div className="bg-card border border-border/50 rounded-2xl p-4 md:p-6">
-      <h3 className="font-semibold mb-4 flex items-center gap-2">
-        <TrendingUp size={18} className="text-emerald-500" />
-        Weekly Trend
-      </h3>
-      <div className="h-64">
+    <div className="bg-card border border-border/40 rounded-xl p-5 shadow-sm">
+      <div className="flex items-center justify-between mb-6">
+         <h3 className="font-semibold text-sm">Trend</h3>
+         <TrendingUp size={14} className="text-muted-foreground" />
+      </div>
+      <div className="h-48 -ml-4">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={data}>
             <defs>
               <linearGradient id="minutesGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3} />
+                <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.2} />
                 <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.3} />
             <XAxis 
               dataKey="week" 
-              tick={{ fill: 'hsl(var(--foreground))', opacity: 0.6, fontSize: 12 }}
-              tickLine={false}
-            />
-            <YAxis 
-              tick={{ fill: 'hsl(var(--foreground))', opacity: 0.6, fontSize: 12 }}
+              tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
               tickLine={false}
               axisLine={false}
+              dy={10}
             />
-            <Tooltip content={<CustomTooltip />} />
+            <YAxis 
+              tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+              tickLine={false}
+              axisLine={false}
+              dx={-10}
+            />
+            <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'var(--border)', strokeWidth: 1 }} />
             <Area
               type="monotone"
               dataKey="minutes"
@@ -252,36 +253,36 @@ function RecentSessions({ sessions }: { sessions: any[] }) {
   if (!sessions || sessions.length === 0) return null;
   
   return (
-    <div className="bg-card border border-border/50 rounded-2xl p-4 md:p-6">
-      <h3 className="font-semibold mb-4 flex items-center gap-2">
-        <Calendar size={18} className="text-cyan-500" />
-        Recent Practice Sessions
-      </h3>
-      <div className="space-y-3 max-h-96 overflow-y-auto">
+    <div className="bg-card border border-border/40 rounded-xl p-5 shadow-sm">
+      <div className="flex items-center justify-between mb-4">
+         <h3 className="font-semibold text-sm">Recent Sessions</h3>
+         <Calendar size={14} className="text-muted-foreground" />
+      </div>
+      <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
         {sessions.map((session, i) => (
           <div 
             key={i}
-            className="flex items-start gap-3 p-3 rounded-xl bg-secondary/30 hover:bg-secondary/50 transition-colors"
+            className="flex items-start gap-3 p-3 rounded-lg border border-border/30 hover:border-amber-500/20 hover:bg-amber-500/5 transition-colors group"
           >
-            <div className="w-10 h-10 rounded-lg bg-amber-500/20 flex items-center justify-center shrink-0">
-              <BookOpen size={18} className="text-amber-500" />
+            <div className="w-8 h-8 rounded-full border border-amber-500/20 bg-amber-500/5 flex items-center justify-center shrink-0 text-amber-600">
+              <BookOpen size={14} />
             </div>
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-medium text-sm">{session.skillName}</span>
+              <div className="flex items-center gap-2">
+                <span className="font-medium text-xs text-foreground">{session.skillName}</span>
                 {session.mediumName && (
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-400">
+                  <span className="text-[10px] px-1.5 py-0.5 rounded border border-border bg-secondary/30 text-muted-foreground">
                     {session.mediumName}
                   </span>
                 )}
               </div>
-              <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+              <div className="flex items-center gap-2 mt-1 text-[10px] text-muted-foreground">
                 <span>{session.date}</span>
-                <span>•</span>
+                <span className="w-0.5 h-0.5 bg-muted-foreground rounded-full" />
                 <span className="font-medium text-foreground">{session.duration} min</span>
-                {session.difficulty && (
+                 {session.difficulty && (
                   <>
-                    <span>•</span>
+                    <span className="w-0.5 h-0.5 bg-muted-foreground rounded-full" />
                     <span className={cn(
                       'capitalize',
                       session.difficulty === 'easy' && 'text-emerald-500',
@@ -295,14 +296,14 @@ function RecentSessions({ sessions }: { sessions: any[] }) {
                 )}
               </div>
               {session.notes && (
-                <p className="text-xs text-muted-foreground mt-2 line-clamp-2">{session.notes}</p>
+                <p className="text-[11px] text-muted-foreground mt-1.5 line-clamp-2 leading-relaxed opacity-80 group-hover:opacity-100">{session.notes}</p>
               )}
             </div>
             {session.rating && (
-              <div className="flex items-center gap-0.5">
-                {Array.from({ length: session.rating }).map((_, j) => (
-                  <Star key={j} size={12} className="text-amber-500 fill-amber-500" />
-                ))}
+              <div className="flex gap-0.5 pt-1">
+                 <span className="text-[10px] font-bold text-amber-500 flex items-center gap-0.5">
+                   {session.rating}<Star size={8} className="fill-amber-500" />
+                 </span>
               </div>
             )}
           </div>
@@ -317,28 +318,30 @@ function DailyLearningChart({ data }: { data: any[] }) {
   if (!data || data.length === 0) return null;
   
   return (
-    <div className="bg-card border border-border/50 rounded-2xl p-4 md:p-6">
-      <h3 className="font-semibold mb-4 flex items-center gap-2">
-        <BarChart3 size={18} className="text-amber-500" />
-        Daily Practice Time
-      </h3>
-      <div className="h-48">
+    <div className="bg-card border border-border/40 rounded-xl p-5 shadow-sm">
+      <div className="flex items-center justify-between mb-6">
+         <h3 className="font-semibold text-sm">Daily Activity</h3>
+         <BarChart3 size={14} className="text-muted-foreground" />
+      </div>
+      <div className="h-40 -ml-4">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+          <BarChart data={data} barSize={24}>
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} opacity={0.3} />
             <XAxis 
               dataKey="dayName" 
-              tick={{ fill: 'hsl(var(--foreground))', opacity: 0.6, fontSize: 11 }}
+              tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
               tickLine={false}
               axisLine={false}
+              dy={5}
             />
             <YAxis 
-              tick={{ fill: 'hsl(var(--foreground))', opacity: 0.6, fontSize: 11 }}
+              tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
               tickLine={false}
               axisLine={false}
               tickFormatter={(v) => `${v}m`}
+              dx={-5}
             />
-            <Tooltip content={<CustomTooltip />} />
+            <Tooltip content={<CustomTooltip />} cursor={{ fill: 'var(--secondary)', opacity: 0.3 }} />
             <Bar 
               dataKey="minutes" 
               fill="#f59e0b" 
@@ -363,24 +366,25 @@ function AreaPieChart({ areas }: { areas: any[] }) {
   }));
   
   return (
-    <div className="bg-card border border-border/50 rounded-2xl p-4 md:p-6">
-      <h3 className="font-semibold mb-4 flex items-center gap-2">
-        <Brain size={18} className="text-purple-500" />
-        Time by Area
-      </h3>
-      <div className="h-64">
+    <div className="bg-card border border-border/40 rounded-xl p-5 shadow-sm flex flex-col items-center">
+      <div className="w-full flex items-center justify-between mb-2">
+         <h3 className="font-semibold text-sm">Area Distribution</h3>
+         <Layers size={14} className="text-muted-foreground" />
+      </div>
+      <div className="h-48 w-full">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
               data={data}
               cx="50%"
               cy="50%"
-              innerRadius={50}
-              outerRadius={80}
-              paddingAngle={2}
+              innerRadius={45}
+              outerRadius={65}
+              paddingAngle={4}
               dataKey="value"
-              label={({ name, percent }) => `${name} (${((percent ?? 0) * 100).toFixed(0)}%)`}
-              labelLine={false}
+              stroke="none"
+              // label={({ name }) => name}
+              // labelLine={false}
             >
               {data.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={entry.color} />
@@ -391,9 +395,18 @@ function AreaPieChart({ areas }: { areas: any[] }) {
                 const v = value as number;
                 return [`${Math.floor(v / 60)}h ${v % 60}m`, 'Time'];
               }}
+              contentStyle={{ borderRadius: '8px', border: '1px solid var(--border)' }}
             />
           </PieChart>
         </ResponsiveContainer>
+      </div>
+      <div className="flex flex-wrap justify-center gap-3 mt-2 w-full">
+         {data.slice(0, 4).map((d, i) => (
+             <div key={i} className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: d.color }} />
+                <span className="text-[10px] text-muted-foreground">{d.name}</span>
+             </div>
+         ))}
       </div>
     </div>
   );
@@ -412,18 +425,18 @@ function DifficultyRadarChart({ distribution }: { distribution: Record<string, n
   if (total === 0) return null;
   
   return (
-    <div className="bg-card border border-border/50 rounded-2xl p-4 md:p-5">
-      <h3 className="font-semibold mb-4 flex items-center gap-2">
-        <Zap size={18} className="text-amber-500" />
-        Difficulty Distribution
-      </h3>
-      <div className="h-56">
+    <div className="bg-card border border-border/40 rounded-xl p-5 shadow-sm">
+      <div className="flex items-center justify-between mb-4">
+         <h3 className="font-semibold text-sm">Complexity</h3>
+         <Zap size={14} className="text-muted-foreground" />
+      </div>
+      <div className="h-48">
         <ResponsiveContainer width="100%" height="100%">
           <RadarChart data={data}>
-            <PolarGrid stroke="var(--border)" />
+            <PolarGrid stroke="var(--border)" opacity={0.5} />
             <PolarAngleAxis 
               dataKey="subject" 
-              tick={{ fill: 'hsl(var(--foreground))', opacity: 0.6, fontSize: 12 }}
+              tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
             />
             <PolarRadiusAxis tick={false} axisLine={false} />
             <Radar
@@ -431,19 +444,11 @@ function DifficultyRadarChart({ distribution }: { distribution: Record<string, n
               dataKey="value"
               stroke="#f59e0b"
               fill="#f59e0b"
-              fillOpacity={0.4}
+              fillOpacity={0.2}
             />
-            <Tooltip />
+            <Tooltip content={<CustomTooltip />} />
           </RadarChart>
         </ResponsiveContainer>
-      </div>
-      <div className="flex flex-wrap justify-center gap-4 mt-2">
-        {data.map((d) => (
-          <div key={d.subject} className="text-center">
-            <p className="text-lg font-bold">{d.value}</p>
-            <p className="text-xs text-muted-foreground">{d.subject}</p>
-          </div>
-        ))}
       </div>
     </div>
   );
@@ -459,28 +464,30 @@ function RatingStarsChart({ distribution }: { distribution: Record<number, numbe
   }, 0) / total;
   
   return (
-    <div className="bg-card border border-border/50 rounded-2xl p-4 md:p-5">
-      <h3 className="font-semibold mb-4 flex items-center gap-2">
-        <Star size={18} className="text-amber-500" />
-        Session Ratings
-      </h3>
+    <div className="bg-card border border-border/40 rounded-xl p-5 shadow-sm">
+      <div className="flex items-center justify-between mb-4">
+         <h3 className="font-semibold text-sm">Quality</h3>
+         <Star size={14} className="text-muted-foreground" />
+      </div>
       
-      <div className="text-center mb-4">
-        <p className="text-3xl font-bold text-amber-500">{avgRating.toFixed(1)}</p>
-        <div className="flex items-center justify-center gap-1 mt-1">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Star 
-              key={i} 
-              size={16} 
-              className={cn(
-                i < Math.round(avgRating) 
-                  ? 'text-amber-500 fill-amber-500' 
-                  : 'text-muted'
-              )} 
-            />
-          ))}
+      <div className="flex items-end gap-3 mb-6">
+        <span className="text-3xl font-bold tracking-tight text-foreground">{avgRating.toFixed(1)}</span>
+        <div className="flex flex-col mb-1">
+          <div className="flex gap-0.5">
+            {Array.from({ length: 5 }).map((_, i) => (
+                <Star 
+                key={i} 
+                size={12} 
+                className={cn(
+                    i < Math.round(avgRating) 
+                    ? 'text-amber-500 fill-amber-500' 
+                    : 'text-border fill-border'
+                )} 
+                />
+            ))}
+          </div>
+          <span className="text-[10px] text-muted-foreground">Average rating</span>
         </div>
-        <p className="text-xs text-muted-foreground mt-1">Average Rating</p>
       </div>
       
       <div className="space-y-2">
@@ -490,17 +497,14 @@ function RatingStarsChart({ distribution }: { distribution: Record<number, numbe
           
           return (
             <div key={rating} className="flex items-center gap-2">
-              <div className="w-8 flex items-center justify-end gap-0.5">
-                <span className="text-xs font-medium">{rating}</span>
-                <Star size={10} className="text-amber-500 fill-amber-500" />
-              </div>
-              <div className="flex-1 h-2 bg-secondary rounded-full overflow-hidden">
+              <span className="text-[10px] font-medium w-3">{rating}</span>
+              <div className="flex-1 h-1.5 bg-secondary rounded-full overflow-hidden">
                 <div
                   className="h-full rounded-full bg-amber-500 transition-all duration-500"
                   style={{ width: `${percentage}%` }}
                 />
               </div>
-              <span className="text-xs text-muted-foreground w-8">{count}</span>
+              <span className="text-[10px] text-muted-foreground w-4 text-right">{count}</span>
             </div>
           );
         })}
@@ -514,32 +518,32 @@ function TopMediumsList({ mediums }: { mediums: any[] }) {
   if (!mediums || mediums.length === 0) return null;
   
   return (
-    <div className="bg-card border border-border/50 rounded-2xl p-4 md:p-5">
-      <h3 className="font-semibold mb-4 flex items-center gap-2">
-        <Lightbulb size={18} className="text-purple-500" />
-        Top Practice Mediums
-      </h3>
+    <div className="bg-card border border-border/40 rounded-xl p-5 shadow-sm">
+      <div className="flex items-center justify-between mb-4">
+         <h3 className="font-semibold text-sm">Top Mediums</h3>
+         <Lightbulb size={14} className="text-muted-foreground" />
+      </div>
       <div className="space-y-2">
         {mediums.slice(0, 5).map((medium, i) => (
           <div 
             key={medium._id} 
-            className="flex items-center gap-3 p-2 rounded-lg hover:bg-secondary/50 transition-colors"
+            className="flex items-center gap-3 p-2 rounded-lg hover:bg-secondary/40 transition-colors border border-transparent hover:border-border/50"
           >
             <div 
-              className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold"
+              className="w-5 h-5 rounded flex items-center justify-center text-[10px] font-bold shrink-0"
               style={{ 
-                backgroundColor: CHART_COLORS[i % CHART_COLORS.length] + '30',
+                backgroundColor: CHART_COLORS[i % CHART_COLORS.length] + '20',
                 color: CHART_COLORS[i % CHART_COLORS.length]
               }}
             >
               {i + 1}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="font-medium text-sm truncate">{medium.name}</p>
-              <p className="text-xs text-muted-foreground">{medium.sessions} sessions</p>
+              <p className="font-medium text-xs truncate">{medium.name}</p>
+              <p className="text-[10px] text-muted-foreground">{medium.sessions} sessions</p>
             </div>
             <div className="text-right">
-              <p className="text-sm font-bold">
+              <p className="text-xs font-mono font-medium">
                 {Math.floor(medium.minutes / 60)}h {medium.minutes % 60}m
               </p>
             </div>
@@ -611,68 +615,51 @@ export default function LearningReportClient() {
 
   if (isLoading || !data) {
     return (
-      <div className="space-y-6 pb-24">
-        <div className="flex items-center gap-3">
-          <Link href="/reports" className="p-2 rounded-xl bg-secondary">
-            <ArrowLeft size={18} />
-          </Link>
-          <h1 className="text-2xl font-bold">Learning Report</h1>
+      <div className="space-y-8 animate-pulse p-1">
+        <div className="flex justify-between items-center">
+           <div className="w-32 h-8 bg-muted rounded-lg" />
+           <div className="w-24 h-8 bg-muted rounded-lg" />
         </div>
-        <div className="grid gap-4 md:grid-cols-3">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="bg-card border rounded-2xl p-5 animate-pulse">
-              <div className="w-24 h-6 bg-muted rounded" />
-            </div>
-          ))}
+        <div className="grid grid-cols-4 gap-4">
+           {[1, 2, 3, 4].map(i => <div key={i} className="h-24 bg-muted rounded-xl" />)}
         </div>
+        <div className="h-48 bg-muted rounded-xl" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 pb-24">
+    <div className="space-y-8 pb-24 max-w-2xl mx-auto">
       {/* Header */}
-      <div className="flex flex-col gap-4">
-        <div className="flex items-center gap-3">
-          <Link
-            href={`/reports?period=${period}`}
-            className="p-2 rounded-xl bg-secondary hover:bg-secondary/80 transition-colors"
-          >
-            <ArrowLeft size={18} />
-          </Link>
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Learning Report</h1>
-            <p className="text-muted-foreground mt-1">
-              Track your skill development and practice
-            </p>
-          </div>
-        </div>
-        
-        {/* Period Selector */}
-        <div className="flex flex-wrap gap-2">
-          {PERIODS.map((p) => (
-            <button
-              key={p.value}
-              onClick={() => handlePeriodChange(p.value)}
-              className={cn(
-                'px-3 py-1.5 rounded-lg text-sm font-medium transition-colors',
-                period === p.value
-                  ? 'bg-amber-500 text-white'
-                  : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
-              )}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+            <Link
+                href="/reports"
+                className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
             >
-              {p.label}
-            </button>
-          ))}
+                <ArrowLeft size={20} />
+            </Link>
+            <h1 className="text-xl font-bold tracking-tight">Learning</h1>
+            </div>
+
+            <div className="relative group">
+                <select 
+                    value={period}
+                    onChange={(e) => handlePeriodChange(e.target.value)}
+                    className="appearance-none pl-3 pr-8 py-1.5 bg-transparent text-sm font-medium hover:bg-secondary/50 rounded-lg cursor-pointer transition-colors outline-none"
+                >
+                    {PERIODS.map(p => (
+                    <option key={p.value} value={p.value} className="text-foreground bg-popover">{p.label}</option>
+                    ))}
+                </select>
+                <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground" />
+            </div>
         </div>
 
         {/* Filters */}
         {filters && (
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Filter size={16} />
-              <span>Filter by:</span>
-            </div>
+          <div className="flex flex-wrap items-center gap-2">
             
             <FilterDropdown
               label="Area"
@@ -694,78 +681,68 @@ export default function LearningReportClient() {
             {hasActiveFilters && (
               <button
                 onClick={clearFilters}
-                className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs bg-rose-500/20 text-rose-500 hover:bg-rose-500/30 transition-colors"
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs bg-rose-500/5 border border-rose-500/20 text-rose-500 hover:bg-rose-500/10 transition-colors ml-auto"
               >
                 <X size={12} />
-                Clear filters
+                Clear
               </button>
             )}
           </div>
         )}
       </div>
 
-      {/* Summary Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-        <div className="bg-card border border-border/50 rounded-2xl p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <Clock size={16} className="text-amber-500" />
-            <span className="text-sm text-muted-foreground">Total Time</span>
-          </div>
-          <p className="text-2xl font-bold">{formatTime(summary?.totalMinutes || 0)}</p>
+      {/* Summary Stats Grid */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="bg-card border border-border/40 rounded-xl p-4 shadow-sm">
+          <div className="text-muted-foreground text-xs font-medium uppercase tracking-wider mb-2">Total Time</div>
+          <div className="text-2xl font-bold">{formatTime(summary?.totalMinutes || 0).split(' ')[0]}<span className="text-sm font-normal text-muted-foreground ml-0.5">{formatTime(summary?.totalMinutes || 0).split(' ')[1]}</span></div>
           {summary?.minutesChange !== 0 && (
-            <p className={cn(
-              'text-xs flex items-center gap-1 mt-1',
+            <div className={cn(
+              'text-[10px] flex items-center gap-1 mt-1 font-medium',
               summary?.minutesChange > 0 ? 'text-emerald-500' : 'text-rose-500'
             )}>
-              {summary?.minutesChange > 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+              {summary?.minutesChange > 0 ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
               {summary?.minutesChange > 0 ? '+' : ''}{formatTime(Math.abs(summary?.minutesChange || 0))}
-            </p>
+            </div>
           )}
         </div>
         
-        <div className="bg-card border border-border/50 rounded-2xl p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <Brain size={16} className="text-purple-500" />
-            <span className="text-sm text-muted-foreground">Sessions</span>
-          </div>
-          <p className="text-2xl font-bold">{summary?.totalSessions || 0}</p>
+        <div className="bg-card border border-border/40 rounded-xl p-4 shadow-sm">
+          <div className="text-muted-foreground text-xs font-medium uppercase tracking-wider mb-2">Sessions</div>
+          <div className="text-2xl font-bold">{summary?.totalSessions || 0}</div>
           {summary?.prevSessions !== summary?.totalSessions && (
-            <p className={cn(
-              'text-xs flex items-center gap-1 mt-1',
+            <div className={cn(
+              'text-[10px] flex items-center gap-1 mt-1 font-medium',
               (summary?.totalSessions || 0) > (summary?.prevSessions || 0) ? 'text-emerald-500' : 'text-rose-500'
             )}>
-              {(summary?.totalSessions || 0) > (summary?.prevSessions || 0) ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+              {(summary?.totalSessions || 0) > (summary?.prevSessions || 0) ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
               {(summary?.totalSessions || 0) - (summary?.prevSessions || 0) > 0 ? '+' : ''}
               {(summary?.totalSessions || 0) - (summary?.prevSessions || 0)}
-            </p>
+            </div>
           )}
         </div>
         
-        <div className="bg-card border border-border/50 rounded-2xl p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <BarChart3 size={16} className="text-cyan-500" />
-            <span className="text-sm text-muted-foreground">Avg Session</span>
-          </div>
-          <p className="text-2xl font-bold">{summary?.avgSessionLength || 0}m</p>
+        <div className="bg-card border border-border/40 rounded-xl p-4 shadow-sm">
+          <div className="text-muted-foreground text-xs font-medium uppercase tracking-wider mb-2">Average</div>
+          <div className="text-2xl font-bold">{summary?.avgSessionLength || 0}<span className="text-sm font-normal text-muted-foreground ml-0.5">min</span></div>
+          <div className="text-[10px] text-muted-foreground mt-1">Per session</div>
         </div>
         
-        <div className="bg-card border border-border/50 rounded-2xl p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <Lightbulb size={16} className="text-emerald-500" />
-            <span className="text-sm text-muted-foreground">Total Hours</span>
-          </div>
-          <p className="text-2xl font-bold">{summary?.totalHours || 0}</p>
+        <div className="bg-card border border-border/40 rounded-xl p-4 shadow-sm">
+          <div className="text-muted-foreground text-xs font-medium uppercase tracking-wider mb-2">Hours</div>
+          <div className="text-2xl font-bold">{summary?.totalHours || 0}</div>
+          <div className="text-[10px] text-muted-foreground mt-1">Total accumulated</div>
         </div>
       </div>
-
-      {/* Weekly Trend Chart */}
-      {weeklyTrend && weeklyTrend.length > 0 && (
-        <WeeklyTrendChart data={weeklyTrend} />
-      )}
 
       {/* Daily Chart */}
       {dailyLearning && dailyLearning.length > 0 && (
         <DailyLearningChart data={dailyLearning} />
+      )}
+      
+       {/* Weekly Trend Chart */}
+      {weeklyTrend && weeklyTrend.length > 0 && (
+        <WeeklyTrendChart data={weeklyTrend} />
       )}
 
       {/* Skills Grid - Main Focus */}

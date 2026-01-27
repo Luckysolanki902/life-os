@@ -119,14 +119,6 @@ export default function ShareableHealthReport({ data, period, periodLabel }: Sha
 
   return (
     <>
-      {/* Share Button */}
-      <button
-        onClick={() => setIsOpen(true)}
-        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-linear-to-r from-rose-500 to-pink-500 text-white font-medium text-sm hover:opacity-90 transition-opacity"
-      >
-        <Share2 size={16} />
-        Share Report
-      </button>
 
       {/* Modal */}
       {isOpen && (

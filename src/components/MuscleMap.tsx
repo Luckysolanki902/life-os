@@ -1,9 +1,11 @@
 'use client';
 
 import { cn } from '@/lib/utils';
+import { useMemo } from 'react';
 
 interface MuscleMapProps {
-  highlightedMuscles: string[];
+  highlightedMuscles?: string[];
+  muscleScores?: Record<string, number>; // value 0.0 to 1.0 represents intensity
   className?: string;
 }
 
@@ -324,25 +326,52 @@ const MUSCLE_ALIASES: Record<string, string[]> = {
   hipflexors: ['hip flexors', 'hip flexor', 'psoas', 'iliopsoas'],
 };
 
-export default function MuscleMap({ highlightedMuscles, className }: MuscleMapProps) {
-  const activeMuscles = highlightedMuscles.map(normalize);
+export default function MuscleMap({ highlightedMuscles = [], muscleScores = {}, className }: MuscleMapProps) {
+  
+  // Create a unified normalized map of scores (0-1)
+  const muscleIntensityMap = useMemo(() => {
+    const map: Record<string, number> = {};
+    
+    // Process explicit scores
+    Object.entries(muscleScores).forEach(([key, score]) => {
+      map[normalize(key)] = score;
+    });
 
-  const isActive = (muscle: string) => {
+    // Process legacy array (treated as 100% intensity)
+    highlightedMuscles.forEach(muscle => {
+      map[normalize(muscle)] = 1.0;
+    });
+
+    return map;
+  }, [highlightedMuscles, muscleScores]);
+
+  const getMuscleScore = (muscle: string): number => {
     const normalizedMuscle = normalize(muscle);
     
     // Direct match
-    if (activeMuscles.includes(normalizedMuscle)) return true;
+    if (muscleIntensityMap[normalizedMuscle] !== undefined) {
+      return muscleIntensityMap[normalizedMuscle];
+    }
     
     // Check aliases
     const aliases = MUSCLE_ALIASES[muscle] || [];
     for (const alias of aliases) {
-      if (activeMuscles.includes(normalize(alias))) return true;
+      const nAlias = normalize(alias);
+      if (muscleIntensityMap[nAlias] !== undefined) {
+        return muscleIntensityMap[nAlias];
+      }
     }
     
-    // Partial match (e.g., "upper chest" matches "chest")
-    return activeMuscles.some(m => 
-      m.includes(normalizedMuscle) || normalizedMuscle.includes(m)
-    );
+    // Partial match (e.g., "upper chest" matches "chest") - check if any active muscle is substring of this
+    // We maintain maximum score for overlapping concepts
+    let maxScore = 0;
+    Object.entries(muscleIntensityMap).forEach(([key, score]) => {
+      if (key.includes(normalizedMuscle) || normalizedMuscle.includes(key)) {
+        maxScore = Math.max(maxScore, score);
+      }
+    });
+
+    return maxScore;
   };
 
   const renderMusclePaths = (
@@ -350,25 +379,118 @@ export default function MuscleMap({ highlightedMuscles, className }: MuscleMapPr
     gradientPrefix: string
   ) => {
     return Object.entries(muscles).map(([name, { paths }]) => {
-      const active = isActive(name);
+      const score = getMuscleScore(name); // 0.0 to 1.0
+      const active = score > 0;
+      
+      // Calculate opacity: 0.3 minimum for visibility, scale up to 1.0 based on score
+      // Logarithmic-ish scaling to make even small scores visible
+      // score 0.1 -> ~0.45 opacity
+      // score 0.5 -> ~0.7 opacity
+      // score 1.0 -> 1.0 opacity
+      const opacity = active 
+        ? Math.min(0.4 + (score * 0.6), 1.0) 
+        : 0.15; // Dimmer inactive state
+
+      // Determine color intensity shift
+      // For gradient fill, we can use different gradients or just opacity
+      
       return paths.map((d, i) => (
         <path
           key={`${name}-${i}`}
           d={d}
-          className={cn(
-            "transition-all duration-700 ease-out",
-            active 
-              ? "opacity-100" 
-              : "opacity-30"
-          )}
+          className="transition-all duration-700 ease-out"
+          style={{ opacity }}
           fill={active ? `url(#${gradientPrefix}-active-gradient)` : `url(#${gradientPrefix}-inactive-gradient)`}
-          stroke={active ? "rgba(251, 113, 133, 0.8)" : "rgba(82, 82, 91, 0.5)"}
-          strokeWidth={active ? "0.8" : "0.3"}
+          stroke={active ? `rgba(251, 113, 133, ${Math.min(0.5 + score * 0.5, 1)})` : "rgba(82, 82, 91, 0.4)"}
+          strokeWidth={active ? "0.6" : "0.3"}
           filter={active ? `url(#${gradientPrefix}-glow)` : undefined}
         />
       ));
     });
   };
+
+  const Defs = ({ prefix }: { prefix: string }) => (
+    <defs>
+      {/* Active muscle gradient - Varying Reds */}
+      <linearGradient id={`${prefix}-active-gradient`} x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#fb7185" />
+        <stop offset="50%" stopColor="#f43f5e" />
+        <stop offset="100%" stopColor="#e11d48" />
+      </linearGradient>
+      
+      {/* Inactive muscle gradient */}
+      <linearGradient id={`${prefix}-inactive-gradient`} x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#3f3f46" />
+        <stop offset="100%" stopColor="#27272a" />
+      </linearGradient>
+      
+      {/* Body gradient */}
+      <linearGradient id={`${prefix}-body-gradient`} x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#1c1c1e" />
+        <stop offset="50%" stopColor="#141416" />
+        <stop offset="100%" stopColor="#0c0c0e" />
+      </linearGradient>
+      
+      {/* Glow effect */}
+      <filter id={`${prefix}-glow`} x="-50%" y="-50%" width="200%" height="200%">
+        <feGaussianBlur stdDeviation="1" result="coloredBlur"/>
+        <feMerge>
+          <feMergeNode in="coloredBlur"/>
+          <feMergeNode in="SourceGraphic"/>
+        </feMerge>
+      </filter>
+
+      {/* Subtle inner shadow for depth */}
+      <filter id={`${prefix}-inner-shadow`}>
+        <feOffset dx="0" dy="1"/>
+        <feGaussianBlur stdDeviation="1"/>
+        <feComposite in2="SourceAlpha" operator="arithmetic" k2="-1" k3="1"/>
+        <feColorMatrix type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.3 0"/>
+        <feBlend in2="SourceGraphic" mode="normal"/>
+      </filter>
+    </defs>
+  );
+
+  const BodySilhouette = ({ prefix }: { prefix: string }) => (
+     <g filter={`url(#${prefix}-inner-shadow)`}>
+         {/* Head */}
+         <ellipse cx={prefix === 'front' ? 50 : 150} cy="12" rx="6" ry="7" fill={`url(#${prefix}-body-gradient)`} stroke="#2a2a2e" strokeWidth="0.5"/>
+         {/* Neck */}
+         <path d={prefix === 'front' ? "M 46 18 L 54 18 L 54 24 L 46 24 Z" : "M 146 18 L 154 18 L 154 24 L 146 24 Z"} fill={`url(#${prefix}-body-gradient)`} stroke="#2a2a2e" strokeWidth="0.3"/>
+         {/* Torso */}
+         <path 
+             d={prefix === 'front' ? 
+               "M 34 26 Q 28 30 28 38 L 26 62 Q 24 74 28 78 L 34 78 Q 40 76 46 78 L 50 80 L 54 78 Q 60 76 66 78 L 72 78 Q 76 74 74 62 L 72 38 Q 72 30 66 26 Q 58 24 50 24 Q 42 24 34 26 Z" :
+               "M 134 26 Q 128 30 128 38 L 126 62 Q 124 74 128 78 L 134 78 Q 140 76 146 78 L 150 80 L 154 78 Q 160 76 166 78 L 172 78 Q 176 74 174 62 L 172 38 Q 172 30 166 26 Q 158 24 150 24 Q 142 24 134 26 Z"
+             }
+             fill={`url(#${prefix}-body-gradient)`} stroke="#2a2a2e" strokeWidth="0.5"
+         />
+         {/* Arms */}
+         {prefix === 'front' ? (
+           <>
+             <path d="M 28 38 Q 24 44 24 54 Q 22 66 24 78 Q 26 86 32 88 L 38 84 Q 40 74 38 62 Q 38 50 36 44 Q 34 40 30 38 Z" fill={`url(#${prefix}-body-gradient)`} stroke="#2a2a2e" strokeWidth="0.5" />
+             <path d="M 72 38 Q 76 44 76 54 Q 78 66 76 78 Q 74 86 68 88 L 62 84 Q 60 74 62 62 Q 62 50 64 44 Q 66 40 70 38 Z" fill={`url(#${prefix}-body-gradient)`} stroke="#2a2a2e" strokeWidth="0.5" />
+           </>
+         ) : (
+           <>
+             <path d="M 128 38 Q 124 44 124 54 Q 122 66 124 78 Q 126 86 132 88 L 138 84 Q 140 74 138 62 Q 138 50 136 44 Q 134 40 130 38 Z" fill={`url(#${prefix}-body-gradient)`} stroke="#2a2a2e" strokeWidth="0.5" />
+             <path d="M 172 38 Q 176 44 176 54 Q 178 66 176 78 Q 174 86 168 88 L 162 84 Q 160 74 162 62 Q 162 50 164 44 Q 166 40 170 38 Z" fill={`url(#${prefix}-body-gradient)`} stroke="#2a2a2e" strokeWidth="0.5" />
+           </>
+         )}
+         {/* Legs */}
+         {prefix === 'front' ? (
+           <>
+             <path d="M 34 78 Q 30 90 30 106 Q 30 122 34 138 Q 36 152 40 164 L 48 164 Q 50 152 50 138 Q 50 122 50 106 Q 50 90 50 80 Q 44 78 34 78 Z" fill={`url(#${prefix}-body-gradient)`} stroke="#2a2a2e" strokeWidth="0.5" />
+             <path d="M 66 78 Q 70 90 70 106 Q 70 122 66 138 Q 64 152 60 164 L 52 164 Q 50 152 50 138 Q 50 122 50 106 Q 50 90 50 80 Q 56 78 66 78 Z" fill={`url(#${prefix}-body-gradient)`} stroke="#2a2a2e" strokeWidth="0.5" />
+           </>
+         ) : (
+           <>
+             <path d="M 134 78 Q 130 90 130 106 Q 130 122 134 138 Q 136 152 140 164 L 148 164 Q 150 152 150 138 Q 150 122 150 106 Q 150 90 150 80 Q 144 78 134 78 Z" fill={`url(#${prefix}-body-gradient)`} stroke="#2a2a2e" strokeWidth="0.5" />
+             <path d="M 166 78 Q 170 90 170 106 Q 170 122 166 138 Q 164 152 160 164 L 152 164 Q 150 152 150 138 Q 150 122 150 106 Q 150 90 150 80 Q 156 78 166 78 Z" fill={`url(#${prefix}-body-gradient)`} stroke="#2a2a2e" strokeWidth="0.5" />
+           </>
+         )}
+     </g>
+  );
 
   return (
     <div className={cn("relative flex items-center justify-center gap-2 sm:gap-4", className)}>
@@ -379,154 +501,10 @@ export default function MuscleMap({ highlightedMuscles, className }: MuscleMapPr
           className="w-full max-w-[53.84px] sm:max-w-[69.23px] h-auto"
           style={{ filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.4))' }}
         >
-          <defs>
-            {/* Active muscle gradient */}
-            <linearGradient id="front-active-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#fb7185" />
-              <stop offset="50%" stopColor="#f43f5e" />
-              <stop offset="100%" stopColor="#e11d48" />
-            </linearGradient>
-            
-            {/* Inactive muscle gradient */}
-            <linearGradient id="front-inactive-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#3f3f46" />
-              <stop offset="100%" stopColor="#27272a" />
-            </linearGradient>
-            
-            {/* Body gradient */}
-            <linearGradient id="front-body-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#1c1c1e" />
-              <stop offset="50%" stopColor="#141416" />
-              <stop offset="100%" stopColor="#0c0c0e" />
-            </linearGradient>
-            
-            {/* Glow effect */}
-            <filter id="front-glow" x="-50%" y="-50%" width="200%" height="200%">
-              <feGaussianBlur stdDeviation="1.5" result="coloredBlur"/>
-              <feMerge>
-                <feMergeNode in="coloredBlur"/>
-                <feMergeNode in="SourceGraphic"/>
-              </feMerge>
-            </filter>
-
-            {/* Subtle inner shadow for depth */}
-            <filter id="front-inner-shadow">
-              <feOffset dx="0" dy="1"/>
-              <feGaussianBlur stdDeviation="1"/>
-              <feComposite in2="SourceAlpha" operator="arithmetic" k2="-1" k3="1"/>
-              <feColorMatrix type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.3 0"/>
-              <feBlend in2="SourceGraphic" mode="normal"/>
-            </filter>
-          </defs>
-          
-          {/* Body Silhouette - Anatomically detailed */}
-          <g filter="url(#front-inner-shadow)">
-            {/* Head */}
-            <ellipse cx="50" cy="12" rx="6" ry="7" fill="url(#front-body-gradient)" stroke="#2a2a2e" strokeWidth="0.5"/>
-            
-            {/* Neck */}
-            <path d="M 46 18 L 54 18 L 54 24 L 46 24 Z" fill="url(#front-body-gradient)" stroke="#2a2a2e" strokeWidth="0.3"/>
-            
-            {/* Torso */}
-            <path 
-              d="M 34 26 
-                 Q 28 30 28 38 
-                 L 26 62 
-                 Q 24 74 28 78 
-                 L 34 78 
-                 Q 40 76 46 78 
-                 L 50 80 
-                 L 54 78 
-                 Q 60 76 66 78 
-                 L 72 78 
-                 Q 76 74 74 62 
-                 L 72 38 
-                 Q 72 30 66 26 
-                 Q 58 24 50 24 
-                 Q 42 24 34 26 Z" 
-              fill="url(#front-body-gradient)" 
-              stroke="#2a2a2e" 
-              strokeWidth="0.5"
-            />
-            
-            {/* Left Arm */}
-            <path 
-              d="M 28 38 
-                 Q 24 44 24 54 
-                 Q 22 66 24 78 
-                 Q 26 86 32 88 
-                 L 38 84 
-                 Q 40 74 38 62 
-                 Q 38 50 36 44 
-                 Q 34 40 30 38 Z" 
-              fill="url(#front-body-gradient)" 
-              stroke="#2a2a2e" 
-              strokeWidth="0.5"
-            />
-            
-            {/* Right Arm */}
-            <path 
-              d="M 72 38 
-                 Q 76 44 76 54 
-                 Q 78 66 76 78 
-                 Q 74 86 68 88 
-                 L 62 84 
-                 Q 60 74 62 62 
-                 Q 62 50 64 44 
-                 Q 66 40 70 38 Z" 
-              fill="url(#front-body-gradient)" 
-              stroke="#2a2a2e" 
-              strokeWidth="0.5"
-            />
-            
-            {/* Left Leg */}
-            <path 
-              d="M 34 78 
-                 Q 30 90 30 106 
-                 Q 30 122 34 138 
-                 Q 36 152 40 164 
-                 L 48 164 
-                 Q 50 152 50 138 
-                 Q 50 122 50 106 
-                 Q 50 90 50 80 
-                 Q 44 78 34 78 Z" 
-              fill="url(#front-body-gradient)" 
-              stroke="#2a2a2e" 
-              strokeWidth="0.5"
-            />
-            
-            {/* Right Leg */}
-            <path 
-              d="M 66 78 
-                 Q 70 90 70 106 
-                 Q 70 122 66 138 
-                 Q 64 152 60 164 
-                 L 52 164 
-                 Q 50 152 50 138 
-                 Q 50 122 50 106 
-                 Q 50 90 50 80 
-                 Q 56 78 66 78 Z" 
-              fill="url(#front-body-gradient)" 
-              stroke="#2a2a2e" 
-              strokeWidth="0.5"
-            />
-          </g>
-          
-          {/* Muscle Groups */}
-          <g>
-            {renderMusclePaths(FRONT_MUSCLES, 'front')}
-          </g>
-          
-          {/* Label */}
-          <text 
-            x="50" 
-            y="174" 
-            textAnchor="middle" 
-            className="text-[6px] uppercase tracking-[0.2em] font-medium"
-            fill="#71717a"
-          >
-            Front
-          </text>
+          <Defs prefix="front" />
+          <BodySilhouette prefix="front" />
+          <g>{renderMusclePaths(FRONT_MUSCLES, 'front')}</g>
+          <text x="50" y="174" textAnchor="middle" className="text-[6px] uppercase tracking-[0.2em] font-medium" fill="#71717a">Front</text>
         </svg>
       </div>
 
@@ -540,154 +518,10 @@ export default function MuscleMap({ highlightedMuscles, className }: MuscleMapPr
           className="w-full max-w-[53.84px] sm:max-w-[69.23px] h-auto"
           style={{ filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.4))' }}
         >
-          <defs>
-            {/* Active muscle gradient */}
-            <linearGradient id="back-active-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#fb7185" />
-              <stop offset="50%" stopColor="#f43f5e" />
-              <stop offset="100%" stopColor="#e11d48" />
-            </linearGradient>
-            
-            {/* Inactive muscle gradient */}
-            <linearGradient id="back-inactive-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#3f3f46" />
-              <stop offset="100%" stopColor="#27272a" />
-            </linearGradient>
-            
-            {/* Body gradient */}
-            <linearGradient id="back-body-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#1c1c1e" />
-              <stop offset="50%" stopColor="#141416" />
-              <stop offset="100%" stopColor="#0c0c0e" />
-            </linearGradient>
-            
-            {/* Glow effect */}
-            <filter id="back-glow" x="-50%" y="-50%" width="200%" height="200%">
-              <feGaussianBlur stdDeviation="1.5" result="coloredBlur"/>
-              <feMerge>
-                <feMergeNode in="coloredBlur"/>
-                <feMergeNode in="SourceGraphic"/>
-              </feMerge>
-            </filter>
-
-            {/* Subtle inner shadow for depth */}
-            <filter id="back-inner-shadow">
-              <feOffset dx="0" dy="1"/>
-              <feGaussianBlur stdDeviation="1"/>
-              <feComposite in2="SourceAlpha" operator="arithmetic" k2="-1" k3="1"/>
-              <feColorMatrix type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.3 0"/>
-              <feBlend in2="SourceGraphic" mode="normal"/>
-            </filter>
-          </defs>
-          
-          {/* Body Silhouette - Anatomically detailed */}
-          <g filter="url(#back-inner-shadow)">
-            {/* Head */}
-            <ellipse cx="150" cy="12" rx="6" ry="7" fill="url(#back-body-gradient)" stroke="#2a2a2e" strokeWidth="0.5"/>
-            
-            {/* Neck */}
-            <path d="M 146 18 L 154 18 L 154 24 L 146 24 Z" fill="url(#back-body-gradient)" stroke="#2a2a2e" strokeWidth="0.3"/>
-            
-            {/* Torso */}
-            <path 
-              d="M 134 26 
-                 Q 128 30 128 38 
-                 L 126 62 
-                 Q 124 74 128 78 
-                 L 134 78 
-                 Q 140 76 146 78 
-                 L 150 80 
-                 L 154 78 
-                 Q 160 76 166 78 
-                 L 172 78 
-                 Q 176 74 174 62 
-                 L 172 38 
-                 Q 172 30 166 26 
-                 Q 158 24 150 24 
-                 Q 142 24 134 26 Z" 
-              fill="url(#back-body-gradient)" 
-              stroke="#2a2a2e" 
-              strokeWidth="0.5"
-            />
-            
-            {/* Left Arm */}
-            <path 
-              d="M 128 38 
-                 Q 124 44 124 54 
-                 Q 122 66 124 78 
-                 Q 126 86 132 88 
-                 L 138 84 
-                 Q 140 74 138 62 
-                 Q 138 50 136 44 
-                 Q 134 40 130 38 Z" 
-              fill="url(#back-body-gradient)" 
-              stroke="#2a2a2e" 
-              strokeWidth="0.5"
-            />
-            
-            {/* Right Arm */}
-            <path 
-              d="M 172 38 
-                 Q 176 44 176 54 
-                 Q 178 66 176 78 
-                 Q 174 86 168 88 
-                 L 162 84 
-                 Q 160 74 162 62 
-                 Q 162 50 164 44 
-                 Q 166 40 170 38 Z" 
-              fill="url(#back-body-gradient)" 
-              stroke="#2a2a2e" 
-              strokeWidth="0.5"
-            />
-            
-            {/* Left Leg */}
-            <path 
-              d="M 134 78 
-                 Q 130 90 130 106 
-                 Q 130 122 134 138 
-                 Q 136 152 140 164 
-                 L 148 164 
-                 Q 150 152 150 138 
-                 Q 150 122 150 106 
-                 Q 150 90 150 80 
-                 Q 144 78 134 78 Z" 
-              fill="url(#back-body-gradient)" 
-              stroke="#2a2a2e" 
-              strokeWidth="0.5"
-            />
-            
-            {/* Right Leg */}
-            <path 
-              d="M 166 78 
-                 Q 170 90 170 106 
-                 Q 170 122 166 138 
-                 Q 164 152 160 164 
-                 L 152 164 
-                 Q 150 152 150 138 
-                 Q 150 122 150 106 
-                 Q 150 90 150 80 
-                 Q 156 78 166 78 Z" 
-              fill="url(#back-body-gradient)" 
-              stroke="#2a2a2e" 
-              strokeWidth="0.5"
-            />
-          </g>
-          
-          {/* Muscle Groups */}
-          <g>
-            {renderMusclePaths(BACK_MUSCLES, 'back')}
-          </g>
-          
-          {/* Label */}
-          <text 
-            x="150" 
-            y="174" 
-            textAnchor="middle" 
-            className="text-[6px] uppercase tracking-[0.2em] font-medium"
-            fill="#71717a"
-          >
-            Back
-          </text>
+          <Defs prefix="back" />
+          <BodySilhouette prefix="back" />
+          <g>{renderMusclePaths(BACK_MUSCLES, 'back')}</g>
+          <text x="150" y="174" textAnchor="middle" className="text-[6px] uppercase tracking-[0.2em] font-medium" fill="#71717a">Back</text>
         </svg>
       </div>
     </div>
