@@ -214,8 +214,8 @@ export async function getHealthDashboardData(dateStr?: string) {
     }).lean();
     yesterdayExerciseCount = yesterdayLogs.filter((l: any) => l?.sets && l.sets.length > 0).length;
     
-    // Rest day allowed if yesterday had any exercise (alternate day pattern)
-    canBeRestDay = yesterdayExerciseCount > 0;
+    // Simple alternate day pattern: if yesterday had exercise, today can be rest
+    canBeRestDay = yesterdayExerciseCount >= 1;
   }
 
   // Calculate next workout index (cycles back to 0)
@@ -245,8 +245,7 @@ export async function getHealthDashboardData(dateStr?: string) {
     mood: moodLog ? { mood: moodLog.mood, note: moodLog.note } : null,
     todaysExerciseCount,
     canBeRestDay,
-    yesterdayExerciseCount,
-    dayBeforeExerciseCount
+    yesterdayExerciseCount
   };
 }
 

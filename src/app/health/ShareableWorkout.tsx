@@ -6,6 +6,8 @@ import { getTodaysWorkoutSummary } from '@/app/actions/health';
 import { cn } from '@/lib/utils';
 import { shareImage } from '@/lib/share';
 
+// Rest day logic: Alternate day is fine - if yesterday had exercise, today can be rest
+
 interface WorkoutSummary {
   date: string;
   userName: string;

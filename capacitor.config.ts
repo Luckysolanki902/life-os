@@ -16,11 +16,15 @@ const config: CapacitorConfig = {
   },
   plugins: {
     SplashScreen: {
-      launchShowDuration: 2000,
+      launchShowDuration: 3000,
+      launchAutoHide: true,
+      launchFadeOutDuration: 500,
       backgroundColor: '#0a0a0a',
-      showSpinner: false,
       androidSplashResourceName: 'splash',
-      androidScaleType: 'CENTER_INSIDE'
+      androidScaleType: 'CENTER_CROP',
+      showSpinner: false,
+      iosSpinnerStyle: 'small',
+      spinnerColor: '#999999'
     },
     StatusBar: {
       style: 'Dark',

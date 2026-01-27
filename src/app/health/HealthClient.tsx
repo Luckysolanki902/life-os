@@ -73,7 +73,6 @@ interface HealthClientProps {
     todaysExerciseCount?: number;
     canBeRestDay?: boolean;
     yesterdayExerciseCount?: number;
-    dayBeforeExerciseCount?: number;
   };
 }
 
