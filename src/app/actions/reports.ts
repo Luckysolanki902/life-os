@@ -351,6 +351,11 @@ export async function getOverallReport(period: string = 'thisWeek') {
       (acc, p) => acc + Math.max(0, p.lastPage - p.firstPage), 
       0
     );
+
+    // Get weight for this day
+    const dayWeightLog = await WeightLog.findOne({
+      date: { $gte: dayStart, $lt: dayEnd }
+    }).sort({ date: -1 }).lean();
     
     // Use expected tasks as total (not just logged tasks)
     dailyBreakdown.push({
@@ -360,7 +365,8 @@ export async function getOverallReport(period: string = 'thisWeek') {
       total: expectedTasksForDay,
       rate: expectedTasksForDay > 0 ? Math.round((dayCompleted / expectedTasksForDay) * 100) : 0,
       learningMinutes: dayLearningMinutes,
-      pagesRead: dayPagesRead
+      pagesRead: dayPagesRead,
+      weight: dayWeightLog?.weight || null
     });
   }
   
@@ -1110,5 +1116,77 @@ export async function getLearningReport(period: string = 'thisWeek', skillId?: s
     dailyLearning,
     weeklyTrend,
     recentSessions: recentSessionsFormatted
+  };
+}
+
+// ============ RECENT DASHBOARD STATS ============
+export async function getDashboardStats() {
+  await connectDB();
+  const today = dayjs().tz(DEFAULT_TIMEZONE).startOf('day');
+  
+  // 1. Total Points (All Time)
+  const totalPointsRes = await DailyLog.aggregate([
+    { $match: { status: 'completed' } },
+    { $group: { _id: null, total: { $sum: '$pointsEarned' } } }
+  ]);
+  const totalPoints = totalPointsRes[0]?.total || 0;
+
+  // 2. Improvement (Last 7 Days vs Previous 7 Days)
+  const last7Start = today.subtract(6, 'day').toDate();
+  const last7End = today.add(1, 'day').toDate();
+  const prev7Start = today.subtract(13, 'day').toDate();
+  const prev7End = last7Start;
+
+  const last7PointsRes = await DailyLog.aggregate([
+    { $match: { date: { $gte: last7Start, $lt: last7End }, status: 'completed' } },
+    { $group: { _id: null, total: { $sum: '$pointsEarned' } } }
+  ]);
+  const last7Points = last7PointsRes[0]?.total || 0;
+
+  const prev7PointsRes = await DailyLog.aggregate([
+    { $match: { date: { $gte: prev7Start, $lt: prev7End }, status: 'completed' } },
+    { $group: { _id: null, total: { $sum: '$pointsEarned' } } }
+  ]);
+  const prev7Points = prev7PointsRes[0]?.total || 0;
+
+  let improvement = 0;
+  if (prev7Points === 0) {
+    improvement = last7Points > 0 ? 100 : 0;
+  } else {
+    improvement = Math.round(((last7Points - prev7Points) / prev7Points) * 100);
+  }
+
+  // 3. Weight History (Last 30 Days)
+  const weightStart = today.subtract(30, 'day').toDate();
+  const weightLogs = await WeightLog.find({
+    date: { $gte: weightStart }
+  }).sort({ date: 1 }).lean();
+
+  const weightHistory = weightLogs.map((log: any) => ({
+    date: log.date.toISOString(),
+    weight: log.weight
+  }));
+
+  // 4. Exercise Heatmap (Last 365 Days)
+  const heatmapStart = today.subtract(365, 'day').toDate();
+  const exerciseActivity = await ExerciseLog.aggregate([
+    { $match: { date: { $gte: heatmapStart } } },
+    { $group: { 
+        _id: { $dateToString: { format: '%Y-%m-%d', date: '$date' } },
+        count: { $sum: 1 }
+      } 
+    }
+  ]);
+  
+  const heatmapData = exerciseActivity.map((item: any) => ({
+    date: item._id,
+    count: item.count
+  }));
+
+  return {
+    totalPoints,
+    improvement,
+    weightHistory,
+    heatmapData
   };
 }

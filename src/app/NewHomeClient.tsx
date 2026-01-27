@@ -13,6 +13,7 @@ import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'rec
 import { cn } from '@/lib/utils';
 import { toggleTaskStatus, skipTask, unskipTask } from '@/app/actions/routine';
 import { logWeight } from '@/app/actions/health';
+import { getDashboardStats } from '@/app/actions/reports';
 import { format } from 'date-fns';
 
 // Fallback toast hook if '@/components/ui/use-toast' is unavailable
@@ -78,6 +79,11 @@ export default function NewHomeClient({
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
   const [showSkippedTasks, setShowSkippedTasks] = useState(false);
+  const [dashboardStats, setDashboardStats] = useState<any>(null);
+
+  useEffect(() => {
+    getDashboardStats().then(setDashboardStats).catch(console.error);
+  }, []);
 
   // Optimistic Tasks
   const [optimisticTasks, addOptimisticTask] = useOptimistic(
@@ -233,6 +239,62 @@ export default function NewHomeClient({
           <span className="text-sm font-semibold">{streakData.currentStreak}</span>
         </div>
       </header>
+
+      {/* Stats Overview */}
+      {dashboardStats && (
+        <section className="grid grid-cols-2 gap-3 animate-in fade-in slide-in-from-bottom-2 duration-700 delay-100">
+          <div className="bg-card rounded-2xl border border-border/40 p-4 flex flex-col justify-between shadow-sm">
+             <div className="flex items-center gap-2 mb-2">
+                <Trophy size={14} className="text-amber-500" />
+                <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Total Points</span>
+             </div>
+             <div className="flex items-baseline gap-2">
+                 <span className="text-2xl font-bold tracking-tight">{dashboardStats.totalPoints >= 1000 ? `${(dashboardStats.totalPoints/1000).toFixed(1)}k` : dashboardStats.totalPoints}</span>
+                 {dashboardStats.improvement !== 0 && (
+                     <div className="flex items-center text-[10px] font-medium">
+                        <span className={dashboardStats.improvement > 0 ? "text-emerald-500" : "text-rose-500"}>
+                          {dashboardStats.improvement > 0 ? '+' : ''}{dashboardStats.improvement}%
+                        </span>
+                        <span className="text-muted-foreground/60 ml-1">improved</span>
+                     </div>
+                 )}
+             </div>
+          </div>
+          <div className="bg-card rounded-2xl border border-border/40 p-4 flex flex-col justify-between shadow-sm relative overflow-hidden">
+             <div className="flex items-center gap-2 mb-1 relative z-10">
+                <Scale size={14} className="text-rose-500" />
+                <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Weight</span>
+             </div>
+             {dashboardStats.weightHistory?.length > 1 ? (
+                 <div className="h-10 w-full mt-1 -ml-1 relative z-10">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={dashboardStats.weightHistory}>
+                            <defs>
+                                <linearGradient id="miniWeight" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stopColor="hsl(var(--destructive))" stopOpacity={0.2}/>
+                                    <stop offset="100%" stopColor="hsl(var(--destructive))" stopOpacity={0}/>
+                                </linearGradient>
+                            </defs>
+                            <Area 
+                              type="monotone" 
+                              dataKey="weight" 
+                              stroke="hsl(var(--destructive))" 
+                              strokeWidth={2} 
+                              fill="url(#miniWeight)" 
+                              dot={false}
+                            />
+                        </AreaChart>
+                    </ResponsiveContainer>
+                 </div>
+             ) : (
+                <div className="mt-1">
+                    <span className="text-2xl font-bold tracking-tight">{initialWeight?.weight || '--'}</span>
+                    <span className="text-xs text-muted-foreground ml-1">kg</span>
+                </div>
+             )}
+          </div>
+        </section>
+      )}
 
       {/* Week Glance */}
       <section className="bg-card rounded-2xl border border-border/40 p-5">

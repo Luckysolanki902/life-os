@@ -22,12 +22,11 @@ import {
   FileText,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { getOverallReport } from '../actions/reports';
+import { getOverallReport, getDashboardStats } from '../actions/reports';
 
 const PERIODS = [
   { value: 'last7Days', label: '7D' },
-  { value: 'last14Days', label: '14D' },
-  { value: 'thisWeek', label: 'Week' },
+  { value: 'last30Days', label: '30D' },
   { value: 'thisMonth', label: 'Month' },
   { value: 'last3Months', label: '3M' },
   { value: 'thisYear', label: 'Year' },
@@ -65,8 +64,146 @@ interface ReportData {
     rate: number;
     learningMinutes?: number;
     pagesRead?: number;
+    weight?: number | null;
   }>;
 }
+
+interface DashboardStats {
+  heatmapData: Array<{ date: string; count: number }>;
+  weightHistory: Array<{ date: string; weight: number }>;
+}
+
+function Heatmap({ data }: { data: Array<{ date: string; count: number }> }) {
+  // Generate last 365 days
+  const today = new Date();
+  const days = [];
+  for (let i = 364; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    days.push(d);
+  }
+
+  // Create map for easy lookup
+  const dataMap = new Map(data.map(d => [d.date, d.count]));
+  
+  // Group by week
+  const weeks = [];
+  let currentWeek = [];
+  
+  // Align start to Sunday
+  // Note: This is a simplified calendar approach
+  
+  return (
+      <div className="w-full overflow-x-auto pb-2">
+        <div className="flex gap-1 min-w-fit">
+           {Array.from({ length: 53 }).map((_, wIndex) => (
+             <div key={wIndex} className="flex flex-col gap-1">
+               {Array.from({ length: 7 }).map((_, dIndex) => {
+                  const dayOffset = (wIndex * 7) + dIndex;
+                  const dayDate = days[dayOffset]; // This mapping is rough, better to align days properly
+                  if (!dayDate) return <div key={dIndex} className="w-2.5 h-2.5" />;
+                  
+                  const dateStr = dayDate.toISOString().split('T')[0];
+                  const count = dataMap.get(dateStr) || 0;
+                  
+                  // Use activity level colors
+                  let bg = "bg-secondary/40";
+                  if (count > 0) bg = "bg-emerald-500/30";
+                  if (count > 1) bg = "bg-emerald-500/60";
+                  if (count > 2) bg = "bg-emerald-500";
+                  
+                  return (
+                    <div 
+                      key={dIndex} 
+                      className={cn("w-2.5 h-2.5 rounded-[2px]", bg)} 
+                      title={`${dateStr}: ${count} exercises`}
+                    />
+                  );
+               })}
+             </div>
+           ))}
+        </div>
+      </div>
+  );
+}
+
+// Better Heatmap Logic
+function ActivityHeatmap({ data }: { data: Array<{ date: string; count: number }> }) {
+    // We want approx 52 weeks.
+    // Start date should be Sunday ~365 days ago.
+    const today = new Date();
+    const endDate = new Date(today);
+    const startDate = new Date(today);
+    startDate.setDate(today.getDate() - 365);
+    
+    // Adjust start date to previous Sunday
+    while (startDate.getDay() !== 0) {
+        startDate.setDate(startDate.getDate() - 1);
+    }
+
+    const allDays = [];
+    const current = new Date(startDate);
+    while (current <= endDate) {
+        allDays.push(new Date(current));
+        current.setDate(current.getDate() + 1);
+    }
+
+    const groupedByWeek = [];
+    let currentWeek = [];
+    for (const day of allDays) {
+        currentWeek.push(day);
+        if (currentWeek.length === 7) {
+            groupedByWeek.push(currentWeek);
+            currentWeek = [];
+        }
+    }
+    if (currentWeek.length > 0) groupedByWeek.push(currentWeek);
+
+    const dataMap = new Map(data.map(d => [d.date, d.count]));
+
+    return (
+        <div className="bg-card border border-border/40 rounded-xl p-5 shadow-sm overflow-hidden">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4">Exercise Activity</h3>
+            <div className="w-full overflow-x-auto">
+                <div className="flex gap-[3px] min-w-max pb-2">
+                    {groupedByWeek.map((week, wIndex) => (
+                        <div key={wIndex} className="flex flex-col gap-[3px]">
+                            {week.map((day, dIndex) => {
+                                const dateStr = day.toISOString().split('T')[0];
+                                const count = dataMap.get(dateStr) || 0;
+                                let color = "bg-secondary/50"; // Empty
+                                if (count >= 1) color = "bg-emerald-500/40";
+                                if (count >= 2) color = "bg-emerald-500/70";
+                                if (count >= 3) color = "bg-emerald-500";
+                                
+                                // Rest day logic could be here if we had that data
+                                
+                                return (
+                                    <div 
+                                        key={dIndex}
+                                        className={cn("w-2.5 h-2.5 rounded-[1px] transition-colors", color)}
+                                        title={`${dateStr}: ${count} activities`}
+                                    />
+                                );
+                            })}
+                        </div>
+                    ))}
+                </div>
+            </div>
+            <div className="flex items-center gap-2 mt-2 text-[10px] text-muted-foreground">
+                <span>Less</span>
+                <div className="flex gap-1">
+                    <div className="w-2.5 h-2.5 rounded-[1px] bg-secondary/50" />
+                    <div className="w-2.5 h-2.5 rounded-[1px] bg-emerald-500/40" />
+                    <div className="w-2.5 h-2.5 rounded-[1px] bg-emerald-500/70" />
+                    <div className="w-2.5 h-2.5 rounded-[1px] bg-emerald-500" />
+                </div>
+                <span>More</span>
+            </div>
+        </div>
+    );
+}
+
 
 function TrendBadge({ value, suffix = '' }: { value: number; suffix?: string }) {
   if (value === 0) return null;
@@ -177,6 +314,7 @@ function MinimalTooltip({ active, payload, label }: TooltipProps) {
 export default function ReportsClient() {
   const [period, setPeriod] = useState('last7Days');
   const [data, setData] = useState<ReportData | null>(null);
+  const [stats, setStats] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -185,6 +323,13 @@ export default function ReportsClient() {
       try {
         const result = await getOverallReport(period);
         setData(result);
+        
+        // Fetch stats only once if possible, but here we can check if it exists
+        // Actually, let's just fetch it always to keep sync simple
+        if (!stats) {
+            const dashboardStats = await getDashboardStats();
+            setStats(dashboardStats);
+        }
       } catch (error) {
         console.error('Failed to fetch report data:', error);
       } finally {
@@ -192,7 +337,12 @@ export default function ReportsClient() {
       }
     }
     fetchData();
-  }, [period]);
+  }, [period, stats]); // stats in dep array might cause loop if not careful? No, if (!stats) check prevents it.
+  // Actually, better to separate effects.
+
+  useEffect(() => {
+      getDashboardStats().then(setStats).catch(console.error);
+  }, []);
 
   const handlePeriodChange = (newPeriod: string) => {
     setPeriod(newPeriod);
@@ -215,7 +365,7 @@ export default function ReportsClient() {
     );
   }
 
-  const { summary, domainBreakdown, dailyBreakdown } = data;
+  const { summary, dailyBreakdown } = data;
 
   // Process chart data
   const chartData = dailyBreakdown?.map((day) => ({
@@ -226,6 +376,7 @@ export default function ReportsClient() {
     total: day.total,
     learningMinutes: day.learningMinutes || 0,
     pagesRead: day.pagesRead || 0,
+    weight: day.weight
   })) || [];
 
   const moodLabels: Record<number, string> = {
@@ -265,7 +416,6 @@ export default function ReportsClient() {
       {/* Main Completion Rate Card with Chart */}
       <div className="bg-card border border-border/40 rounded-xl p-6 shadow-sm relative overflow-hidden group">
        
-        
         <div className="flex items-start justify-between mb-8 relative z-10">
           <div>
             <div className="flex items-center gap-2 mb-1">
@@ -378,135 +528,135 @@ export default function ReportsClient() {
           <BookOpen size={16} className="text-blue-500/80" />
         </div>
       </div>
+      
+      {/* Exercise Heatmap */}
+      {stats?.heatmapData && <ActivityHeatmap data={stats.heatmapData} />}
 
-      {/* Domain Performance */}
+      {/* Charts Grid */}
       <div className="grid md:grid-cols-2 gap-4">
-          <div className="space-y-3">
-            <div className="grid gap-2">
-            {domainBreakdown.map((domain) => {
-                const colors: Record<string, string> = {
-                health: 'text-rose-500',
-                learning: 'text-amber-500',
-                social: 'text-emerald-500',
-                career: 'text-blue-500',
-                };
-                const barColors: Record<string, string> = {
-                 health: 'bg-rose-500',
-                 learning: 'bg-amber-500',
-                 social: 'bg-emerald-500',
-                 career: 'bg-blue-500',
-                };
-
-                const c = colors[domain.domain] || colors.health;
-                const b = barColors[domain.domain] || barColors.health;
-                
-                // Icon mapping
-                const icons: Record<string, any> = {
-                    health: Activity, learning: Brain, social: Smile, career: Target
-                };
-                const Icon = icons[domain.domain] || Activity;
-                
-                return (
-                <Link
-                    key={domain.domain}
-                    href={`/reports/${domain.domain}?period=${period}`}
-                    className="group flex flex-col p-4 bg-card border border-border/40 rounded-xl hover:border-border/80 transition-all"
-                >
-                    <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-3">
-                            <Icon size={16} className={c} />
-                            <span className="font-medium capitalize text-sm">{domain.domain}</span>
-                        </div>
-                        <ArrowRight size={14} className="text-muted-foreground opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all" />
-                    </div>
-                    
-                    <div className="flex items-end justify-between mb-2">
-                        <span className="text-xs text-muted-foreground">{domain.points} pts</span>
-                        <span className="text-lg font-bold">{domain.completionRate}%</span>
-                    </div>
-
-                    <div className="h-1 bg-secondary rounded-full overflow-hidden w-full">
-                        <div 
-                        className={cn('h-full rounded-full transition-all duration-700', b)}
-                        style={{ width: `${domain.completionRate}%` }}
-                        />
-                    </div>
-                </Link>
-                );
-            })}
-            </div>
-        </div>
-
-        {/* Charts Column */}
-         <div className="space-y-4">
-             {/* Tasks Completed Bar Chart */}
-            {chartData.length > 1 && (
-                <div className="bg-card border border-border/40 rounded-xl p-5 shadow-sm">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4 flex items-center gap-2">
-                    Daily Tasks
+        
+        {/* Pages Read Chart */}
+        {chartData.length > 1 && (
+            <div className="bg-card border border-border/40 rounded-xl p-5 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Pages Read
                 </h3>
-                <div className="h-40">
-                    <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={chartData}>
-                        <XAxis 
-                        dataKey="shortDate" 
-                        tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }}
-                        axisLine={false}
-                        tickLine={false}
-                        dy={5}
-                        />
-                        <Tooltip content={<MinimalTooltip />} cursor={{ fill: 'var(--secondary)', opacity: 0.4 }} />
-                        <Bar 
-                        dataKey="completed" 
-                        fill="hsl(var(--primary))"
-                        radius={[2, 2, 0, 0]}
-                        activeBar={{ fill: 'hsl(var(--foreground))' }}
-                        />
-                    </BarChart>
-                    </ResponsiveContainer>
-                </div>
-                </div>
-            )}
+            </div>
+            <div className="h-40">
+                <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={chartData}>
+                    <defs>
+                    <linearGradient id="readGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.2} />
+                        <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                    </linearGradient>
+                    </defs>
+                    <XAxis 
+                    dataKey="shortDate" 
+                    tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }}
+                    axisLine={false}
+                    tickLine={false}
+                    dy={5}
+                    />
+                    <Tooltip content={<MinimalTooltip />} />
+                    <Area
+                    type="monotone"
+                    dataKey="pagesRead"
+                    stroke="hsl(var(--primary))"
+                    strokeWidth={2}
+                    fill="url(#readGradient)"
+                    name="Pages"
+                    />
+                </AreaChart>
+                </ResponsiveContainer>
+            </div>
+            </div>
+        )}
 
-            {/* Learning Duration Chart */}
-            {chartData.length > 1 && (
-                <div className="bg-card border border-border/40 rounded-xl p-5 shadow-sm">
-                <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Learning Minutes
-                    </h3>
-                </div>
-                <div className="h-40">
+        {/* Learning Duration Chart */}
+        {chartData.length > 1 && (
+            <div className="bg-card border border-border/40 rounded-xl p-5 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Learning Minutes
+                </h3>
+            </div>
+            <div className="h-40">
+                <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={chartData}>
+                    <defs>
+                    <linearGradient id="learningGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="rgb(245, 158, 11)" stopOpacity={0.2} />
+                        <stop offset="95%" stopColor="rgb(245, 158, 11)" stopOpacity={0} />
+                    </linearGradient>
+                    </defs>
+                    <XAxis 
+                    dataKey="shortDate" 
+                    tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }}
+                    axisLine={false}
+                    tickLine={false}
+                    dy={5}
+                    />
+                    <Tooltip content={<MinimalTooltip />} />
+                    <Area
+                    type="monotone"
+                    dataKey="learningMinutes"
+                    stroke="rgb(245, 158, 11)"
+                    strokeWidth={2}
+                    fill="url(#learningGradient)"
+                    name="Minutes"
+                    />
+                </AreaChart>
+                </ResponsiveContainer>
+            </div>
+            </div>
+        )}
+
+        {/* Weight Chart (Zoomed) */}
+        {chartData.some(d => d.weight) && (
+             <div className="md:col-span-2 bg-card border border-border/40 rounded-xl p-5 shadow-sm">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4">
+                    Weight Trend (kg)
+                </h3>
+                <div className="h-48">
                     <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={chartData}>
+                    <AreaChart data={chartData.filter(d => d.weight !== null)}>
                         <defs>
-                        <linearGradient id="learningGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="rgb(245, 158, 11)" stopOpacity={0.2} />
-                            <stop offset="95%" stopColor="rgb(245, 158, 11)" stopOpacity={0} />
-                        </linearGradient>
+                            <linearGradient id="weightGradient" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="hsl(var(--destructive))" stopOpacity={0.1} />
+                                <stop offset="95%" stopColor="hsl(var(--destructive))" stopOpacity={0} />
+                            </linearGradient>
                         </defs>
                         <XAxis 
-                        dataKey="shortDate" 
-                        tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }}
-                        axisLine={false}
-                        tickLine={false}
-                        dy={5}
+                            dataKey="shortDate" 
+                            tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }}
+                            axisLine={false}
+                            tickLine={false}
+                            dy={5}
+                        />
+                        <YAxis 
+                            domain={['dataMin - 1', 'dataMax + 1']} 
+                            hide={false}
+                            width={30}
+                            tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }}
+                            axisLine={false}
+                            tickLine={false}
                         />
                         <Tooltip content={<MinimalTooltip />} />
                         <Area
-                        type="monotone"
-                        dataKey="learningMinutes"
-                        stroke="rgb(245, 158, 11)"
-                        strokeWidth={2}
-                        fill="url(#learningGradient)"
-                        name="Minutes"
+                            type="monotone"
+                            dataKey="weight"
+                            stroke="hsl(var(--destructive))"
+                            strokeWidth={2}
+                            fill="url(#weightGradient)"
+                            activeDot={{ r: 4 }}
                         />
                     </AreaChart>
                     </ResponsiveContainer>
                 </div>
-                </div>
-            )}
-         </div>
+             </div>
+        )}
       </div>
     </div>
   );
