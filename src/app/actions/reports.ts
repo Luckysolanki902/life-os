@@ -538,7 +538,8 @@ export async function getHealthReport(period: string = 'thisWeek') {
   // Exercise stats
   const exerciseLogs = await ExerciseLog.find({ date: { $gte: start, $lt: end } })
     .populate('exerciseId')
-    .lean();
+    .exec()
+    .then((docs) => docs.map(doc => doc.toObject({ flattenMaps: true })));
     
   const prevExerciseLogs = await ExerciseLog.find({ date: { $gte: prev.start, $lt: prev.end } }).lean();
   
