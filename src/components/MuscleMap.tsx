@@ -399,11 +399,19 @@ export default function MuscleMap({ highlightedMuscles = [], muscleScores = {}, 
           key={`${name}-${i}`}
           d={d}
           className="transition-all duration-700 ease-out"
-          style={{ opacity }}
-          fill={active ? `url(#${gradientPrefix}-active-gradient)` : `url(#${gradientPrefix}-inactive-gradient)`}
+          style={{ opacity: active ? 1 : 0.4 }} // Handle opacity via fill mostly
+          fill={
+            active 
+              ? score > 0.7 
+                ? `url(#${gradientPrefix}-active-high)` 
+                : score > 0.3 
+                  ? `url(#${gradientPrefix}-active-med)` 
+                  : `url(#${gradientPrefix}-active-low)`
+              : `url(#${gradientPrefix}-inactive-gradient)`
+          }
           stroke={active ? `rgba(251, 113, 133, ${Math.min(0.5 + score * 0.5, 1)})` : "rgba(82, 82, 91, 0.4)"}
           strokeWidth={active ? "0.6" : "0.3"}
-          filter={active ? `url(#${gradientPrefix}-glow)` : undefined}
+          filter={active && score > 0.6 ? `url(#${gradientPrefix}-glow)` : undefined}
         />
       ));
     });
@@ -411,11 +419,22 @@ export default function MuscleMap({ highlightedMuscles = [], muscleScores = {}, 
 
   const Defs = ({ prefix }: { prefix: string }) => (
     <defs>
-      {/* Active muscle gradient - Varying Reds */}
-      <linearGradient id={`${prefix}-active-gradient`} x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="#fb7185" />
-        <stop offset="50%" stopColor="#f43f5e" />
-        <stop offset="100%" stopColor="#e11d48" />
+      {/* High Intensity - Deep Red / Intense */}
+      <linearGradient id={`${prefix}-active-high`} x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#e11d48" /> {/* Rose 600 */}
+        <stop offset="100%" stopColor="#be123c" /> {/* Rose 700 */}
+      </linearGradient>
+
+      {/* Medium Intensity - Standard Red */}
+      <linearGradient id={`${prefix}-active-med`} x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#fb7185" /> {/* Rose 400 */}
+        <stop offset="100%" stopColor="#f43f5e" /> {/* Rose 500 */}
+      </linearGradient>
+
+      {/* Low Intensity - Light Pink / Washed out */}
+      <linearGradient id={`${prefix}-active-low`} x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#fda4af" /> {/* Rose 300 */}
+        <stop offset="100%" stopColor="#fb7185" /> {/* Rose 400 */}
       </linearGradient>
       
       {/* Inactive muscle gradient */}
