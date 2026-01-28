@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
 import { Check, Clock, Edit2, Trash2, X, CalendarDays, Bell, SkipForward } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { completeTask, uncompleteTask, updateTask, deleteTask, skipTask, unskipTask } from '@/app/actions/routine';
@@ -37,9 +36,10 @@ interface TaskItemProps {
 }
 
 export default function TaskItem({ task, onOptimisticToggle, dateStr, editMode = false }: TaskItemProps) {
-  const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
   const [isPending, setIsPending] = useState(false);
+  const [isToggling, setIsToggling] = useState(false);
+  const [isSkipping, setIsSkipping] = useState(false);
   // Optimistic state for completion
   const [optimisticCompleted, setOptimisticCompleted] = useState<boolean | null>(null);
   const [optimisticSkipped, setOptimisticSkipped] = useState<boolean | null>(null);
@@ -71,7 +71,13 @@ export default function TaskItem({ task, onOptimisticToggle, dateStr, editMode =
     : task.log?.status === 'skipped';
 
   const handleToggle = useCallback(async () => {
+    if (isToggling) {
+      return;
+    }
+    
     const newStatus = !isCompleted;
+    
+    setIsToggling(true);
     
     // INSTANT haptic feedback - before anything else
     if (newStatus) {
@@ -93,20 +99,23 @@ export default function TaskItem({ task, onOptimisticToggle, dateStr, editMode =
       } else {
         await completeTask(task._id, targetDate);
       }
-      router.refresh();
-      // Reset optimistic state - server state will take over on revalidation
-      setOptimisticCompleted(null);
-      setOptimisticSkipped(null);
     } catch (error) {
       // Revert on error
-      setOptimisticCompleted(!newStatus);
-      router.refresh();
       console.error('Failed to toggle task:', error);
+      setOptimisticCompleted(!newStatus);
+    } finally {
+      setIsToggling(false);
     }
-  }, [isCompleted, task._id, targetDate, onOptimisticToggle, router]);
+  }, [isToggling, isCompleted, task._id, targetDate, onOptimisticToggle]);
 
   const handleSkip = useCallback(async () => {
+    if (isSkipping) {
+      return;
+    }
+    
     const newSkipStatus = !isSkipped;
+    
+    setIsSkipping(true);
     
     // INSTANT haptic feedback - before anything else
     if (newSkipStatus) {
@@ -125,17 +134,14 @@ export default function TaskItem({ task, onOptimisticToggle, dateStr, editMode =
       } else {
         await unskipTask(task._id, targetDate);
       }
-      router.refresh();
-      // Reset optimistic state
-      setOptimisticSkipped(null);
-      setOptimisticCompleted(null);
     } catch (error) {
       // Revert on error
-      setOptimisticSkipped(!newSkipStatus);
-      router.refresh();
       console.error('Failed to skip task:', error);
+      setOptimisticSkipped(!newSkipStatus);
+    } finally {
+      setIsSkipping(false);
     }
-  }, [isSkipped, task._id, targetDate, router]);
+  }, [isSkipping, isSkipped, task._id, targetDate]);
 
   const toggleDay = (day: number) => {
     setCustomDays(prev => 

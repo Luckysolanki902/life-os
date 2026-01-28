@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useOptimistic, useTransition, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { 
   Trophy, Flame, Wind, Droplets, Dumbbell, BookOpen, Target, 
@@ -78,9 +77,7 @@ export default function NewHomeClient({
   last7DaysCompletion,
   user
 }: Props) {
-  const router = useRouter();
   const { toast } = useToast();
-  const [isPending, startTransition] = useTransition();
   const [showSkippedTasks, setShowSkippedTasks] = useState(false);
   const [dashboardStats, setDashboardStats] = useState<any>(null);
 
@@ -88,28 +85,21 @@ export default function NewHomeClient({
     getDashboardStats().then(setDashboardStats).catch(console.error);
   }, []);
 
-  // Optimistic Tasks
-  const [optimisticTasks, addOptimisticTask] = useOptimistic(
-    initialTasks,
-    (state, { taskId, type }: { taskId: string, type: 'toggle' | 'skip' | 'unskip' }) => {
-      return state.map(task => {
-        if (task._id === taskId) {
-          if (type === 'toggle') {
-            return {
-              ...task,
-              status: task.status === 'completed' ? 'pending' : 'completed',
-              completedAt: task.status === 'completed' ? undefined : new Date().toISOString()
-            };
-          } else if (type === 'skip') {
-            return { ...task, status: 'skipped' };
-          } else if (type === 'unskip') {
-            return { ...task, status: 'pending' };
-          }
-        }
-        return task;
-      });
-    }
-  );
+  // Optimistic Tasks (robust, no reversion on re-render)
+  const [tasks, setTasks] = useState(initialTasks);
+  const pendingTaskIdsRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    setTasks(prev => {
+      if (pendingTaskIdsRef.current.size === 0) return initialTasks;
+      const prevMap = new Map(prev.map(task => [task._id, task]));
+      return initialTasks.map(task => (
+        pendingTaskIdsRef.current.has(task._id)
+          ? (prevMap.get(task._id) ?? task)
+          : task
+      ));
+    });
+  }, [initialTasks]);
 
   // Weight Logic
   const [weight, setWeight] = useState('');
@@ -119,7 +109,7 @@ export default function NewHomeClient({
   const [weightSuccess, setWeightSuccess] = useState(false);
 
   // Sort tasks: pending first, then time of day
-  const sortedTasks = [...optimisticTasks].sort((a, b) => {
+  const sortedTasks = [...tasks].sort((a, b) => {
     // 1. Status priority: pending < skipped < completed
     const statusScore = (status: string) => {
       if (status === 'pending') return 0;
@@ -138,22 +128,52 @@ export default function NewHomeClient({
   });
 
   async function handleToggleTask(taskId: string) {
-    const task = optimisticTasks.find(t => t._id === taskId);
+    if (pendingTaskIdsRef.current.has(taskId)) return;
+
+    const task = tasks.find(t => t._id === taskId);
     if (!task) return;
 
-    addOptimisticTask({ taskId, type: 'toggle' });
+    const originalStatus = task.status;
+    const originalCompletedAt = task.completedAt;
+    const nextStatus: 'pending' | 'completed' | 'skipped' = task.status === 'completed' ? 'pending' : 'completed';
+
+    pendingTaskIdsRef.current.add(taskId);
+    setTasks(prev => prev.map(t => (
+      t._id === taskId
+        ? { ...t, status: nextStatus, completedAt: nextStatus === 'completed' ? new Date().toISOString() : undefined }
+        : t
+    )));
     
     try {
-      await toggleTaskStatus(taskId, task.status === 'completed');
-      router.refresh();
+      await toggleTaskStatus(taskId, originalStatus === 'completed');
     } catch (error) {
+      setTasks(prev => prev.map(t => (
+        t._id === taskId
+          ? { ...t, status: originalStatus, completedAt: originalCompletedAt }
+          : t
+      )));
       toast({ title: "Error", description: "Failed to update task", variant: "destructive" });
-      router.refresh(); // Refresh to revert optimistic update
+    } finally {
+      pendingTaskIdsRef.current.delete(taskId);
     }
   }
 
   async function handleSkipTask(taskId: string, isUnskip: boolean) {
-    addOptimisticTask({ taskId, type: isUnskip ? 'unskip' : 'skip' });
+    if (pendingTaskIdsRef.current.has(taskId)) return;
+
+    const task = tasks.find(t => t._id === taskId);
+    if (!task) return;
+
+    const originalStatus = task.status;
+    const originalCompletedAt = task.completedAt;
+    const nextStatus: 'pending' | 'skipped' = isUnskip ? 'pending' : 'skipped';
+
+    pendingTaskIdsRef.current.add(taskId);
+    setTasks(prev => prev.map(t => (
+      t._id === taskId
+        ? { ...t, status: nextStatus, completedAt: undefined }
+        : t
+    )));
     
     try {
       if (isUnskip) {
@@ -161,10 +181,15 @@ export default function NewHomeClient({
       } else {
         await skipTask(taskId);
       }
-      router.refresh();
     } catch (error) {
+      setTasks(prev => prev.map(t => (
+        t._id === taskId
+          ? { ...t, status: originalStatus, completedAt: originalCompletedAt }
+          : t
+      )));
       toast({ title: "Error", description: "Failed to skip task", variant: "destructive" });
-      router.refresh(); // Refresh to revert optimistic update
+    } finally {
+      pendingTaskIdsRef.current.delete(taskId);
     }
   }
 
