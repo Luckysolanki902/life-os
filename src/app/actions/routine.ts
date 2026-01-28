@@ -273,6 +273,9 @@ export async function completeTask(taskId: string, dateStr?: string) {
   await updateStreakForDate(targetDateStr);
 
   revalidatePath('/routine');
+  revalidatePath('/health');
+  revalidatePath('/learning');
+  revalidatePath('/books');
   revalidatePath('/');
   return { success: true };
 }
@@ -293,6 +296,9 @@ export async function uncompleteTask(taskId: string, dateStr?: string) {
   await updateStreakForDate(targetDateStr);
 
   revalidatePath('/routine');
+  revalidatePath('/health');
+  revalidatePath('/learning');
+  revalidatePath('/books');
   revalidatePath('/');
   return { success: true };
 }
@@ -320,6 +326,9 @@ export async function skipTask(taskId: string, dateStr?: string) {
   );
 
   revalidatePath('/routine');
+  revalidatePath('/health');
+  revalidatePath('/learning');
+  revalidatePath('/books');
   revalidatePath('/');
   return { success: true };
 }
@@ -338,6 +347,9 @@ export async function unskipTask(taskId: string, dateStr?: string) {
   }
 
   revalidatePath('/routine');
+  revalidatePath('/health');
+  revalidatePath('/learning');
+  revalidatePath('/books');
   revalidatePath('/');
   return { success: true };
 }
