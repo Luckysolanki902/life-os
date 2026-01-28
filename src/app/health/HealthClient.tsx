@@ -490,9 +490,6 @@ export default function HealthClient({ initialData }: HealthClientProps) {
                     >
                       {page.title}
                     </h3>
-                    {page.cycleStatus === "today" && (
-                         <span className="flex h-1.5 w-1.5 rounded-full bg-primary" />
-                    )}
                   </div>
                   {page.description && (
                     <p className="text-xs text-muted-foreground mt-0.5">

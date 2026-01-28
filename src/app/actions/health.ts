@@ -219,12 +219,32 @@ export async function getHealthDashboardData(dateStr?: string) {
   }
 
   // Calculate today's workout index
-  // Always show the current workout in the cycle as "TODAY"
+  // If there are logs today, show the page with today's logs as "today"
+  // Otherwise, show the next workout in the cycle as "today"
   let todayWorkoutIndex = -1;
   
   if (pageIds.length > 0) {
-    // The next workout in sequence is always "today's workout"
-    todayWorkoutIndex = (lastWorkoutPageIndex + 1) % pageIds.length;
+    // Check if there are logs for today
+    const todaysLogs = await ExerciseLog.find({
+      exerciseId: { $in: exerciseIds },
+      date: { $gte: targetDate, $lt: nextDay }
+    }).lean();
+    
+    if (todaysLogs.length > 0) {
+      // Find which page has today's logs
+      const exerciseToPage: Record<string, string> = {};
+      allExercises.forEach((ex: any) => {
+        exerciseToPage[ex._id.toString()] = ex.pageId.toString();
+      });
+      
+      const todayPageId = exerciseToPage[(todaysLogs[0] as any).exerciseId?.toString()];
+      if (todayPageId) {
+        todayWorkoutIndex = pageIds.indexOf(todayPageId);
+      }
+    } else {
+      // No logs today, show the next workout in sequence
+      todayWorkoutIndex = (lastWorkoutPageIndex + 1) % pageIds.length;
+    }
   }
 
   // 5. Mood for that date
@@ -262,7 +282,13 @@ export async function getHealthPageData(pageId: string, dateStr?: string) {
   const targetDateStr = dateStr || getTodayDateString();
   const { startOfDay: targetDate, endOfDay: nextDay } = getDateRange(targetDateStr);
 
-  console.log('[getHealthPageData] Fetching data:', { pageId, dateStr, targetDateStr, targetDate, nextDay });
+  console.log('[getHealthPageData] Fetching data:', { 
+    pageId, 
+    dateStr, 
+    targetDateStr, 
+    targetDate: targetDate.toISOString(),
+    nextDay: nextDay.toISOString()
+  });
 
   const page = await HealthPage.findById(pageId).lean();
   if (!page) return null;
@@ -276,7 +302,14 @@ export async function getHealthPageData(pageId: string, dateStr?: string) {
     date: { $gte: targetDate, $lt: nextDay }
   }).lean();
   
-  console.log('[getHealthPageData] Todays logs found:', todaysLogs.length, 'Query:', { $gte: targetDate, $lt: nextDay });
+  console.log('[getHealthPageData] Query result:', { 
+    todaysLogsCount: todaysLogs.length,
+    queryRange: { 
+      $gte: targetDate.toISOString(), 
+      $lt: nextDay.toISOString() 
+    },
+    foundLogDates: todaysLogs.map(l => ({ id: l._id, date: l.date.toISOString(), setsCount: l.sets?.length }))
+  });
 
   // 2. Get Last Log (Before Target Date)
   // We can use aggregate to find the most recent log before targetDate for each exercise
@@ -366,19 +399,39 @@ export async function updateSet(logId: string, setId: string, data: { weight: nu
 export async function logExerciseSet(exerciseId: string, data: { weight?: number; reps?: number; duration?: number; distance?: number; notes?: string }, dateStr?: string) {
   await connectDB();
   
-  // Use IST midnight for consistent date handling
+  // Use IST midnight for consistent date handling - CRITICAL: must store at midnight
   const targetDateStr = dateStr || getTodayDateString();
-  const targetDate = parseToISTMidnight(targetDateStr);
+  const { startOfDay: targetDate, endOfDay: nextDay } = getDateRange(targetDateStr);
   
-  console.log('[logExerciseSet] Logging set:', { exerciseId, dateStr, targetDateStr, targetDate });
+  console.log('[logExerciseSet] Logging set:', { 
+    exerciseId, 
+    dateStr, 
+    targetDateStr, 
+    targetDate: targetDate.toISOString(),
+    nextDay: nextDay.toISOString()
+  });
   
+  // CRITICAL: Query by date range to handle any existing logs with incorrect timestamps
+  // This ensures we match existing logs even if they have timestamps instead of midnight
   const result = await ExerciseLog.findOneAndUpdate(
-    { exerciseId, date: targetDate },
-    { $push: { sets: data } },
+    { 
+      exerciseId, 
+      date: { $gte: targetDate, $lt: nextDay }
+    },
+    { 
+      $push: { sets: data },
+      $set: { date: targetDate }, // Always update to midnight on every insert/update
+      $setOnInsert: { exerciseId } // Ensure exerciseId is set on insert
+    },
     { upsert: true, new: true }
   );
   
-  console.log('[logExerciseSet] Result:', { _id: result._id, date: result.date, setsCount: result.sets.length });
+  console.log('[logExerciseSet] Saved:', { 
+    _id: result._id, 
+    date: result.date,
+    dateUTC: result.date.toISOString(),
+    setsCount: result.sets.length 
+  });
 
   // Update streak for this date
   const { updateStreakForDate } = await import('./streak');
