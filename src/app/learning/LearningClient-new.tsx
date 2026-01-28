@@ -344,7 +344,7 @@ export default function LearningClient({
           </div>
           <div className="space-y-2">
             {routine.map((task) => (
-              <TaskItem key={task._id} task={task} />
+              <TaskItem key={task._id} task={task} dateStr={getLocalDateString()} />
             ))}
           </div>
         </section>

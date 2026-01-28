@@ -302,7 +302,7 @@ export default function HealthClient({ initialData }: HealthClientProps) {
           {activeTasks.length > 0 ? (
             activeTasks.map((task) => (
                 <div key={task._id} className="p-1">
-                    <TaskItem task={task} />
+                    <TaskItem task={task} dateStr={currentDate} />
                 </div>
             ))
           ) : routine.length === 0 ? (
@@ -341,8 +341,8 @@ export default function HealthClient({ initialData }: HealthClientProps) {
         {/* Done/Skipped tasks lists */}
         {(showDoneTasks || showSkippedTasks) && (
             <div className="space-y-2 opacity-60">
-                 {showDoneTasks && doneTasks.map((task) => <TaskItem key={task._id} task={task} />)}
-                 {showSkippedTasks && skippedTasks.map((task) => <TaskItem key={task._id} task={task} />)}
+                 {showDoneTasks && doneTasks.map((task) => <TaskItem key={task._id} task={task} dateStr={currentDate} />)}
+                 {showSkippedTasks && skippedTasks.map((task) => <TaskItem key={task._id} task={task} dateStr={currentDate} />)}
             </div>
         )}
       </section>

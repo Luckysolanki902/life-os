@@ -358,7 +358,7 @@ export default function LearningClient({ initialData }: LearningClientProps) {
           <div className="space-y-2">
             {activeTasks.length > 0 ? (
               activeTasks.map((task) => (
-                <TaskItem key={task._id} task={task} />
+                <TaskItem key={task._id} task={task} dateStr={getLocalDateString()} />
               ))
             ) : (
               <div className="p-4 rounded-2xl bg-card/30 border border-border/30 text-center text-sm">
@@ -390,14 +390,14 @@ export default function LearningClient({ initialData }: LearningClientProps) {
         {/* Done tasks (collapsed by default) */}
         {showDoneTasks && doneTasks.length > 0 && (
           <div className="space-y-2 opacity-60">
-            {doneTasks.map((task) => <TaskItem key={task._id} task={task} />)}
+            {doneTasks.map((task) => <TaskItem key={task._id} task={task} dateStr={getLocalDateString()} />)}
           </div>
         )}
         
         {/* Skipped tasks (collapsed by default) */}
         {showSkippedTasks && skippedTasks.length > 0 && (
           <div className="space-y-2 opacity-60">
-            {skippedTasks.map((task) => <TaskItem key={task._id} task={task} />)}
+            {skippedTasks.map((task) => <TaskItem key={task._id} task={task} dateStr={getLocalDateString()} />)}
           </div>
         )}
         </section>

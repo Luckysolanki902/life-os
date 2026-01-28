@@ -32,9 +32,10 @@ interface TaskItemProps {
   task: any;
   onOptimisticToggle?: (taskId: string, newStatus: boolean) => void;
   dateStr?: string; // Optional date override (for historical views)
+  editMode?: boolean; // Show edit controls only when in edit mode
 }
 
-export default function TaskItem({ task, onOptimisticToggle, dateStr }: TaskItemProps) {
+export default function TaskItem({ task, onOptimisticToggle, dateStr, editMode = false }: TaskItemProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [isPending, setIsPending] = useState(false);
   // Optimistic state for completion
@@ -369,35 +370,35 @@ export default function TaskItem({ task, onOptimisticToggle, dateStr }: TaskItem
       isCompleted 
         ? "bg-secondary/30 border-transparent opacity-60" 
         : isSkipped
-        ? "bg-secondary/10 border-border/30 opacity-60 grayscale-[0.5]"
-        : "bg-card border-border/50 hover:shadow-md hover:border-primary/20"
+        ? "bg-card border-border/30"
+        : "bg-card border-border/50"
     )}>
       {/* Main Row */}
       <div className="p-4 flex items-center gap-4">
-        {/* Checkbox / Status */}
-        <button
-          onClick={handleToggle}
-          disabled={isSkipped}
-          className={cn(
-            "w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all active:scale-90",
-            isCompleted
-              ? "bg-primary border-primary text-primary-foreground"
-              : isSkipped
-              ? "border-muted-foreground/30 cursor-not-allowed"
-              : "border-muted-foreground/30 hover:border-primary"
-          )}
-        >
-          {isCompleted && <Check size={14} strokeWidth={3} />}
-          {isSkipped && <X size={14} className="text-muted-foreground/50" />}
-        </button>
+        {/* Checkbox / Status - show in non-edit mode only */}
+        {!editMode && (
+          <button
+            onClick={isSkipped ? handleSkip : handleToggle}
+            className={cn(
+              "w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all active:scale-90 shrink-0",
+              isCompleted
+                ? "bg-primary border-primary text-primary-foreground"
+                : isSkipped
+                ? "border-muted-foreground/30 hover:border-primary"
+                : "border-muted-foreground/30 hover:border-primary"
+            )}
+          >
+            {isCompleted && <Check size={14} strokeWidth={3} />}
+          </button>
+        )}
 
-        {/* Content */}
+        {/* Content - show longer text */}
         <div className="flex-1 min-w-0">
           <h3 className={cn(
-            "font-medium truncate transition-all",
+            "font-medium transition-all",
             isCompleted && "line-through text-muted-foreground",
-            isSkipped && "text-muted-foreground line-through decoration-dotted"
-          )}>
+            isSkipped && "text-muted-foreground"
+          )} style={{ display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
             {task.title}
           </h3>
           <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5 flex-wrap">
@@ -406,6 +407,7 @@ export default function TaskItem({ task, onOptimisticToggle, dateStr }: TaskItem
                task.domainId === 'health' ? "text-rose-500 bg-rose-500/10" :
                task.domainId === 'career' ? "text-blue-500 bg-blue-500/10" :
                task.domainId === 'learning' ? "text-amber-500 bg-amber-500/10" :
+               task.domainId === 'discipline' ? "text-purple-500 bg-purple-500/10" :
                "bg-secondary text-muted-foreground"
             )}>
               {task.domainId}
@@ -429,15 +431,15 @@ export default function TaskItem({ task, onOptimisticToggle, dateStr }: TaskItem
           </div>
         </div>
 
-        {/* Skip Button */}
-        {!isCompleted && (
+        {/* Skip Button - show in non-edit mode */}
+        {!editMode && !isCompleted && (
           <button
             onClick={handleSkip}
             className={cn(
-              "p-2 rounded-lg transition-all active:scale-90",
+              "p-2 rounded-lg transition-all active:scale-90 shrink-0",
               isSkipped
-                ? "text-primary bg-primary/10 hover:bg-primary/20"
-                : "text-muted-foreground/40 hover:text-foreground/80 hover:bg-secondary"
+                ? "text-primary bg-primary/10"
+                : "text-muted-foreground/60 hover:text-foreground/80 hover:bg-secondary"
             )}
             title={isSkipped ? "Undo skip" : "Skip task"}
           >
@@ -445,13 +447,15 @@ export default function TaskItem({ task, onOptimisticToggle, dateStr }: TaskItem
           </button>
         )}
 
-        {/* Edit Button */}
-        <button
-          onClick={() => setIsEditing(true)}
-          className="p-2 rounded-lg text-muted-foreground/40 hover:text-foreground hover:bg-secondary transition-all"
-        >
-          <Edit2 size={16} />
-        </button>
+        {/* Edit Button - only show in edit mode */}
+        {editMode && (
+          <button
+            onClick={() => setIsEditing(true)}
+            className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-all shrink-0"
+          >
+            <Edit2 size={16} />
+          </button>
+        )}
       </div>
     </div>
   );

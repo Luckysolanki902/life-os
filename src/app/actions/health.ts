@@ -396,7 +396,7 @@ export async function logWeight(weight: number, dateStr: string) {
   const logDate = parseToISTMidnight(dateStr);
   
   // Use upsert to update existing entry or create new one for this date
-  await WeightLog.findOneAndUpdate(
+  const result = await WeightLog.findOneAndUpdate(
     { date: logDate },
     { weight, date: logDate },
     { upsert: true, new: true }
@@ -404,7 +404,14 @@ export async function logWeight(weight: number, dateStr: string) {
 
   revalidatePath('/health');
   revalidatePath('/');
-  return { success: true };
+  
+  // Return the updated weight log for optimistic UI updates
+  return { 
+    _id: result._id.toString(),
+    weight: result.weight,
+    date: result.date,
+    success: true 
+  };
 }
 
 export async function updateWeight(weightId: string, weight: number) {

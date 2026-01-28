@@ -54,7 +54,7 @@ function shouldShowTaskOnDay(task: any, dayOfWeek: number): boolean {
 }
 
 // Sortable Wrapper for TaskItem
-function SortableTaskItem({ task, dateStr }: { task: any; dateStr?: string }) {
+function SortableTaskItem({ task, dateStr, editMode }: { task: any; dateStr?: string; editMode?: boolean }) {
   const {
     attributes,
     listeners,
@@ -71,22 +71,17 @@ function SortableTaskItem({ task, dateStr }: { task: any; dateStr?: string }) {
     position: 'relative' as const,
   };
 
+  // In edit mode, make whole card draggable
+  const dragProps = editMode ? { ...attributes, ...listeners } : {};
+
   return (
-    <div ref={setNodeRef} style={style} className={isDragging ? 'opacity-50' : ''}>
-      <div className="flex items-center gap-2 group">
-        {/* Drag Handle - Always visible now, properly positioned */}
-        <div 
-          {...attributes} 
-          {...listeners}
-          className="p-2 cursor-grab active:cursor-grabbing text-muted-foreground/20 hover:text-muted-foreground transition-colors touch-none"
-        >
-          <GripVertical size={18} />
-        </div>
-        
-        <div className="flex-1 min-w-0">
-           <TaskItem task={task} dateStr={dateStr} />
-        </div>
-      </div>
+    <div 
+      ref={setNodeRef} 
+      style={style} 
+      className={cn(isDragging ? 'opacity-50' : '', editMode && 'cursor-grab active:cursor-grabbing touch-none')}
+      {...dragProps}
+    >
+      <TaskItem task={task} dateStr={dateStr} editMode={editMode} />
     </div>
   );
 }
@@ -104,6 +99,7 @@ export default function RoutineList({ initialTasks, allTasks = [], initialSpecia
   const [filterOpen, setFilterOpen] = useState(false);
   const [timeFilter, setTimeFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
+  const [editMode, setEditMode] = useState(false);
   
   // Custom date picker state
   const [customDate, setCustomDate] = useState<string>('');
@@ -297,23 +293,38 @@ export default function RoutineList({ initialTasks, allTasks = [], initialSpecia
           </button>
         </div>
 
-        {/* Filter Toggle Button */}
-        <button
-          onClick={() => setFilterOpen(!filterOpen)}
-          className={cn(
-            "px-3 py-1.5 rounded-lg text-xs font-medium border transition-all flex items-center gap-1.5",
-            filterOpen || activeFilters > 0
-              ? "bg-primary/10 text-primary border-primary/30" 
-              : "bg-background text-muted-foreground border-border hover:border-primary/50"
-          )}
-        >
-          Filter
-          {activeFilters > 0 && (
-            <span className="w-4 h-4 rounded-full bg-primary text-primary-foreground text-[10px] flex items-center justify-center">
-              {activeFilters}
-            </span>
-          )}
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Edit Mode Toggle */}
+          <button
+            onClick={() => setEditMode(!editMode)}
+            className={cn(
+              "px-3 py-1.5 rounded-lg text-xs font-medium border transition-all",
+              editMode
+                ? "bg-primary text-primary-foreground border-primary" 
+                : "bg-background text-muted-foreground border-border hover:border-primary/50"
+            )}
+          >
+            {editMode ? 'Done' : 'Edit'}
+          </button>
+
+          {/* Filter Toggle Button */}
+          <button
+            onClick={() => setFilterOpen(!filterOpen)}
+            className={cn(
+              "px-3 py-1.5 rounded-lg text-xs font-medium border transition-all flex items-center gap-1.5",
+              filterOpen || activeFilters > 0
+                ? "bg-primary/10 text-primary border-primary/30" 
+                : "bg-background text-muted-foreground border-border hover:border-primary/50"
+            )}
+          >
+            Filter
+            {activeFilters > 0 && (
+              <span className="w-4 h-4 rounded-full bg-primary text-primary-foreground text-[10px] flex items-center justify-center">
+                {activeFilters}
+              </span>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Custom Date Navigator */}
@@ -425,7 +436,7 @@ export default function RoutineList({ initialTasks, allTasks = [], initialSpecia
         >
           <div className="space-y-2">
             {pendingAndCompletedTasks.map((task) => (
-              <SortableTaskItem key={task._id} task={task} dateStr={customDate || todayIST} />
+              <SortableTaskItem key={task._id} task={task} dateStr={customDate || todayIST} editMode={editMode} />
             ))}
             {pendingAndCompletedTasks.length === 0 && skippedTasks.length === 0 && (
                 <div className="text-center py-10 text-muted-foreground text-sm">
@@ -481,19 +492,17 @@ export default function RoutineList({ initialTasks, allTasks = [], initialSpecia
 
       {/* Skipped Tasks Section - Cleaned up */}
       {skippedTasks.length > 0 && (
-        <div className="mt-8 border-t border-dashed border-border/50 pt-6">
-          <p className="text-xs font-medium text-muted-foreground mb-4 px-1 flex items-center gap-2 uppercase tracking-widest">
-            <XCircle size={12} />
+        <div className="mt-6 pt-4">
+          <p className="text-xs font-medium text-muted-foreground mb-3 px-1 flex items-center gap-2 uppercase tracking-widest">
             <span>Skipped</span>
             <span className="px-1.5 py-0.5 rounded-full bg-secondary text-[10px]">
               {skippedTasks.length}
             </span>
           </p>
-          <div className="space-y-2 opacity-75 grayscale-[0.5]">
+          <div className="space-y-2">
             {skippedTasks.map((task) => (
-              <div key={task._id} className="pl-6 md:pl-0">
-                 {/* No drag handle for skipped items, simply nested */}
-                 <TaskItem task={task} dateStr={customDate || todayIST} />
+              <div key={task._id} className="opacity-60">
+                 <TaskItem task={task} dateStr={customDate || todayIST} editMode={editMode} />
               </div>
             ))}
           </div>

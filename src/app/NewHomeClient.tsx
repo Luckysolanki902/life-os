@@ -208,6 +208,8 @@ export default function NewHomeClient({
     switch (domainId) {
       case 'health': return 'text-rose-500';
       case 'learning': return 'text-sky-500';
+      case 'discipline': return 'text-purple-500';
+      case 'career': return 'text-blue-500';
       case 'routine': return 'text-amber-500';
       default: return 'text-primary';
     }
@@ -217,8 +219,21 @@ export default function NewHomeClient({
     switch (domainId) {
       case 'health': return 'bg-rose-500/10';
       case 'learning': return 'bg-sky-500/10';
+      case 'discipline': return 'bg-purple-500/10';
+      case 'career': return 'bg-blue-500/10';
       case 'routine': return 'bg-amber-500/10';
       default: return 'bg-primary/10';
+    }
+  };
+
+  const getDomainBorderColor = (domainId: string) => {
+    switch (domainId) {
+      case 'health': return 'border-rose-500/50';
+      case 'learning': return 'border-sky-500/50';
+      case 'discipline': return 'border-purple-500/50';
+      case 'career': return 'border-blue-500/50';
+      case 'routine': return 'border-amber-500/50';
+      default: return 'border-primary/50';
     }
   };
 
@@ -241,20 +256,16 @@ export default function NewHomeClient({
         </div>
       </header>
 
-      {/* Better Percentage Card */}
+      {/* Better Percentage Card - Elegant Minimal Design */}
       {dashboardStats && dashboardStats.totalPoints > 0 && (
-        <section className="bg-card rounded-2xl border border-border/40 p-5 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-700 delay-50">
-           <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-1">Total Progress</p>
-                <h2 className="text-3xl font-bold tracking-tight">
-                  You are <span className="text-primary">{getBetterPercentage(dashboardStats.totalPoints)}%</span> better
-                </h2>
-              </div>
-              <div className="p-3 bg-primary/10 rounded-full text-primary">
-                <TrendingUp size={24} />
-              </div>
-           </div>
+        <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-neutral-50 to-neutral-100 dark:from-neutral-900 dark:to-neutral-950 p-6 animate-in fade-in slide-in-from-bottom-2 duration-700 delay-50">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-neutral-200/40 via-transparent to-transparent dark:from-neutral-800/40" />
+          <div className="relative text-center">
+            <p className="text-5xl sm:text-6xl font-light tracking-tight text-foreground">
+              You are <span className="font-semibold">{getBetterPercentage(dashboardStats.totalPoints)}%</span> better
+            </p>
+            <p className="text-sm text-muted-foreground mt-2 font-light tracking-wide">than when you started</p>
+          </div>
         </section>
       )}
 
@@ -367,18 +378,18 @@ export default function NewHomeClient({
           {sortedTasks.filter(t => t.status !== 'completed' && t.status !== 'skipped').slice(0, 4).map((task) => (
             <div
               key={task._id}
-              className="group flex items-center gap-3 p-3.5 rounded-xl bg-card border border-border/40 hover:border-border/80 transition-all shadow-sm active:scale-[0.99]"
+              className="group flex items-center gap-3 p-3.5 rounded-xl bg-card border border-border/40 transition-all shadow-sm active:scale-[0.99]"
             >
               <button
                 onClick={() => handleToggleTask(task._id)}
                 className={cn(
-                  "flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors",
-                  "border-muted-foreground/30 hover:border-primary text-transparent hover:text-primary/20",
-                  task.status === 'completed' && "bg-primary border-primary text-primary-foreground hover:text-primary-foreground" 
+                  "flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors",
+                  getDomainBorderColor(task.domainId),
+                  getDomainBg(task.domainId),
+                  task.status === 'completed' && "bg-primary border-primary text-primary-foreground" 
                 )}
               >
                 {task.status === 'completed' && <CheckCircle2 size={14} className="animate-in zoom-in duration-200" />}
-                {task.status !== 'completed' && <div className="w-2.5 h-2.5 rounded-full bg-primary/20 opacity-0 group-hover:opacity-100 transition-opacity" />}
               </button>
 
               <div className="flex-1 min-w-0">
@@ -398,7 +409,7 @@ export default function NewHomeClient({
 
               <button
                 onClick={() => handleSkipTask(task._id, false)}
-                className="opacity-0 group-hover:opacity-100 p-2 rounded-lg text-muted-foreground hover:bg-secondary transition-all"
+                className="p-2 rounded-lg text-muted-foreground/60 hover:bg-secondary transition-all"
                 title="Skip"
               >
                 <SkipForward size={16} />

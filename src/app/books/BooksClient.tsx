@@ -238,7 +238,7 @@ export default function BooksClient({ initialData }: BooksClientProps) {
         <div className="space-y-2">
           {routine.length > 0 ? (
             routine.map((task: any) => (
-              <TaskItem key={task._id} task={task} />
+              <TaskItem key={task._id} task={task} dateStr={getLocalDateString()} />
             ))
           ) : (
             <div className="p-5 rounded-xl border border-dashed border-border text-center text-muted-foreground text-sm">

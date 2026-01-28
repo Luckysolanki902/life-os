@@ -136,6 +136,7 @@ function ExerciseCardContent({
   handleUpdateSet, 
   handleDeleteSet,
   handleLogSet,
+  handleSkipToNext,
   logData, 
   setLogData,
   openLogForExercise,
@@ -308,11 +309,21 @@ function ExerciseCardContent({
       {/* Log Input Area */}
       {loggingExerciseId === ex._id ? (
         <form 
-          onSubmit={(e) => handleLogSet(e, false)}
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleLogSet(e);
+          }}
           onKeyDown={(e) => {
-             if (e.key === 'Enter' && e.shiftKey) {
-                e.preventDefault(); e.stopPropagation();
-                handleLogSet({ preventDefault: () => {} } as React.FormEvent, true);
+             if (e.key === 'Enter') {
+                e.preventDefault();
+                e.stopPropagation();
+                if (e.shiftKey) {
+                  // Shift+Enter: skip to next exercise WITHOUT submitting
+                  handleSkipToNext();
+                } else {
+                  // Enter: submit and stay with last values
+                  handleLogSet({ preventDefault: () => {} } as React.FormEvent);
+                }
              }
           }}
           className="flex flex-col gap-3 animate-in slide-in-from-top-2 bg-secondary/20 p-3 rounded-xl border border-border/50"
@@ -336,7 +347,7 @@ function ExerciseCardContent({
                <button type="submit" className="h-9.5 w-9.5 flex items-center justify-center rounded-lg bg-primary text-primary-foreground hover:opacity-90 shadow-sm"><Save size={18} /></button>
                <button type="button" onClick={() => setLoggingExerciseId(null)} className="h-9.5 w-9.5 flex items-center justify-center rounded-lg bg-secondary text-secondary-foreground hover:bg-rose-500/10 hover:text-rose-500 transition-colors"><X size={18} /></button>
           </div>
-          <p className="text-[10px] text-muted-foreground/60 text-center">Enter = log • Shift+Enter = next</p>
+          <p className="text-[10px] text-muted-foreground/60 text-center">Enter = log & stay • Shift+Enter = skip to next</p>
         </form>
       ) : (
         <button onClick={() => openLogForExercise(ex._id)} className="w-full py-2 rounded-xl border border-dashed border-border hover:bg-secondary/50 hover:border-primary/50 text-sm font-medium text-muted-foreground hover:text-primary transition-all flex items-center justify-center gap-2">
@@ -476,10 +487,13 @@ export default function WorkoutClient({ initialData }: WorkoutClientProps) {
      setLoggingExerciseId(id);
   }
 
-  async function handleLogSet(e: React.FormEvent, moveToNext = false) {
+  async function handleLogSet(e: React.FormEvent) {
      e.preventDefault();
      if(!loggingExerciseId) return;
      const currentExId = loggingExerciseId;
+     
+     // Validate inputs
+     if (!logData.reps || (logType === 'weighted' && !logData.weight)) return;
      
      // Optimistic
      const newSet = { _id: `temp-${Date.now()}`, weight: logType === 'weighted' ? Number(logData.weight) : 0, reps: Number(logData.reps) };
@@ -490,21 +504,24 @@ export default function WorkoutClient({ initialData }: WorkoutClientProps) {
      const currentWeight = logData.weight;
      const currentReps = logData.reps;
 
-     // Logic for Next
-     if(moveToNext) {
-        const idx = exercises.findIndex(x => x._id === currentExId);
-        if(idx < exercises.length - 1) {
-           openLogForExercise(exercises[idx+1]._id); // Move focus
-        } else {
-           setLoggingExerciseId(null);
-        }
-     } else {
-        // Stay, keep values
-        setLogData({ weight: currentWeight, reps: currentReps }); 
-     }
+     // Save to server (non-blocking)
+     logExerciseSet(currentExId, { weight: newSet.weight, reps: newSet.reps }, initialData.date).then(() => {
+       router.refresh();
+     });
 
-     await logExerciseSet(currentExId, { weight: newSet.weight, reps: newSet.reps }, initialData.date);
-     router.refresh(); 
+     // Regular Enter: Stay on same exercise, keep values for next set
+     setLogData({ weight: currentWeight, reps: currentReps }); 
+     // Keep logging mode open for same exercise
+  }
+
+  function handleSkipToNext() {
+     if(!loggingExerciseId) return;
+     const idx = exercises.findIndex(x => x._id === loggingExerciseId);
+     if(idx < exercises.length - 1) {
+        openLogForExercise(exercises[idx+1]._id); // Move focus to next exercise
+     } else {
+        setLoggingExerciseId(null); // Close if last exercise
+     }
   }
 
   // CRUD
@@ -572,7 +589,7 @@ export default function WorkoutClient({ initialData }: WorkoutClientProps) {
                      key={ex._id} ex={ex}
                      loggingExerciseId={loggingExerciseId} setLoggingExerciseId={setLoggingExerciseId}
                      showExerciseMenu={showExerciseMenu} setShowExerciseMenu={setShowExerciseMenu}
-                     onEdit={(e: any) => { setEditingExerciseId(e._id); setEditExercise({ title: e.title, type: e.type, targetMuscles: e.targetMuscles, initialSets: e.initialSets?.toString() || '', initialReps: e.initialReps?.toString() || '', recommendedWeight: e.recommendedWeight?.toString() || '', tutorials: e.tutorials }); setShowExerciseMenu(null); }}
+                     onEdit={(e: any) => { setEditingExerciseId(e._id); setEditExercise({ title: e.title, type: e.type, targetMuscles: e.targetMuscles || [], initialSets: e.initialSets?.toString() || '', initialReps: e.initialReps?.toString() || '', recommendedWeight: e.recommendedWeight?.toString() || '', tutorials: e.tutorials || [] }); setShowExerciseMenu(null); }}
                      onDelete={(id: string) => { if(confirm('Delete?')) { deleteExercise(id, page._id); router.refresh(); } }}
                      setTutorialModal={setTutorialModal}
                      editingSetId={editingSetId} setEditingSetId={setEditingSetId}
@@ -581,6 +598,7 @@ export default function WorkoutClient({ initialData }: WorkoutClientProps) {
                      handleUpdateSet={(lid: string, sid: string) => updateSet(lid, sid, { weight: Number(editData.weight), reps: Number(editData.reps) }, page._id).then(() => { setEditingSetId(null); router.refresh(); })}
                      handleDeleteSet={(lid: string, sid: string) => deleteSet(lid, sid, page._id).then(() => router.refresh())}
                      handleLogSet={handleLogSet}
+                     handleSkipToNext={handleSkipToNext}
                      logData={logData} setLogData={setLogData}
                      openLogForExercise={openLogForExercise}
                   />
@@ -639,6 +657,40 @@ export default function WorkoutClient({ initialData }: WorkoutClientProps) {
                       {m}
                     </button>
                  ))}
+               </div>
+
+               {/* Tutorials Section */}
+               <div className="space-y-2">
+                 <label className="text-xs font-medium text-muted-foreground">Tutorials</label>
+                 {editExercise.tutorials && editExercise.tutorials.map((tutorial, idx) => (
+                   <div key={idx} className="flex gap-2">
+                     <input 
+                       type="url" 
+                       placeholder="YouTube URL" 
+                       value={tutorial.url} 
+                       onChange={e => {
+                         const newTutorials = [...editExercise.tutorials];
+                         newTutorials[idx] = { ...newTutorials[idx], url: e.target.value };
+                         setEditExercise({...editExercise, tutorials: newTutorials});
+                       }}
+                       className="flex-1 rounded-lg border border-border px-3 py-2 bg-background text-xs"
+                     />
+                     <button 
+                       type="button" 
+                       onClick={() => setEditExercise({...editExercise, tutorials: editExercise.tutorials.filter((_, i) => i !== idx)})}
+                       className="p-2 rounded-lg hover:bg-rose-500/10 hover:text-rose-500"
+                     >
+                       <X size={16} />
+                     </button>
+                   </div>
+                 ))}
+                 <button 
+                   type="button" 
+                   onClick={() => setEditExercise({...editExercise, tutorials: [...(editExercise.tutorials || []), { url: '', title: '' }]})}
+                   className="w-full py-2 rounded-lg border border-dashed border-border hover:bg-secondary/50 text-xs font-medium text-muted-foreground flex items-center justify-center gap-2"
+                 >
+                   <Plus size={14} /> Add Tutorial
+                 </button>
                </div>
                
                <div className="flex gap-2">

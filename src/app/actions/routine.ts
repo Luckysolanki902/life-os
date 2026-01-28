@@ -342,11 +342,12 @@ export async function unskipTask(taskId: string, dateStr?: string) {
   return { success: true };
 }
 
-export async function toggleTaskStatus(taskId: string, isCompleted: boolean) {
-    if (isCompleted) {
-        return completeTask(taskId);
-    } else {
+export async function toggleTaskStatus(taskId: string, isCurrentlyCompleted: boolean) {
+    // If currently completed, we want to uncomplete. If not completed, we want to complete.
+    if (isCurrentlyCompleted) {
         return uncompleteTask(taskId);
+    } else {
+        return completeTask(taskId);
     }
 }
 
