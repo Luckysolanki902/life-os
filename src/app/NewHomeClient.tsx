@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useOptimistic, useTransition, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
   Trophy, Flame, Wind, Droplets, Dumbbell, BookOpen, Target, 
@@ -77,6 +78,7 @@ export default function NewHomeClient({
   last7DaysCompletion,
   user
 }: Props) {
+  const router = useRouter();
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
   const [showSkippedTasks, setShowSkippedTasks] = useState(false);
@@ -139,30 +141,31 @@ export default function NewHomeClient({
     const task = optimisticTasks.find(t => t._id === taskId);
     if (!task) return;
 
-    startTransition(async () => {
-      addOptimisticTask({ taskId, type: 'toggle' });
-      try {
-        await toggleTaskStatus(taskId, task.status === 'completed');
-      } catch (error) {
-        // Revert on error would need more complex optimistic logic or full revalidation
-        toast({ title: "Error", description: "Failed to update task", variant: "destructive" });
-      }
-    });
+    addOptimisticTask({ taskId, type: 'toggle' });
+    
+    try {
+      await toggleTaskStatus(taskId, task.status === 'completed');
+      router.refresh();
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to update task", variant: "destructive" });
+      router.refresh(); // Refresh to revert optimistic update
+    }
   }
 
   async function handleSkipTask(taskId: string, isUnskip: boolean) {
-    startTransition(async () => {
-      addOptimisticTask({ taskId, type: isUnskip ? 'unskip' : 'skip' });
-      try {
-        if (isUnskip) {
-          await unskipTask(taskId);
-        } else {
-          await skipTask(taskId);
-        }
-      } catch (error) {
-        toast({ title: "Error", description: "Failed to skip task", variant: "destructive" });
+    addOptimisticTask({ taskId, type: isUnskip ? 'unskip' : 'skip' });
+    
+    try {
+      if (isUnskip) {
+        await unskipTask(taskId);
+      } else {
+        await skipTask(taskId);
       }
-    });
+      router.refresh();
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to skip task", variant: "destructive" });
+      router.refresh(); // Refresh to revert optimistic update
+    }
   }
 
   async function handleLogWeight(e: React.FormEvent) {

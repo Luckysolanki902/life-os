@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { Check, Clock, Edit2, Trash2, X, CalendarDays, Bell, SkipForward } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { completeTask, uncompleteTask, updateTask, deleteTask, skipTask, unskipTask } from '@/app/actions/routine';
@@ -36,6 +37,7 @@ interface TaskItemProps {
 }
 
 export default function TaskItem({ task, onOptimisticToggle, dateStr, editMode = false }: TaskItemProps) {
+  const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
   const [isPending, setIsPending] = useState(false);
   // Optimistic state for completion
@@ -91,15 +93,17 @@ export default function TaskItem({ task, onOptimisticToggle, dateStr, editMode =
       } else {
         await completeTask(task._id, targetDate);
       }
+      router.refresh();
       // Reset optimistic state - server state will take over on revalidation
       setOptimisticCompleted(null);
       setOptimisticSkipped(null);
     } catch (error) {
       // Revert on error
       setOptimisticCompleted(!newStatus);
+      router.refresh();
       console.error('Failed to toggle task:', error);
     }
-  }, [isCompleted, task._id, targetDate, onOptimisticToggle]);
+  }, [isCompleted, task._id, targetDate, onOptimisticToggle, router]);
 
   const handleSkip = useCallback(async () => {
     const newSkipStatus = !isSkipped;
@@ -121,15 +125,17 @@ export default function TaskItem({ task, onOptimisticToggle, dateStr, editMode =
       } else {
         await unskipTask(task._id, targetDate);
       }
+      router.refresh();
       // Reset optimistic state
       setOptimisticSkipped(null);
       setOptimisticCompleted(null);
     } catch (error) {
       // Revert on error
       setOptimisticSkipped(!newSkipStatus);
+      router.refresh();
       console.error('Failed to skip task:', error);
     }
-  }, [isSkipped, task._id, targetDate]);
+  }, [isSkipped, task._id, targetDate, router]);
 
   const toggleDay = (day: number) => {
     setCustomDays(prev => 
