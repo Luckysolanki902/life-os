@@ -262,6 +262,8 @@ export async function getHealthPageData(pageId: string, dateStr?: string) {
   const targetDateStr = dateStr || getTodayDateString();
   const { startOfDay: targetDate, endOfDay: nextDay } = getDateRange(targetDateStr);
 
+  console.log('[getHealthPageData] Fetching data:', { pageId, dateStr, targetDateStr, targetDate, nextDay });
+
   const page = await HealthPage.findById(pageId).lean();
   if (!page) return null;
 
@@ -273,6 +275,8 @@ export async function getHealthPageData(pageId: string, dateStr?: string) {
     exerciseId: { $in: exerciseIds },
     date: { $gte: targetDate, $lt: nextDay }
   }).lean();
+  
+  console.log('[getHealthPageData] Todays logs found:', todaysLogs.length, 'Query:', { $gte: targetDate, $lt: nextDay });
 
   // 2. Get Last Log (Before Target Date)
   // We can use aggregate to find the most recent log before targetDate for each exercise
@@ -366,11 +370,15 @@ export async function logExerciseSet(exerciseId: string, data: { weight?: number
   const targetDateStr = dateStr || getTodayDateString();
   const targetDate = parseToISTMidnight(targetDateStr);
   
-  await ExerciseLog.findOneAndUpdate(
+  console.log('[logExerciseSet] Logging set:', { exerciseId, dateStr, targetDateStr, targetDate });
+  
+  const result = await ExerciseLog.findOneAndUpdate(
     { exerciseId, date: targetDate },
     { $push: { sets: data } },
     { upsert: true, new: true }
   );
+  
+  console.log('[logExerciseSet] Result:', { _id: result._id, date: result.date, setsCount: result.sets.length });
 
   // Update streak for this date
   const { updateStreakForDate } = await import('./streak');

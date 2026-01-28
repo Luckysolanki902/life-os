@@ -382,6 +382,9 @@ export default function WorkoutClient({ initialData }: WorkoutClientProps) {
   const [isPending, startTransition] = useTransition();
   const [exercises, setExercises] = useState<Exercise[]>(JSON.parse(JSON.stringify(initialData.exercises)));
   const { page } = initialData;
+  
+  // Parse the server date to get YYYY-MM-DD in local timezone for logging
+  const currentDateStr = parseServerDate(initialData.date);
 
   // Sync state
   useEffect(() => {
@@ -504,8 +507,8 @@ export default function WorkoutClient({ initialData }: WorkoutClientProps) {
      const currentWeight = logData.weight;
      const currentReps = logData.reps;
 
-     // Save to server (non-blocking)
-     logExerciseSet(currentExId, { weight: newSet.weight, reps: newSet.reps }, initialData.date).then(() => {
+     // Save to server (non-blocking) - use currentDateStr
+     logExerciseSet(currentExId, { weight: newSet.weight, reps: newSet.reps }, currentDateStr).then(() => {
        router.refresh();
      });
 
