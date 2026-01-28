@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   AreaChart, Area, BarChart, Bar,
   XAxis, YAxis, Tooltip, ResponsiveContainer
@@ -20,6 +21,7 @@ import {
   Target,
   Flame,
   FileText,
+  RotateCw,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getOverallReport, getDashboardStats } from '../actions/reports';
@@ -302,10 +304,12 @@ function MinimalTooltip({ active, payload, label }: TooltipProps) {
 }
 
 export default function ReportsClient() {
+  const router = useRouter();
   const [period, setPeriod] = useState('last7Days');
   const [data, setData] = useState<ReportData | null>(null);
   const [stats, setStats] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
     async function fetchData() {
@@ -336,6 +340,23 @@ export default function ReportsClient() {
 
   const handlePeriodChange = (newPeriod: string) => {
     setPeriod(newPeriod);
+  };
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      const [result, dashboardStats] = await Promise.all([
+        getOverallReport(period),
+        getDashboardStats()
+      ]);
+      setData(result);
+      setStats(dashboardStats);
+      router.refresh();
+    } catch (error) {
+      console.error('Failed to refresh report data:', error);
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   if (isLoading || !data) {
@@ -377,8 +398,21 @@ export default function ReportsClient() {
     <div className="space-y-6 pb-24 max-w-4xl mx-auto">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Reports</h1>
+        <div className="flex-1">
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold tracking-tight">Reports</h1>
+            <button
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className={cn(
+                "p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-all",
+                isRefreshing && "animate-spin"
+              )}
+              title="Refresh data"
+            >
+              <RotateCw size={16} />
+            </button>
+          </div>
           <p className="text-sm text-muted-foreground mt-1">
             Overview
           </p>

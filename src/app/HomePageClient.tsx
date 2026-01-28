@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Loader2 } from 'lucide-react';
 import NewHomeClient from './NewHomeClient';
 
@@ -14,15 +14,43 @@ interface HomeData {
   last7DaysCompletion: any[];
 }
 
+// Simple in-memory cache with timestamp
+let cachedData: { data: HomeData; timestamp: number } | null = null;
+const CACHE_DURATION = 3 * 60 * 1000; // 3 minutes
+
+// Export cache clearing function for use in actions
+export function clearHomeCache() {
+  cachedData = null;
+}
+
 export default function HomePageClient() {
   const [data, setData] = useState<HomeData | null>(null);
   const [loading, setLoading] = useState(true);
+  const hasFetched = useRef(false);
 
   useEffect(() => {
+    // Prevent double fetch in dev mode strict mode
+    if (hasFetched.current) return;
+    hasFetched.current = true;
+
     async function fetchData() {
       try {
-        const response = await fetch('/api/home');
+        // Check cache first
+        const now = Date.now();
+        if (cachedData && (now - cachedData.timestamp) < CACHE_DURATION) {
+          setData(cachedData.data);
+          setLoading(false);
+          return;
+        }
+
+        const response = await fetch('/api/home', {
+          // Add cache headers for browser caching
+          next: { revalidate: 180 }
+        });
         const result = await response.json();
+        
+        // Update cache
+        cachedData = { data: result, timestamp: now };
         setData(result);
       } catch (error) {
         console.error('Failed to load home data:', error);

@@ -4,6 +4,9 @@ import { getRoutine } from "@/app/actions/routine";
 import { getTodaysWeightData } from "@/app/actions/health";
 import { getStreakData, getSpecialTasks, getTotalPointsWithBonuses } from "@/app/actions/streak";
 
+// Cache for 3 minutes - revalidatePath('/') in actions will invalidate when needed
+export const revalidate = 180; // 3 minutes
+
 export async function GET() {
   try {
     // Parallel independent fetching for ultra-fast performance
@@ -71,6 +74,10 @@ export async function GET() {
       specialTasks,
       totalPoints: pointsData.totalPoints,
       last7DaysCompletion
+    }, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=180, stale-while-revalidate=300',
+      }
     });
   } catch (error) {
     console.error('Home API error:', error);
