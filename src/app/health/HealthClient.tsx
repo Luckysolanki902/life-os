@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Scale,
   Dumbbell,
@@ -18,6 +18,7 @@ import {
   EyeOff,
   Pencil,
   Calendar,
+  TrendingUp,
 } from "lucide-react";
 import { logWeight, createHealthPage, saveMood, updateWeight } from "@/app/actions/health";
 import TaskItem from "@/app/routine/TaskItem";
@@ -139,6 +140,11 @@ export default function HealthClient({ initialData }: HealthClientProps) {
   const [isSavingMood, setIsSavingMood] = useState(false);
   const [showDoneTasks, setShowDoneTasks] = useState(false);
   const [showSkippedTasks, setShowSkippedTasks] = useState(false);
+
+  // Update selected mood when mood prop changes (e.g., when date changes)
+  useEffect(() => {
+    setSelectedMood(mood?.mood || null);
+  }, [mood]);
 
   // Filter tasks into categories
   const { activeTasks, doneTasks, skippedTasks } = useMemo(() => {
@@ -348,84 +354,159 @@ export default function HealthClient({ initialData }: HealthClientProps) {
       </section>
 
       {/* Weight Stats */}
-      <section className="space-y-3">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-1 flex items-center justify-between">
-          <span>Body Metrics</span>
+      <section className="space-y-4">
+        <div className="flex items-center justify-between px-1">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Body Metrics
+          </h2>
           {weightStats.todaysWeight && isToday && (
-               <button onClick={() => openWeightModal(weightStats.todaysWeight!)} className="text-primary hover:underline text-[10px]">Edit Today</button>
+            <button 
+              onClick={() => openWeightModal(weightStats.todaysWeight!)} 
+              className="text-xs text-primary hover:text-primary/80 transition-colors font-medium flex items-center gap-1"
+            >
+              <Pencil size={12} />
+              Edit
+            </button>
           )}
-        </h2>
+        </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-3 gap-2">
-          {/* Current Weight Card */}
-          <div className="p-4 rounded-xl bg-card border border-border/40 relative group overflow-hidden">
-             
-             {isToday && !weightStats.todaysWeight ? (
-                 <div onClick={() => openWeightModal()} className="absolute inset-0 bg-primary/5 flex flex-col items-center justify-center cursor-pointer hover:bg-primary/10 transition-colors z-10">
-                     <Plus size={20} className="text-primary mb-1" />
-                     <span className="text-xs font-medium text-primary">Log</span>
-                 </div>
-             ) : null}
-
-            <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider mb-1">
-              Weight (kg)
-            </p>
-            <div className="flex items-baseline gap-1">
-              <span className="text-xl sm:text-2xl font-bold tracking-tight">
-                {weightStats.todaysWeight ? weightStats.todaysWeight.weight.toFixed(1) : (weightStats.current ? Number(weightStats.current).toFixed(1) : "-")}
-              </span>
-            </div>
-             {weightStats.todaysWeight && isToday && (
-                <div className="absolute top-2 right-2 w-1.5 h-1.5 bg-emerald-500 rounded-full show-ping" />
-             )}
-          </div>
-
-          <div className="p-4 rounded-xl bg-card border border-border/40">
-            <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider mb-1">
-              BMI
-            </p>
-            <div className="flex items-baseline gap-1">
-                <span
-                    className={cn(
-                    "text-xl sm:text-2xl font-bold tracking-tight",
-                    !weightStats.bmi
-                        ? "text-muted-foreground"
-                        : Number(weightStats.bmi) < 18.5
-                        ? "text-blue-400"
-                        : Number(weightStats.bmi) < 25
-                        ? "text-emerald-500"
-                        : Number(weightStats.bmi) < 30
-                        ? "text-amber-500"
-                        : "text-rose-500"
-                    )}
-                >
-                    {weightStats.bmi || "-"}
-                </span>
-            </div>
-          </div>
-
-          <div className="p-4 rounded-xl bg-card border border-border/40">
-            <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider mb-1">
-              Trend
-            </p>
-            <div className="flex items-baseline gap-1">
-              <span
-                className={cn(
-                  "text-xl sm:text-2xl font-bold tracking-tight",
-                  weightStats.delta === null
-                    ? "text-muted-foreground"
-                    : weightStats.delta > 0
-                    ? "text-emerald-500" // Weight gain isn't always bad, but keeping simple
-                    : "text-rose-500"
-                )}
+        {/* Main Weight Card */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/20 p-6 shadow-sm">
+          {/* Background decoration */}
+          <div className="absolute -right-8 -top-8 w-32 h-32 bg-primary/5 rounded-full blur-2xl" />
+          <div className="absolute -left-4 -bottom-4 w-24 h-24 bg-primary/5 rounded-full blur-xl" />
+          
+          <div className="relative z-10">
+            {isToday && !weightStats.todaysWeight ? (
+              // No weight logged today - CTA
+              <button
+                onClick={() => openWeightModal()}
+                className="w-full flex flex-col items-center justify-center py-8 group"
               >
-                {weightStats.delta !== null
-                  ? (weightStats.delta > 0 ? "+" : "") +
-                    weightStats.delta.toFixed(1)
-                  : "-"}
-              </span>
-            </div>
+                <div className="w-16 h-16 rounded-full bg-primary/10 group-hover:bg-primary/20 transition-colors flex items-center justify-center mb-3">
+                  <Scale size={28} className="text-primary" />
+                </div>
+                <h3 className="text-lg font-semibold mb-1">Log Today&apos;s Weight</h3>
+                <p className="text-xs text-muted-foreground">Track your progress</p>
+              </button>
+            ) : (
+              // Weight data display
+              <div className="space-y-4">
+                {/* Current Weight - Hero */}
+                <div className="text-center">
+                  <div className="flex items-center justify-center gap-2 mb-2">
+                    <Scale size={16} className="text-primary" />
+                    <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Current Weight
+                    </span>
+                    {weightStats.todaysWeight && isToday && (
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-baseline justify-center gap-2">
+                    <span className="text-5xl font-bold tracking-tight">
+                      {weightStats.todaysWeight 
+                        ? weightStats.todaysWeight.weight.toFixed(1) 
+                        : (weightStats.current ? Number(weightStats.current).toFixed(1) : "-")
+                      }
+                    </span>
+                    <span className="text-xl text-muted-foreground font-medium">kg</span>
+                  </div>
+                  {weightStats.lastLogged && (
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Last updated {new Date(weightStats.lastLogged).toLocaleDateString('en-US', { 
+                        month: 'short', 
+                        day: 'numeric' 
+                      })}
+                    </p>
+                  )}
+                </div>
+
+                {/* BMI & Trend Grid */}
+                <div className="grid grid-cols-2 gap-3 pt-2">
+                  {/* BMI Card */}
+                  <div className="bg-card/50 backdrop-blur-sm rounded-xl p-4 border border-border/40">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Activity size={14} className="text-muted-foreground" />
+                      <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">
+                        BMI
+                      </p>
+                    </div>
+                    <div className="flex items-baseline gap-1.5">
+                      <span
+                        className={cn(
+                          "text-2xl font-bold tracking-tight",
+                          !weightStats.bmi
+                            ? "text-muted-foreground"
+                            : Number(weightStats.bmi) < 18.5
+                            ? "text-blue-400"
+                            : Number(weightStats.bmi) < 25
+                            ? "text-emerald-500"
+                            : Number(weightStats.bmi) < 30
+                            ? "text-amber-500"
+                            : "text-rose-500"
+                        )}
+                      >
+                        {weightStats.bmi || "-"}
+                      </span>
+                      {weightStats.bmi && (
+                        <span className={cn(
+                          "text-[9px] font-semibold uppercase px-1.5 py-0.5 rounded",
+                          Number(weightStats.bmi) < 18.5
+                            ? "bg-blue-400/10 text-blue-400"
+                            : Number(weightStats.bmi) < 25
+                            ? "bg-emerald-500/10 text-emerald-500"
+                            : Number(weightStats.bmi) < 30
+                            ? "bg-amber-500/10 text-amber-500"
+                            : "bg-rose-500/10 text-rose-500"
+                        )}>
+                          {Number(weightStats.bmi) < 18.5 ? "Low" : Number(weightStats.bmi) < 25 ? "Normal" : Number(weightStats.bmi) < 30 ? "High" : "Very High"}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Trend Card */}
+                  <div className="bg-card/50 backdrop-blur-sm rounded-xl p-4 border border-border/40">
+                    <div className="flex items-center gap-2 mb-2">
+                      <TrendingUp size={14} className="text-muted-foreground" />
+                      <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">
+                        30-Day Change
+                      </p>
+                    </div>
+                    <div className="flex items-baseline gap-1">
+                      <span
+                        className={cn(
+                          "text-2xl font-bold tracking-tight",
+                          weightStats.delta === null
+                            ? "text-muted-foreground"
+                            : weightStats.delta > 0
+                            ? "text-amber-500"
+                            : weightStats.delta < 0
+                            ? "text-emerald-500"
+                            : "text-muted-foreground"
+                        )}
+                      >
+                        {weightStats.delta !== null
+                          ? (weightStats.delta > 0 ? "+" : "") + weightStats.delta.toFixed(1)
+                          : "-"}
+                      </span>
+                      {weightStats.delta !== null && weightStats.delta !== 0 && (
+                        <span className="text-xs text-muted-foreground">kg</span>
+                      )}
+                    </div>
+                    {weightStats.deltaLabel && (
+                      <p className="text-[10px] text-muted-foreground mt-1">
+                        vs {weightStats.deltaLabel}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
         
@@ -433,9 +514,9 @@ export default function HealthClient({ initialData }: HealthClientProps) {
         {!isToday && !weightStats.todaysWeight && (
           <button
             onClick={() => openWeightModal()}
-            className="w-full py-3 rounded-xl border border-dashed border-border/60 hover:border-primary/50 hover:bg-primary/5 transition-all flex items-center justify-center gap-2 text-muted-foreground hover:text-primary text-xs font-medium"
+            className="w-full py-3 rounded-xl border border-dashed border-border/60 hover:border-primary/50 hover:bg-primary/5 transition-all flex items-center justify-center gap-2 text-muted-foreground hover:text-primary text-sm font-medium"
           >
-            <Plus size={14} />
+            <Plus size={16} />
             <span>Log weight for {displayDate.split(',')[0]}</span>
           </button>
         )}
@@ -456,26 +537,45 @@ export default function HealthClient({ initialData }: HealthClientProps) {
         </div>
 
         <div className="grid grid-cols-1 gap-2">
-          {pages.map((page) => (
+          {pages.map((page, index) => {
+            // Determine the styling based on cycle status:
+            // - 'today': Yellow highlight (current workout for today, until done)
+            // - 'done': Green checkmark (completed in this cycle)
+            // - 'upcoming': The NEXT one after 'today' should be white/bright, rest are duller
+            const todayIndex = pages.findIndex(p => p.cycleStatus === 'today');
+            const isNextWorkout = page.cycleStatus === 'upcoming' && 
+              (todayIndex === -1 ? index === 0 : index === todayIndex + 1 || (todayIndex === pages.length - 1 && index === 0));
+            
+            return (
             <Link
               key={page._id}
               href={`/health/${page._id}`}
               className={cn(
                 "group p-4 rounded-xl transition-all flex items-center justify-between",
                 page.cycleStatus === "today"
-                  ? "bg-card border-l-4 border-l-primary border-y border-r border-border/40 shadow-sm"
+                  ? " border-l-4 border-l-amber-500 border-y border-r border-amber-500/30 shadow-sm"
                   : page.cycleStatus === "done"
-                  ? "bg-secondary/30 border border-border/20 opacity-70 hover:opacity-100"
-                  : "bg-card border border-border/40 hover:border-border/80"
+                  ? " border border-emerald-500/30"
+                  : isNextWorkout
+                  ? "bg-card border border-border/60 shadow-sm"
+                  : "bg-card/50 border border-border/20 opacity-60 hover:opacity-100"
               )}
             >
               <div className="flex items-center gap-3">
                 {page.cycleStatus === "done" ? (
-                   <div className="p-2 rounded-full bg-emerald-500/10 text-emerald-500">
+                   <div className="p-2 rounded-full bg-emerald-500/20 text-emerald-400">
                       <CheckCircle2 size={16} />
                    </div>
+                ) : page.cycleStatus === "today" ? (
+                   <div className="p-2 rounded-full bg-amber-500/20 text-amber-500">
+                      <Dumbbell size={16} />
+                   </div>
+                ) : isNextWorkout ? (
+                   <div className="p-2 rounded-full bg-secondary text-foreground">
+                      <Dumbbell size={16} />
+                   </div>
                 ) : (
-                   <div className={cn("p-2 rounded-full bg-secondary text-muted-foreground", page.cycleStatus === 'today' && "bg-primary/10 text-primary")}>
+                   <div className="p-2 rounded-full bg-secondary/50 text-muted-foreground">
                       <Dumbbell size={16} />
                    </div>
                 )}
@@ -485,11 +585,24 @@ export default function HealthClient({ initialData }: HealthClientProps) {
                     <h3
                       className={cn(
                         "font-medium text-sm",
-                        page.cycleStatus === "today" ? "text-primary" : "text-foreground"
+                        page.cycleStatus === "today" ? "text-amber-500" :
+                        page.cycleStatus === "done" ? "text-white/50" :
+                        isNextWorkout ? "text-foreground/70 font-semibold" :
+                        "text-muted-foreground"
                       )}
                     >
                       {page.title}
                     </h3>
+                    {page.cycleStatus === "today" && (
+                      <span className="text-[10px] uppercase tracking-wider font-bold text-amber-500 bg-amber-500/20 px-1.5 py-0.5 rounded">
+                        Today
+                      </span>
+                    )}
+                    {/* {isNextWorkout && page.cycleStatus !== "today" && (
+                      <span className="text-[10px] uppercase tracking-wider font-bold text-foreground bg-secondary px-1.5 py-0.5 rounded">
+                        Next
+                      </span>
+                    )} */}
                   </div>
                   {page.description && (
                     <p className="text-xs text-muted-foreground mt-0.5">
@@ -503,7 +616,7 @@ export default function HealthClient({ initialData }: HealthClientProps) {
                 className="text-muted-foreground/50 group-hover:text-muted-foreground group-hover:translate-x-0.5 transition-all"
               />
             </Link>
-          ))}
+          )})}
 
           {pages.length === 0 && (
             <button
@@ -521,35 +634,64 @@ export default function HealthClient({ initialData }: HealthClientProps) {
 
       {/* Weight Modal */}
       {isWeightModalOpen && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-card w-full max-w-xs p-6 rounded-2xl border border-border shadow-2xl animate-in zoom-in-95">
-            <h3 className="text-md font-semibold mb-4 text-center">
-              {editingWeightId ? "Update Weight" : "Log Weight"}
-            </h3>
-            <form onSubmit={handleLogWeight} className="space-y-4">
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-card w-full max-w-sm rounded-2xl border border-border/50 shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden">
+            {/* Header */}
+            <div className="relative bg-gradient-to-br from-primary/10 to-primary/5 p-6 border-b border-border/40">
+              <div className="flex items-center justify-center mb-3">
+                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Scale size={24} className="text-primary" />
+                </div>
+              </div>
+              <h3 className="text-lg font-bold text-center">
+                {editingWeightId ? "Update Weight" : "Log Weight"}
+              </h3>
+              <p className="text-xs text-center text-muted-foreground mt-1">
+                {editingWeightId ? "Edit your weight entry" : "Track your body metrics"}
+              </p>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleLogWeight} className="p-6 space-y-6">
               {!editingWeightId && (
-                <div>
-                   <input
-                    type="date"
-                    value={weightDate}
-                    onChange={(e) => setWeightDate(e.target.value)}
-                    className="w-full bg-secondary/50 rounded-lg px-3 py-2 text-sm outline-none border border-transparent focus:border-primary/50"
-                  />
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">
+                    Date
+                  </label>
+                  <div className="relative">
+                    <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                    <input
+                      type="date"
+                      value={weightDate}
+                      onChange={(e) => setWeightDate(e.target.value)}
+                      className="w-full bg-secondary/50 hover:bg-secondary/70 transition-colors rounded-xl pl-9 pr-3 py-3 text-sm outline-none border border-border/40 focus:border-primary/50 focus:ring-2 focus:ring-primary/10"
+                    />
+                  </div>
                 </div>
               )}
-              <div className="relative">
-                <input
-                  type="number"
-                  step="0.1"
-                  value={weightInput}
-                  onChange={(e) => setWeightInput(e.target.value)}
-                  placeholder="0.0"
-                  autoFocus
-                  className="w-full bg-secondary/50 rounded-lg px-3 py-4 text-center text-3xl font-bold outline-none border border-transparent focus:border-primary/50"
-                />
-                <span className="absolute right-8 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">kg</span>
+              
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">
+                  Weight
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={weightInput}
+                    onChange={(e) => setWeightInput(e.target.value)}
+                    placeholder="0.0"
+                    autoFocus
+                    className="w-full bg-secondary/50 hover:bg-secondary/70 transition-colors rounded-xl px-4 py-6 text-center text-4xl font-bold outline-none border border-border/40 focus:border-primary/50 focus:ring-2 focus:ring-primary/10"
+                  />
+                  <span className="absolute right-6 top-1/2 -translate-y-1/2 text-muted-foreground text-lg font-semibold pointer-events-none">
+                    kg
+                  </span>
+                </div>
               </div>
-              <div className="flex gap-2 pt-2">
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-2">
                 <button
                   type="button"
                   onClick={() => {
@@ -557,15 +699,16 @@ export default function HealthClient({ initialData }: HealthClientProps) {
                     setEditingWeightId(null);
                     setWeightInput("");
                   }}
-                  className="flex-1 py-2.5 rounded-xl text-xs font-medium hover:bg-secondary transition-colors"
+                  className="flex-1 py-3 rounded-xl text-sm font-semibold bg-secondary/50 hover:bg-secondary transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:opacity-90 transition-opacity"
+                  disabled={!weightInput || Number(weightInput) <= 0}
+                  className="flex-1 py-3 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-primary/20"
                 >
-                  {editingWeightId ? "Update" : "Save"}
+                  {editingWeightId ? "Update" : "Save Weight"}
                 </button>
               </div>
             </form>

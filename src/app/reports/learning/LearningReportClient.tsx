@@ -277,7 +277,7 @@ function RecentSessions({ sessions }: { sessions: any[] }) {
                 )}
               </div>
               <div className="flex items-center gap-2 mt-1 text-[10px] text-muted-foreground">
-                <span>{session.date}</span>
+                <span>{new Date(session.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
                 <span className="w-0.5 h-0.5 bg-muted-foreground rounded-full" />
                 <span className="font-medium text-foreground">{session.duration} min</span>
                  {session.difficulty && (
@@ -557,7 +557,7 @@ function TopMediumsList({ mediums }: { mediums: any[] }) {
 export default function LearningReportClient() {
   const searchParams = useSearchParams();
   const [period, setPeriod] = useState(searchParams.get('period') || 'last7Days');
-  const [areaId, setAreaId] = useState(searchParams.get('areaId') || '');
+  const [categoryId, setCategoryId] = useState(searchParams.get('categoryId') || '');
   const [skillId, setSkillId] = useState(searchParams.get('skillId') || '');
   const [data, setData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -566,7 +566,7 @@ export default function LearningReportClient() {
     async function fetchData() {
       setIsLoading(true);
       try {
-        const result = await getLearningReport(period, skillId || undefined, areaId || undefined);
+        const result = await getLearningReport(period, skillId || undefined, categoryId || undefined);
         setData(result);
       } catch (error) {
         console.error('Failed to fetch learning report:', error);
@@ -575,15 +575,15 @@ export default function LearningReportClient() {
       }
     }
     fetchData();
-  }, [period, skillId, areaId]);
+  }, [period, skillId, categoryId]);
 
   const handlePeriodChange = (newPeriod: string) => {
     setPeriod(newPeriod);
   };
 
-  const handleAreaChange = (newAreaId: string) => {
-    setAreaId(newAreaId);
-    setSkillId(''); // Reset skill when area changes
+  const handleAreaChange = (newCategoryId: string) => {
+    setCategoryId(newCategoryId);
+    setSkillId(''); // Reset skill when category changes
   };
 
   const handleSkillChange = (newSkillId: string) => {
@@ -591,18 +591,18 @@ export default function LearningReportClient() {
   };
 
   const clearFilters = () => {
-    setAreaId('');
+    setCategoryId('');
     setSkillId('');
   };
 
   const { summary, byArea, bySkill, difficultyDist, ratingDist, topMediums, dailyLearning, weeklyTrend, recentSessions, filters } = data || {};
 
-  // Filter skills by selected area
+  // Filter skills by selected category
   const filteredSkills = useMemo(() => {
     if (!bySkill) return [];
-    if (!areaId) return bySkill;
-    return bySkill.filter((s: any) => s.areaId === areaId);
-  }, [bySkill, areaId]);
+    if (!categoryId) return bySkill;
+    return bySkill.filter((s: any) => s.categoryId === categoryId);
+  }, [bySkill, categoryId]);
 
   const formatTime = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
@@ -611,9 +611,9 @@ export default function LearningReportClient() {
     return `${mins}m`;
   };
 
-  const hasActiveFilters = areaId || skillId;
+  const hasActiveFilters = categoryId || skillId;
 
-  if (isLoading || !data) {
+  if (isLoading) {
     return (
       <div className="space-y-8 animate-pulse p-1">
         <div className="flex justify-between items-center">
@@ -624,6 +624,27 @@ export default function LearningReportClient() {
            {[1, 2, 3, 4].map(i => <div key={i} className="h-24 bg-muted rounded-xl" />)}
         </div>
         <div className="h-48 bg-muted rounded-xl" />
+      </div>
+    );
+  }
+
+  if (!data) {
+    return (
+      <div className="space-y-8 pb-24 max-w-2xl mx-auto">
+        <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+            <Link
+                href="/reports"
+                className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
+            >
+                <ArrowLeft size={20} />
+            </Link>
+            <h1 className="text-xl font-bold tracking-tight">Learning</h1>
+            </div>
+        </div>
+        <div className="text-center py-12 text-muted-foreground">
+          No learning data available for this period.
+        </div>
       </div>
     );
   }
@@ -663,7 +684,7 @@ export default function LearningReportClient() {
             
             <FilterDropdown
               label="Area"
-              value={areaId}
+              value={categoryId}
               options={filters.areas || []}
               onChange={handleAreaChange}
             />
@@ -671,8 +692,8 @@ export default function LearningReportClient() {
             <FilterDropdown
               label="Skill"
               value={skillId}
-              options={areaId 
-                ? (filters.skills || []).filter((s: any) => s.areaId === areaId)
+              options={categoryId 
+                ? (filters.skills || []).filter((s: any) => s.areaId === categoryId)
                 : (filters.skills || [])
               }
               onChange={handleSkillChange}
@@ -750,9 +771,55 @@ export default function LearningReportClient() {
         <SkillsGrid skills={filteredSkills} onSelectSkill={handleSkillChange} />
       )}
 
+      {/* Selected Skill Detail View */}
+      {skillId && filteredSkills && filteredSkills.length > 0 && (
+        <div className="bg-card border border-border/40 rounded-xl p-5 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            {(() => {
+              const selectedSkill = filteredSkills.find((s: any) => s._id === skillId);
+              return selectedSkill ? (
+                <>
+                  <div>
+                    <h3 className="font-semibold text-sm">{selectedSkill.name}</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">{selectedSkill.categoryName}</p>
+                  </div>
+                  <button
+                    onClick={() => handleSkillChange('')}
+                    className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Clear filter
+                  </button>
+                </>
+              ) : null;
+            })()}
+          </div>
+          <div className="grid grid-cols-3 gap-4">
+            {(() => {
+              const selectedSkill = filteredSkills.find((s: any) => s._id === skillId);
+              return selectedSkill ? (
+                <>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-amber-500">{Math.floor(selectedSkill.minutes / 60)}h {selectedSkill.minutes % 60}m</div>
+                    <div className="text-[10px] text-muted-foreground mt-1">Total Time</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold">{selectedSkill.sessions}</div>
+                    <div className="text-[10px] text-muted-foreground mt-1">Sessions</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold">{selectedSkill.avgSessionLength}m</div>
+                    <div className="text-[10px] text-muted-foreground mt-1">Avg Length</div>
+                  </div>
+                </>
+              ) : null;
+            })()}
+          </div>
+        </div>
+      )}
+
       {/* Area Pie Chart & Top Mediums */}
       <div className="grid md:grid-cols-2 gap-4">
-        {byArea && byArea.length > 0 && <AreaPieChart areas={byArea} />}
+        {byArea && byArea.length > 0 && !skillId && <AreaPieChart areas={byArea} />}
         {topMediums && topMediums.length > 0 && <TopMediumsList mediums={topMediums} />}
       </div>
 

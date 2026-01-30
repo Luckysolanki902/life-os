@@ -24,16 +24,27 @@ if (!cached) {
 }
 
 async function connectDB() {
+  // Return existing connection immediately
   if (cached.conn) {
     return cached.conn;
   }
 
   if (!cached.promise) {
-    const opts = {
+    const opts: mongoose.ConnectOptions = {
       bufferCommands: false,
+      // Connection pool optimization for faster queries
+      maxPoolSize: 10,
+      minPoolSize: 2,
+      // Server selection timeout - fail fast
+      serverSelectionTimeoutMS: 5000,
+      // Socket timeout
+      socketTimeoutMS: 45000,
+      // Keep connection alive
+      maxIdleTimeMS: 30000,
     };
 
     cached.promise = mongoose.connect(MONGODB_URI!, opts).then((mongoose) => {
+      console.log('[DB] MongoDB connected successfully');
       return mongoose;
     });
   }
@@ -42,6 +53,7 @@ async function connectDB() {
     cached.conn = await cached.promise;
   } catch (e) {
     cached.promise = null;
+    console.error('[DB] MongoDB connection failed:', e);
     throw e;
   }
 

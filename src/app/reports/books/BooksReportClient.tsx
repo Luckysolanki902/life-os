@@ -15,6 +15,8 @@ import {
   FileText,
   Clock,
   ChevronDown,
+  Star,
+  CheckCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getBooksReport } from '../../actions/reports';
@@ -48,14 +50,14 @@ interface DomainData {
   totalBooks: number;
   reading: number;
   completed: number;
+  paused: number;
 }
 
 interface DayReading {
   date: string;
   dayName?: string;
   sessions: number;
-  minutes: number;
-  pagesRead?: number;
+  pagesRead: number;
 }
 
 interface BooksReportData {
@@ -64,7 +66,6 @@ interface BooksReportData {
     prevBooksCompleted: number;
     booksStarted: number;
     totalReadingSessions: number;
-    totalReadingMinutes: number;
     totalPagesRead: number;
     currentlyReading: number;
   };
@@ -152,6 +153,7 @@ function BookProgressCard({ book }: { book: BookData }) {
 
 export default function BooksReportClient() {
   const [period, setPeriod] = useState('last7Days');
+  const [selectedDomain, setSelectedDomain] = useState<string>('');
   const [data, setData] = useState<BooksReportData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -174,7 +176,7 @@ export default function BooksReportClient() {
     setPeriod(newPeriod);
   };
 
-  if (isLoading || !data) {
+  if (isLoading) {
     return (
        <div className="space-y-8 animate-pulse p-1">
         <div className="flex items-center gap-4">
@@ -190,13 +192,31 @@ export default function BooksReportClient() {
     );
   }
 
+  if (!data) {
+    return (
+      <div className="space-y-8 pb-24 max-w-2xl mx-auto">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Link href="/reports" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground">
+              <ArrowLeft size={20} />
+            </Link>
+            <h1 className="text-xl font-bold tracking-tight">Books</h1>
+          </div>
+        </div>
+        <div className="text-center py-12 text-muted-foreground">
+          No reading data available for this period.
+        </div>
+      </div>
+    );
+  }
+
   const { summary, booksCompleted, byDomain, currentlyReadingWithProgress, dailyReading } = data;
 
   // Chart data
   const chartData = dailyReading?.map((day) => ({
     date: day.dayName?.slice(0, 3) || new Date(day.date).toLocaleDateString('en-US', { weekday: 'short' }),
     sessions: day.sessions,
-    minutes: day.minutes,
+    pages: day.pagesRead || 0,
   })) || [];
 
   return (
@@ -240,10 +260,10 @@ export default function BooksReportClient() {
          </div>
 
          <div className="bg-card border border-border/40 rounded-xl p-4 shadow-sm">
-           <div className="text-muted-foreground text-xs font-medium uppercase tracking-wider mb-2">Reading Time</div>
-           <div className="text-2xl font-bold">{Math.round((summary.totalReadingMinutes || 0) / 60 * 10) / 10}<span className="text-sm font-normal text-muted-foreground ml-0.5">h</span></div>
+           <div className="text-muted-foreground text-xs font-medium uppercase tracking-wider mb-2">Sessions</div>
+           <div className="text-2xl font-bold">{summary.totalReadingSessions}</div>
             <div className="text-[10px] text-muted-foreground mt-1">
-             {summary.totalReadingSessions} sessions
+             Reading sessions
            </div>
          </div>
          
@@ -265,7 +285,7 @@ export default function BooksReportClient() {
         <div className="bg-card border border-border/40 rounded-xl p-5 shadow-sm">
           <div className="mb-6">
             <h3 className="font-semibold text-sm">Activity</h3>
-            <p className="text-xs text-muted-foreground">Minutes read per day</p>
+            <p className="text-xs text-muted-foreground">Pages read per day</p>
           </div>
           <div className="h-32 w-full">
             <ResponsiveContainer width="100%" height="100%">
@@ -284,8 +304,8 @@ export default function BooksReportClient() {
                 />
                 <Tooltip content={<MinimalTooltip />} cursor={{ fill: 'var(--secondary)', opacity: 0.5 }} />
                 <Bar 
-                  dataKey="minutes" 
-                  name="Reading"
+                  dataKey="pages" 
+                  name="Pages"
                   fill="var(--foreground)" 
                   radius={[4, 4, 0, 0]}
                   maxBarSize={40}
@@ -314,47 +334,75 @@ export default function BooksReportClient() {
         </div>
       </div>
 
-      {/* By Domain */}
+      {/* By Domain Statistics */}
       {byDomain && byDomain.length > 0 && (
-        <div>
-           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3 px-1">By Topic</h2>
-           <div className="grid grid-cols-1 gap-2">
-              {byDomain.map((domain) => (
-                <div key={domain._id} className="flex items-center justify-between p-3 rounded-lg border border-border/30 hover:border-border/60 transition-colors">
-                  <div className="flex items-center gap-3">
-                     <div className="w-2 h-8 rounded-full" style={{ backgroundColor: domain.color }} />
-                     <span className="font-medium text-sm">{domain.name}</span>
+        <div className="bg-card border border-border/40 rounded-xl p-5 shadow-sm">
+           <h2 className="font-semibold text-sm mb-4">Domain Breakdown</h2>
+           <div className="space-y-3">
+              {byDomain.map((domain) => {
+                const total = domain.completed + domain.reading + domain.paused;
+                const completionRate = total > 0 ? Math.round((domain.completed / total) * 100) : 0;
+                return (
+                  <div key={domain._id} className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: domain.color }} />
+                        <span className="font-medium text-xs">{domain.name}</span>
+                      </div>
+                      <span className="text-xs text-muted-foreground">{completionRate}% complete</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 h-1.5 bg-secondary rounded-full overflow-hidden">
+                        <div 
+                          className="h-full rounded-full transition-all" 
+                          style={{ 
+                            width: `${completionRate}%`,
+                            backgroundColor: domain.color 
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+                      <span>{domain.completed} completed</span>
+                      <span className="w-0.5 h-0.5 bg-muted-foreground rounded-full" />
+                      <span>{domain.reading} reading</span>
+                      <span className="w-0.5 h-0.5 bg-muted-foreground rounded-full" />
+                      <span>{domain.totalBooks} total</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-4 text-xs">
-                     <span className="text-muted-foreground">{domain.reading} active</span>
-                     <span className="font-semibold">{domain.totalBooks} total</span>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
            </div>
         </div>
       )}
 
-      {/* Completed Books List */}
+      {/* Completed Books List with domain filtering */}
       {booksCompleted && booksCompleted.length > 0 && (
         <div>
-          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3 px-1">Completed</h2>
-          <div className="space-y-2">
+          <div className="flex items-center justify-between mb-3 px-1">
+            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Completed This Period</h2>
+            <span className="text-xs text-muted-foreground">{booksCompleted.length} books</span>
+          </div>
+          <div className="grid md:grid-cols-2 gap-3">
             {booksCompleted.map((book) => (
-              <div key={book._id} className="flex items-center justify-between p-3 border border-border/30 rounded-xl hover:bg-secondary/10 transition-colors">
-                <div className="flex items-center gap-3 overflow-hidden">
-                   <div className="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0">
-                      <BookMarked size={14} className="text-emerald-500" />
+              <div key={book._id} className="flex flex-col gap-2 p-4 border border-border/30 rounded-xl hover:border-border/60 hover:bg-secondary/5 transition-colors">
+                <div className="flex items-start justify-between gap-2">
+                   <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium leading-snug line-clamp-2">{book.title}</p>
+                      <p className="text-xs text-muted-foreground mt-1">{book.author}</p>
                    </div>
-                   <div className="min-w-0">
-                      <p className="text-sm font-medium truncate">{book.title}</p>
-                      <p className="text-xs text-muted-foreground truncate">{book.author}</p>
-                   </div>
+                   {book.rating && (
+                     <div className="flex items-center gap-1 shrink-0 px-2 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                        <Star size={10} className="text-amber-500 fill-amber-500" />
+                        <span className="text-xs font-medium text-amber-600">{book.rating}</span>
+                     </div>
+                   )}
                 </div>
-                {book.rating && (
-                   <div className="shrink-0 px-2 py-0.5 rounded bg-secondary text-xs font-medium">
-                      {book.rating}/5
-                   </div>
+                {book.completedDate && (
+                  <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                    <CheckCircle size={10} className="text-emerald-500" />
+                    <span>Completed {new Date(book.completedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                  </div>
                 )}
               </div>
             ))}

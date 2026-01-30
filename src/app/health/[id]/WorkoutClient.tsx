@@ -13,7 +13,6 @@ import {
   updateSet, deleteExercise, updateExercise, reorderExercises, 
   updateHealthPage, deleteHealthPage 
 } from '@/app/actions/health';
-import MuscleMap from '@/components/MuscleMap';
 import { cn } from '@/lib/utils';
 import { parseServerDate, formatDateForDisplay, getLocalDateString } from '@/lib/date-utils';
 import {
@@ -392,7 +391,6 @@ export default function WorkoutClient({ initialData }: WorkoutClientProps) {
   }, [initialData]);
 
   // UI State
-  const [muscleMapCollapsed, setMuscleMapCollapsed] = useState(false);
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   
@@ -419,31 +417,6 @@ export default function WorkoutClient({ initialData }: WorkoutClientProps) {
   const [tutorialModal, setTutorialModal] = useState<{ title: string, tutorials: Tutorial[] } | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null); // DnD Active
   
-  // Calculate Muscle Scores (Intensity)
-  const muscleScores = useMemo(() => {
-     const scores: Record<string, number> = {};
-     const counts: Record<string, number> = {};
-     let max = 1;
-     
-     exercises.forEach(ex => {
-        ex.targetMuscles.forEach(m => {
-           // Weighted by total log volume (sets * reps * weightish) or simpler: just sets
-           // User asked for "none, least, most comparison".
-           // Count total sets targetting this muscle
-           const sets = ex.todaysLog?.sets?.length || ex.initialSets || 1;
-           counts[m] = (counts[m] || 0) + sets;
-           if(counts[m] > max) max = counts[m];
-        });
-     });
-     
-     // Normalize
-     Object.keys(counts).forEach(m => {
-        scores[m] = counts[m] / max;
-     });
-     return scores;
-  }, [exercises]);
-
-  const allMuscles = Object.keys(muscleScores); 
   const activeExercise = activeId ? exercises.find(e => e._id === activeId) : null;
 
   // --- Handlers ---
@@ -549,19 +522,6 @@ export default function WorkoutClient({ initialData }: WorkoutClientProps) {
              <h1 className="text-2xl font-bold">{page.title}</h1>
              <p className="text-sm text-muted-foreground flex items-center gap-1"><Calendar size={12}/> {formatDateForDisplay(initialData.date)}</p>
           </div>
-       </div>
-
-       {/* Muscle Map */}
-       <div className="bg-card rounded-2xl border border-border/50 overflow-hidden">
-        <button onClick={() => setMuscleMapCollapsed(!muscleMapCollapsed)} className="w-full flex items-center justify-between p-4 hover:bg-secondary/50">
-           <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Target Highlight</h3>
-           {muscleMapCollapsed ? <ChevronDown size={16}/> : <ChevronUp size={16}/>}
-        </button>
-        {!muscleMapCollapsed && (
-           <div className="px-6 pb-6 pt-2 flex justify-center">
-              <MuscleMap highlightedMuscles={allMuscles} muscleScores={muscleScores} className="h-40" />
-           </div>
-        )}
        </div>
        
        {/* Add Exercise */}

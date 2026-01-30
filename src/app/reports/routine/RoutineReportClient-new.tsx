@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, CheckCircle, Trophy, TrendingUp, TrendingDown } from 'lucide-react';
+import { ArrowLeft, CheckCircle, Trophy, TrendingUp, TrendingDown, Target, List } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { getRoutineReport } from '../../actions/reports';
@@ -128,7 +128,8 @@ export default function RoutineReportClient() {
     return <div className="text-center py-12 text-muted-foreground">Failed to load report</div>;
   }
 
-  const { summary, tasks, dailyCompletion } = data;
+  const { summary, taskStats = [], dailyData = [] } = data;
+  const tasks = taskStats; // Alias for backward compatibility
   
   // Group tasks by domain
   const tasksByDomain = tasks.reduce((acc: any, task: any) => {
@@ -138,9 +139,9 @@ export default function RoutineReportClient() {
   }, {});
 
   // Prepare chart data
-  const chartData = dailyCompletion?.map((d: any) => ({
+  const chartData = dailyData?.map((d: any) => ({
     date: new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-    rate: d.completionRate,
+    rate: d.rate,
     completed: d.completed,
     total: d.total,
   })) || [];
@@ -181,25 +182,16 @@ export default function RoutineReportClient() {
         <div className="bg-card/50 border border-border/30 rounded-xl p-4">
           <div className="flex items-center justify-between mb-2">
             <div className="p-2 rounded-lg bg-primary/10">
-              <CheckCircle size={14} className="text-primary" />
+              <Target size={14} className="text-primary" />
             </div>
-            {summary.completionChange !== 0 && (
-              <span className={cn(
-                'text-xs font-medium flex items-center gap-0.5',
-                summary.completionChange > 0 ? 'text-emerald-500' : 'text-rose-500'
-              )}>
-                {summary.completionChange > 0 ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
-                {summary.completionChange > 0 ? '+' : ''}{summary.completionChange}%
-              </span>
-            )}
           </div>
-          <p className="text-2xl font-bold">{summary.completionRate}%</p>
+          <p className="text-2xl font-bold">{summary.avgCompletionRate}%</p>
           <p className="text-xs text-muted-foreground">Completion Rate</p>
         </div>
 
         <div className="bg-card/50 border border-border/30 rounded-xl p-4">
-          <div className="p-2 rounded-lg bg-primary/10 w-fit mb-2">
-            <CheckCircle size={14} className="text-primary" />
+          <div className="p-2 rounded-lg bg-emerald-500/10 w-fit mb-2">
+            <CheckCircle size={14} className="text-emerald-500" />
           </div>
           <p className="text-2xl font-bold">{summary.totalCompleted}</p>
           <p className="text-xs text-muted-foreground">Tasks Completed</p>
@@ -214,8 +206,8 @@ export default function RoutineReportClient() {
         </div>
 
         <div className="bg-card/50 border border-border/30 rounded-xl p-4">
-          <div className="p-2 rounded-lg bg-emerald-500/10 w-fit mb-2">
-            <CheckCircle size={14} className="text-emerald-500" />
+          <div className="p-2 rounded-lg bg-blue-500/10 w-fit mb-2">
+            <List size={14} className="text-blue-500" />
           </div>
           <p className="text-2xl font-bold">{summary.perfectDays}</p>
           <p className="text-xs text-muted-foreground">Perfect Days</p>

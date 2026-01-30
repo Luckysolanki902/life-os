@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -22,9 +22,11 @@ import {
   Flame,
   FileText,
   RotateCw,
+  Heart,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getOverallReport, getDashboardStats } from '../actions/reports';
+import { getCache, setCache, CACHE_KEYS, subscribe } from '@/lib/reactive-cache';
 
 const PERIODS = [
   { value: 'last7Days', label: '7D' },
@@ -131,6 +133,8 @@ function Heatmap({ data }: { data: Array<{ date: string; count: number }> }) {
 
 // Better Heatmap Logic
 function ActivityHeatmap({ data }: { data: Array<{ date: string; count: number }> }) {
+    const containerRef = useRef<HTMLDivElement>(null);
+    
     // We want approx 52 weeks.
     // Start date should be Sunday ~365 days ago.
     const today = new Date();
@@ -163,10 +167,19 @@ function ActivityHeatmap({ data }: { data: Array<{ date: string; count: number }
 
     const dataMap = new Map(data.map(d => [d.date, d.count]));
 
+    // Auto-scroll to latest (rightmost) on mount for mobile
+    useEffect(() => {
+        if (containerRef.current) {
+            const container = containerRef.current;
+            // Scroll to the end (latest dates on right)
+            container.scrollLeft = container.scrollWidth;
+        }
+    }, []);
+
     return (
         <div className="bg-card border border-border/40 rounded-xl p-5 shadow-sm overflow-hidden">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4">Exercise Activity</h3>
-            <div className="w-full overflow-x-auto">
+            <div ref={containerRef} className="w-full overflow-x-auto">
                 <div className="flex gap-[3px] min-w-max pb-2">
                     {groupedByWeek.map((week, wIndex) => (
                         <div key={wIndex} className="flex flex-col gap-[3px]">
@@ -306,24 +319,38 @@ function MinimalTooltip({ active, payload, label }: TooltipProps) {
 export default function ReportsClient() {
   const router = useRouter();
   const [period, setPeriod] = useState('last7Days');
-  const [data, setData] = useState<ReportData | null>(null);
-  const [stats, setStats] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  // Initialize with cached data for instant render
+  const [data, setData] = useState<ReportData | null>(() => {
+    if (typeof window !== 'undefined') {
+      return getCache<ReportData>(CACHE_KEYS.REPORTS_DATA);
+    }
+    return null;
+  });
+  const [stats, setStats] = useState<any>(() => {
+    if (typeof window !== 'undefined') {
+      return getCache<any>(CACHE_KEYS.DASHBOARD_STATS);
+    }
+    return null;
+  });
+  const [isLoading, setIsLoading] = useState(!data); // Only loading if no cache
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  // Subscribe to dashboard stats updates (synced from home page)
+  useEffect(() => {
+    const unsubscribe = subscribe<any>(CACHE_KEYS.DASHBOARD_STATS, (newStats) => {
+      if (newStats) setStats(newStats);
+    });
+    return unsubscribe;
+  }, []);
+
+  // Fetch fresh data in background
   useEffect(() => {
     async function fetchData() {
-      setIsLoading(true);
+      if (!data) setIsLoading(true);
       try {
         const result = await getOverallReport(period);
         setData(result);
-        
-        // Fetch stats only once if possible, but here we can check if it exists
-        // Actually, let's just fetch it always to keep sync simple
-        if (!stats) {
-            const dashboardStats = await getDashboardStats();
-            setStats(dashboardStats);
-        }
+        setCache(CACHE_KEYS.REPORTS_DATA, result);
       } catch (error) {
         console.error('Failed to fetch report data:', error);
       } finally {
@@ -331,11 +358,14 @@ export default function ReportsClient() {
       }
     }
     fetchData();
-  }, [period, stats]); // stats in dep array might cause loop if not careful? No, if (!stats) check prevents it.
-  // Actually, better to separate effects.
+  }, [period]);
 
+  // Fetch stats separately
   useEffect(() => {
-      getDashboardStats().then(setStats).catch(console.error);
+    getDashboardStats().then((result) => {
+      setStats(result);
+      setCache(CACHE_KEYS.DASHBOARD_STATS, result);
+    }).catch(console.error);
   }, []);
 
   const handlePeriodChange = (newPeriod: string) => {
@@ -435,6 +465,57 @@ export default function ReportsClient() {
             </button>
           ))}
         </div>
+      </div>
+
+      {/* Domain Report Shortcuts */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Link 
+          href="/reports/health"
+          className="group bg-card border border-border/40 rounded-xl p-4 hover:border-rose-500/50 hover:bg-rose-500/5 transition-all shadow-sm"
+        >
+          <div className="flex items-center justify-between mb-3">
+            <Heart size={20} className="text-rose-500" />
+            <ArrowRight size={14} className="text-muted-foreground group-hover:text-rose-500 group-hover:translate-x-0.5 transition-all" />
+          </div>
+          <h3 className="text-sm font-semibold">Health Reports</h3>
+          <p className="text-[10px] text-muted-foreground mt-1">Exercise & Weight</p>
+        </Link>
+
+        <Link 
+          href="/reports/routine"
+          className="group bg-card border border-border/40 rounded-xl p-4 hover:border-primary/50 hover:bg-primary/5 transition-all shadow-sm"
+        >
+          <div className="flex items-center justify-between mb-3">
+            <Target size={20} className="text-primary" />
+            <ArrowRight size={14} className="text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
+          </div>
+          <h3 className="text-sm font-semibold">Routine Reports</h3>
+          <p className="text-[10px] text-muted-foreground mt-1">Tasks & Streaks</p>
+        </Link>
+
+        <Link 
+          href="/reports/books"
+          className="group bg-card border border-border/40 rounded-xl p-4 hover:border-cyan-500/50 hover:bg-cyan-500/5 transition-all shadow-sm"
+        >
+          <div className="flex items-center justify-between mb-3">
+            <BookOpen size={20} className="text-cyan-500" />
+            <ArrowRight size={14} className="text-muted-foreground group-hover:text-cyan-500 group-hover:translate-x-0.5 transition-all" />
+          </div>
+          <h3 className="text-sm font-semibold">Books Reports</h3>
+          <p className="text-[10px] text-muted-foreground mt-1">Reading Progress</p>
+        </Link>
+
+        <Link 
+          href="/reports/learning"
+          className="group bg-card border border-border/40 rounded-xl p-4 hover:border-purple-500/50 hover:bg-purple-500/5 transition-all shadow-sm"
+        >
+          <div className="flex items-center justify-between mb-3">
+            <Brain size={20} className="text-purple-500" />
+            <ArrowRight size={14} className="text-muted-foreground group-hover:text-purple-500 group-hover:translate-x-0.5 transition-all" />
+          </div>
+          <h3 className="text-sm font-semibold">Learning Reports</h3>
+          <p className="text-[10px] text-muted-foreground mt-1">Skills & Time</p>
+        </Link>
       </div>
 
       {/* Main Completion Rate Card with Chart */}

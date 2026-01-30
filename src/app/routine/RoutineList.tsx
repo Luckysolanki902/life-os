@@ -96,9 +96,7 @@ export default function RoutineList({ initialTasks, allTasks = [], initialSpecia
   const [tasks, setTasks] = useState(initialTasks);
   const [specialTasks, setSpecialTasks] = useState(initialSpecialTasks);
   const [viewMode, setViewMode] = useState<'today' | 'custom'>('today');
-  const [filterOpen, setFilterOpen] = useState(false);
   const [timeFilter, setTimeFilter] = useState('all');
-  const [typeFilter, setTypeFilter] = useState('all');
   const [editMode, setEditMode] = useState(false);
   
   // Custom date picker state
@@ -239,12 +237,7 @@ export default function RoutineList({ initialTasks, allTasks = [], initialSpecia
     const taskTime = task.timeOfDay || 'none';
     const matchesTime = timeFilter === 'all' || taskTime === timeFilter;
     
-    const matchesType = typeFilter === 'all' || 
-      (typeFilter === 'scheduled' && task.isScheduled) ||
-      (typeFilter === 'flexible' && !task.isScheduled);
-    
-    // Recurrence filter removed since we no longer have 'all' view
-    return matchesTime && matchesType;
+    return matchesTime;
   });
 
   // Sort tasks: pending first, then skipped, then completed
@@ -259,12 +252,9 @@ export default function RoutineList({ initialTasks, allTasks = [], initialSpecia
   const pendingAndCompletedTasks = sortedTasks.filter(t => t.log?.status !== 'skipped');
   const skippedTasks = sortedTasks.filter(t => t.log?.status === 'skipped');
 
-  // Count active filters
-  const activeFilters = [timeFilter, typeFilter].filter(f => f !== 'all').length;
-
   return (
     <div className="space-y-6 pb-20">
-      {/* Minimal Header with View Toggle + Filter Button */}
+      {/* Minimal Header with View Toggle */}
       <div className="flex items-center justify-between gap-3">
         {/* View Mode Toggle */}
         <div className="flex gap-1 p-1 rounded-lg bg-secondary/30 flex-1 sm:flex-initial">
@@ -293,38 +283,36 @@ export default function RoutineList({ initialTasks, allTasks = [], initialSpecia
           </button>
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* Edit Mode Toggle */}
-          <button
-            onClick={() => setEditMode(!editMode)}
-            className={cn(
-              "px-3 py-1.5 rounded-lg text-xs font-medium border transition-all",
-              editMode
-                ? "bg-primary text-primary-foreground border-primary" 
-                : "bg-background text-muted-foreground border-border hover:border-primary/50"
-            )}
-          >
-            {editMode ? 'Done' : 'Edit'}
-          </button>
+        {/* Edit Mode Toggle */}
+        <button
+          onClick={() => setEditMode(!editMode)}
+          className={cn(
+            "px-3 py-1.5 rounded-lg text-xs font-medium border transition-all",
+            editMode
+              ? "bg-primary text-primary-foreground border-primary" 
+              : "bg-background text-muted-foreground border-border hover:border-primary/50"
+          )}
+        >
+          {editMode ? 'Done' : 'Edit'}
+        </button>
+      </div>
 
-          {/* Filter Toggle Button */}
+      {/* Always Visible Time Filter - Minimal & Pretty */}
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
+        {['all', 'morning', 'afternoon', 'evening', 'night'].map((time) => (
           <button
-            onClick={() => setFilterOpen(!filterOpen)}
+            key={time}
+            onClick={() => setTimeFilter(time)}
             className={cn(
-              "px-3 py-1.5 rounded-lg text-xs font-medium border transition-all flex items-center gap-1.5",
-              filterOpen || activeFilters > 0
-                ? "bg-primary/10 text-primary border-primary/30" 
-                : "bg-background text-muted-foreground border-border hover:border-primary/50"
+              "px-3 py-1.5 rounded-full text-xs font-medium transition-all capitalize whitespace-nowrap",
+              timeFilter === time 
+                ? "bg-primary/20 text-primary ring-1 ring-primary/30" 
+                : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
             )}
           >
-            Filter
-            {activeFilters > 0 && (
-              <span className="w-4 h-4 rounded-full bg-primary text-primary-foreground text-[10px] flex items-center justify-center">
-                {activeFilters}
-              </span>
-            )}
+            {time}
           </button>
-        </div>
+        ))}
       </div>
 
       {/* Custom Date Navigator */}
@@ -381,47 +369,6 @@ export default function RoutineList({ initialTasks, allTasks = [], initialSpecia
       {isLoadingCustom && (
         <div className="text-center py-2">
           <span className="text-sm text-muted-foreground animate-pulse">Loading...</span>
-        </div>
-      )}
-
-      {/* Collapsible Filters */}
-      {filterOpen && (
-        <div className="space-y-2 p-3 rounded-xl bg-secondary/30 border border-border/50 animate-in slide-in-from-top-2">
-          <div className="flex flex-wrap gap-1.5">
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-1">Type:</span>
-            {['all', 'scheduled', 'flexible'].map((f) => (
-              <button
-                key={f}
-                onClick={() => setTypeFilter(f)}
-                className={cn(
-                  "px-2 py-1 rounded text-[10px] font-medium transition-all capitalize",
-                  typeFilter === f 
-                    ? "bg-primary text-primary-foreground" 
-                    : "bg-background text-muted-foreground hover:bg-primary/10"
-                )}
-              >
-                {f}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex flex-wrap gap-1.5">
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground px-1">Time:</span>
-            {['all', 'morning', 'afternoon', 'evening', 'night'].map((f) => (
-              <button
-                key={f}
-                onClick={() => setTimeFilter(f)}
-                className={cn(
-                  "px-2 py-1 rounded text-[10px] font-medium transition-all capitalize",
-                  timeFilter === f 
-                    ? "bg-secondary-foreground/20 text-foreground" 
-                    : "bg-background text-muted-foreground hover:bg-secondary/50"
-                )}
-              >
-                {f}
-              </button>
-            ))}
-          </div>
         </div>
       )}
 

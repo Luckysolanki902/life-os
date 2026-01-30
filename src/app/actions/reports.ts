@@ -11,6 +11,7 @@ import MoodLog from '@/models/MoodLog';
 import Book from '@/models/Book';
 import BookLog from '@/models/BookLog';
 import BookDomain from '@/models/BookDomain';
+import LearningCategory from '@/models/LearningCategory';
 import LearningArea from '@/models/LearningArea';
 import LearningSkill from '@/models/LearningSkill';
 import PracticeMedium from '@/models/PracticeMedium';
@@ -670,6 +671,21 @@ export async function getHealthReport(period: string = 'thisWeek') {
     if (workoutStreak > 365) break; // Safety limit
   }
   
+  // Calculate unique exercise days in the period
+  const exerciseDaysResult = await ExerciseLog.aggregate([
+    { $match: { date: { $gte: start, $lt: end } } },
+    { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$date' } } } },
+    { $count: 'days' }
+  ]);
+  const totalExerciseDays = exerciseDaysResult[0]?.days || 0;
+  
+  const prevExerciseDaysResult = await ExerciseLog.aggregate([
+    { $match: { date: { $gte: prev.start, $lt: prev.end } } },
+    { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$date' } } } },
+    { $count: 'days' }
+  ]);
+  const prevExerciseDays = prevExerciseDaysResult[0]?.days || 0;
+  
   // Daily exercise chart - use dayjs for proper IST timezone handling
   const dailyExercise = [];
   for (let i = 0; i < Math.min(daysInPeriod, 31); i++) {
@@ -691,9 +707,9 @@ export async function getHealthReport(period: string = 'thisWeek') {
   return {
     period,
     summary: {
-      totalExerciseSessions: exerciseLogs.length,
-      prevExerciseSessions: prevExerciseLogs.length,
-      sessionChange: exerciseLogs.length - prevExerciseLogs.length,
+      totalExerciseDays,
+      prevExerciseDays,
+      exerciseDaysChange: totalExerciseDays - prevExerciseDays,
       currentWeight: latestWeight ? (latestWeight as any).weight : null,
       weightChange,
       avgMood: Number(avgMood),
@@ -723,6 +739,22 @@ export async function getHealthReport(period: string = 'thisWeek') {
   };
 }
 
+// Get recent moods (last 30 days or all available if less)
+export async function getRecentMoods(limit: number = 30) {
+  await connectDB();
+  
+  const moods = await MoodLog.find()
+    .sort({ date: -1 })
+    .limit(limit)
+    .lean();
+  
+  return moods.map((m: any) => ({
+    date: m.date.toISOString().split('T')[0],
+    mood: m.mood,
+    notes: m.notes || ''
+  })); // Return in reverse chronological order (most recent first)
+}
+
 // ============ BOOKS REPORT ============
 export async function getBooksReport(period: string = 'thisWeek') {
   await connectDB();
@@ -744,24 +776,9 @@ export async function getBooksReport(period: string = 'thisWeek') {
     .sort({ date: -1 })
     .lean();
   
-  // Calculate pages read (approximate from logs)
-  const bookProgress: Record<string, { firstPage: number; lastPage: number; sessions: number; minutes: number }> = {};
-  readingLogs.forEach((log: any) => {
-    const bookId = log.bookId?._id?.toString() || log.bookId?.toString();
-    if (!bookId) return;
-    
-    if (!bookProgress[bookId]) {
-      bookProgress[bookId] = { firstPage: log.currentPage, lastPage: log.currentPage, sessions: 0, minutes: 0 };
-    }
-    bookProgress[bookId].lastPage = Math.max(bookProgress[bookId].lastPage, log.currentPage);
-    bookProgress[bookId].firstPage = Math.min(bookProgress[bookId].firstPage, log.currentPage);
-    bookProgress[bookId].sessions++;
-    bookProgress[bookId].minutes += log.duration || 0;
-  });
-  
-  const totalPagesRead = Object.values(bookProgress).reduce((acc, p) => acc + (p.lastPage - p.firstPage), 0);
+  // Calculate total pages read from logs
+  const totalPagesRead = readingLogs.reduce((acc, log: any) => acc + (log.pagesRead || 0), 0);
   const totalReadingSessions = readingLogs.length;
-  const totalReadingMinutes = Object.values(bookProgress).reduce((acc, p) => acc + p.minutes, 0);
   
   // Reading by domain
   const domains = await BookDomain.find().lean();
@@ -816,41 +833,21 @@ export async function getBooksReport(period: string = 'thisWeek') {
     };
   }));
   
-  // Daily reading chart - with pages calculation
+  // Daily reading chart - pages read per day
   const dailyReading = [];
   for (let i = 0; i < Math.min(daysInPeriod, 31); i++) {
     const dayStart = new Date(start.getTime() + i * 24 * 60 * 60 * 1000);
     const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
     
     const dayLogs = await BookLog.find({ date: { $gte: dayStart, $lt: dayEnd } }).lean();
-    const dayMinutes = dayLogs.reduce((acc, log: any) => acc + (log.duration || 0), 0);
     
-    // Calculate pages for this day - approximate by looking at progress jumps
-    let dayPages = 0;
-    const bookDayProgress: Record<string, number[]> = {};
-    dayLogs.forEach((log: any) => {
-      const bookId = log.bookId?.toString();
-      if (bookId && log.currentPage) {
-        if (!bookDayProgress[bookId]) bookDayProgress[bookId] = [];
-        bookDayProgress[bookId].push(log.currentPage);
-      }
-    });
-    // For each book, pages read = max - min (or just count pages if single log)
-    Object.values(bookDayProgress).forEach(pages => {
-      if (pages.length > 0) {
-        dayPages += Math.max(...pages) - Math.min(...pages);
-        // If only 1 log, estimate pages from duration (avg 2 pages per minute)
-        if (pages.length === 1 && dayMinutes > 0) {
-          dayPages += Math.round(dayMinutes / dayLogs.length * 0.5);
-        }
-      }
-    });
+    // Sum up pagesRead from all logs for this day
+    const dayPages = dayLogs.reduce((acc, log: any) => acc + (log.pagesRead || 0), 0);
     
     dailyReading.push({
       date: dayStart.toISOString().split('T')[0],
       dayName: dayStart.toLocaleDateString('en-US', { weekday: 'short' }),
       sessions: dayLogs.length,
-      minutes: dayMinutes,
       pagesRead: dayPages
     });
   }
@@ -862,7 +859,6 @@ export async function getBooksReport(period: string = 'thisWeek') {
       prevBooksCompleted,
       booksStarted: booksStarted.length,
       totalReadingSessions,
-      totalReadingMinutes,
       totalPagesRead,
       currentlyReading: currentlyReading.length
     },
@@ -880,7 +876,7 @@ export async function getBooksReport(period: string = 'thisWeek') {
 }
 
 // ============ LEARNING REPORT ============
-export async function getLearningReport(period: string = 'thisWeek', skillId?: string, areaId?: string) {
+export async function getLearningReport(period: string = 'thisWeek', skillId?: string, categoryId?: string) {
   await connectDB();
   
   const { start, end } = getDateRange(period);
@@ -888,32 +884,27 @@ export async function getLearningReport(period: string = 'thisWeek', skillId?: s
   const daysInPeriod = getDaysBetween(start, end);
   
   // Get filter options for dropdowns
-  const allAreas = await LearningArea.find().sort({ order: 1 }).lean();
+  const allCategories = await LearningCategory.find().sort({ order: 1 }).lean();
   const allSkills = await LearningSkill.find().sort({ order: 1 }).lean();
-  const allMediums = await PracticeMedium.find().sort({ order: 1 }).lean();
   
-  // Build medium filter based on skill/area selection
-  let mediumFilter: any = {};
+  // Build filter based on skill/category selection
+  let logFilter: any = {};
   if (skillId) {
-    const mediums = await PracticeMedium.find({ skillId }).lean();
-    mediumFilter = { mediumId: { $in: mediums.map((m: any) => m._id) } };
-  } else if (areaId) {
-    const skills = await LearningSkill.find({ areaId }).lean();
-    const mediums = await PracticeMedium.find({ skillId: { $in: skills.map((s: any) => s._id) } }).lean();
-    mediumFilter = { mediumId: { $in: mediums.map((m: any) => m._id) } };
+    logFilter = { skillId };
+  } else if (categoryId) {
+    const skills = await LearningSkill.find({ categoryId }).lean();
+    logFilter = { skillId: { $in: skills.map((s: any) => s._id) } };
   }
   
   // Get all learning logs for period with filter
-  const logs = await LearningLog.find({ 
+  const logs = await SimpleLearningLog.find({ 
     date: { $gte: start, $lt: end },
-    ...mediumFilter
-  })
-    .populate('mediumId')
-    .lean();
+    ...logFilter
+  }).lean();
   
-  const prevLogs = await LearningLog.find({ 
+  const prevLogs = await SimpleLearningLog.find({ 
     date: { $gte: prev.start, $lt: prev.end },
-    ...mediumFilter
+    ...logFilter
   }).lean();
   
   // Total stats
@@ -923,12 +914,10 @@ export async function getLearningReport(period: string = 'thisWeek', skillId?: s
   
   // By skill breakdown (more detailed)
   const skillsWithData = await Promise.all(allSkills.map(async (skill: any) => {
-    const area = skill.areaId ? allAreas.find((a: any) => a._id.toString() === skill.areaId.toString()) : null;
-    const mediums = allMediums.filter((m: any) => m.skillId?.toString() === skill._id?.toString());
-    const mediumIds = mediums.map((m: any) => m._id);
+    const category = skill.categoryId ? allCategories.find((c: any) => c._id.toString() === skill.categoryId.toString()) : null;
     
-    const skillLogs = await LearningLog.find({
-      mediumId: { $in: mediumIds },
+    const skillLogs = await SimpleLearningLog.find({
+      skillId: skill._id,
       date: { $gte: start, $lt: end }
     }).lean();
     
@@ -937,81 +926,53 @@ export async function getLearningReport(period: string = 'thisWeek', skillId?: s
     return {
       _id: skill._id.toString(),
       name: skill.name,
-      areaId: skill.areaId?.toString() || '',
-      areaName: area?.name || 'Unknown',
-      areaColor: area?.color || '#888',
+      categoryId: skill.categoryId?.toString() || '',
+      categoryName: (category as any)?.title || 'Unknown',
+      categoryColor: (category as any)?.color || 'violet',
       sessions: skillLogs.length,
       minutes,
       avgSessionLength: skillLogs.length > 0 ? Math.round(minutes / skillLogs.length) : 0
     };
   }));
   
-  // By area breakdown
-  const areas = await LearningArea.find().lean();
-  const byArea = await Promise.all(areas.map(async (area: any) => {
-    const skills = await LearningSkill.find({ areaId: area._id }).lean();
+  // By category breakdown
+  const byCategory = await Promise.all(allCategories.map(async (category: any) => {
+    const skills = await LearningSkill.find({ categoryId: category._id }).lean();
     const skillIds = skills.map((s: any) => s._id);
     
-    const mediums = await PracticeMedium.find({ skillId: { $in: skillIds } }).lean();
-    const mediumIds = mediums.map((m: any) => m._id);
-    
-    const areaLogs = await LearningLog.find({
-      mediumId: { $in: mediumIds },
+    const categoryLogs = await SimpleLearningLog.find({
+      skillId: { $in: skillIds },
       date: { $gte: start, $lt: end }
     }).lean();
     
-    const minutes = areaLogs.reduce((acc, log: any) => acc + (log.duration || 0), 0);
+    const minutes = categoryLogs.reduce((acc, log: any) => acc + (log.duration || 0), 0);
     
     return {
-      _id: area._id.toString(),
-      name: area.name,
-      color: area.color,
-      sessions: areaLogs.length,
+      _id: category._id.toString(),
+      name: (category as any).title,
+      color: (category as any).color || 'violet',
+      sessions: categoryLogs.length,
       minutes,
-      avgSessionLength: areaLogs.length > 0 ? Math.round(minutes / areaLogs.length) : 0
+      avgSessionLength: categoryLogs.length > 0 ? Math.round(minutes / categoryLogs.length) : 0
     };
   }));
   
-  // By difficulty distribution
+  // SimpleLearningLog doesn't have difficulty or rating fields, so these are empty
   const difficultyDist: Record<string, number> = { easy: 0, moderate: 0, challenging: 0, hard: 0 };
-  logs.forEach((log: any) => {
-    if (log.difficulty) {
-      difficultyDist[log.difficulty] = (difficultyDist[log.difficulty] || 0) + 1;
-    }
-  });
-  
-  // Rating distribution
   const ratingDist: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-  logs.forEach((log: any) => {
-    if (log.rating) {
-      ratingDist[log.rating] = (ratingDist[log.rating] || 0) + 1;
-    }
-  });
   
-  // Most practiced mediums
-  const mediumStats: Record<string, { name: string; skillName: string; sessions: number; minutes: number }> = {};
-  for (const log of logs) {
-    const mediumId = (log as any).mediumId?._id?.toString() || (log as any).mediumId?.toString();
-    const medium = (log as any).mediumId;
-    const mediumName = medium?.name || 'Unknown';
-    
-    if (!mediumStats[mediumId]) {
-      const skill = await LearningSkill.findById(medium?.skillId).lean();
-      mediumStats[mediumId] = { 
-        name: mediumName, 
-        skillName: (skill as any)?.name || 'Unknown',
-        sessions: 0, 
-        minutes: 0 
-      };
-    }
-    mediumStats[mediumId].sessions++;
-    mediumStats[mediumId].minutes += (log as any).duration || 0;
-  }
-  
-  const topMediums = Object.entries(mediumStats)
-    .map(([id, stats]) => ({ _id: id, ...stats }))
+  // Top skills (most practiced)
+  const topSkills = skillsWithData
+    .filter(s => s.sessions > 0)
     .sort((a, b) => b.minutes - a.minutes)
-    .slice(0, 10);
+    .slice(0, 10)
+    .map(s => ({
+      _id: s._id,
+      name: s.name,
+      categoryName: s.categoryName,
+      sessions: s.sessions,
+      minutes: s.minutes
+    }));
   
   // Daily learning chart with breakdown
   const dailyLearning = [];
@@ -1019,9 +980,9 @@ export async function getLearningReport(period: string = 'thisWeek', skillId?: s
     const dayStart = new Date(start.getTime() + i * 24 * 60 * 60 * 1000);
     const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
     
-    const dayLogs = await LearningLog.find({ 
+    const dayLogs = await SimpleLearningLog.find({ 
       date: { $gte: dayStart, $lt: dayEnd },
-      ...mediumFilter
+      ...logFilter
     }).lean();
     const dayMinutes = dayLogs.reduce((acc, log: any) => acc + (log.duration || 0), 0);
     
@@ -1041,9 +1002,9 @@ export async function getLearningReport(period: string = 'thisWeek', skillId?: s
       const weekStart = new Date(start.getTime() + w * 7 * 24 * 60 * 60 * 1000);
       const weekEnd = new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
       
-      const weekLogs = await LearningLog.find({
+      const weekLogs = await SimpleLearningLog.find({
         date: { $gte: weekStart, $lt: weekEnd },
-        ...mediumFilter
+        ...logFilter
       }).lean();
       
       const weekMinutes = weekLogs.reduce((acc, log: any) => acc + (log.duration || 0), 0);
@@ -1059,44 +1020,38 @@ export async function getLearningReport(period: string = 'thisWeek', skillId?: s
   }
   
   // Recent sessions for activity log
-  const recentSessions = await LearningLog.find({
+  const recentSessions = await SimpleLearningLog.find({
     date: { $gte: start, $lt: end },
-    ...mediumFilter
+    ...logFilter
   })
     .sort({ date: -1 })
     .limit(20)
-    .populate('mediumId')
     .lean();
   
   const recentSessionsFormatted = await Promise.all(recentSessions.map(async (log: any) => {
-    const medium = log.mediumId;
-    const skill = medium?.skillId ? await LearningSkill.findById(medium.skillId).lean() : null;
-    const area = skill ? await LearningArea.findById((skill as any).areaId).lean() : null;
+    const skill = await LearningSkill.findById(log.skillId).lean();
+    const category = log.categoryId ? await LearningCategory.findById(log.categoryId).lean() : null;
     
     return {
       _id: log._id.toString(),
       date: log.date,
       duration: log.duration,
-      difficulty: log.difficulty,
-      rating: log.rating,
-      activities: log.activities,
-      mediumName: medium?.name || 'Unknown',
       skillName: (skill as any)?.name || 'Unknown',
-      areaName: (area as any)?.name || 'Unknown',
-      areaColor: (area as any)?.color || '#888'
+      categoryTitle: (category as any)?.title || 'Unknown',
+      categoryColor: (category as any)?.color || 'violet'
     };
   }));
   
   return {
     period,
     filters: {
-      areas: allAreas.map((a: any) => ({ _id: a._id.toString(), name: a.name, color: a.color })),
+      areas: allCategories.map((c: any) => ({ _id: c._id.toString(), name: c.title, color: c.color })),
       skills: allSkills.map((s: any) => ({ 
         _id: s._id.toString(), 
         name: s.name, 
-        areaId: s.areaId?.toString() || '' 
+        areaId: s.categoryId?.toString() || '' 
       })),
-      selectedArea: areaId || null,
+      selectedArea: categoryId || null,
       selectedSkill: skillId || null
     },
     summary: {
@@ -1108,11 +1063,11 @@ export async function getLearningReport(period: string = 'thisWeek', skillId?: s
       avgSessionLength: totalSessions > 0 ? Math.round(totalMinutes / totalSessions) : 0,
       totalHours: Math.round(totalMinutes / 60 * 10) / 10
     },
-    byArea: byArea.filter(a => a.sessions > 0),
+    byArea: byCategory.filter(c => c.sessions > 0),
     bySkill: skillsWithData.filter(s => s.sessions > 0),
     difficultyDist,
     ratingDist,
-    topMediums,
+    topMediums: topSkills,
     dailyLearning,
     weeklyTrend,
     recentSessions: recentSessionsFormatted

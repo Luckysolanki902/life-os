@@ -162,8 +162,8 @@ export default function ShareableHealthReport({ data, period, periodLabel }: Sha
                       <div className="flex justify-center mb-2">
                         <Dumbbell size={20} className="text-rose-500" />
                       </div>
-                      <p className="text-2xl font-bold text-gray-800">{summary.totalExerciseSessions}</p>
-                      <p className="text-xs text-gray-600">Exercises</p>
+                      <p className="text-2xl font-bold text-gray-800">{summary.totalExerciseDays}</p>
+                      <p className="text-xs text-gray-600">Exercise Days</p>
                     </div>
                     
                     <div className="bg-white/70 rounded-xl p-4 text-center backdrop-blur-sm">

@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { completeTask, uncompleteTask, updateTask, deleteTask, skipTask, unskipTask } from '@/app/actions/routine';
 import { getLocalDateString } from '@/lib/date-utils';
 import { hapticTaskComplete, hapticTaskSkip, hapticTaskUnskip, hapticTaskUncomplete } from '@/lib/haptics';
+import SwipeableTask from '@/components/SwipeableTask';
 
 const DAYS_OF_WEEK = [
   { value: 0, label: 'S', fullLabel: 'Sunday' },
@@ -376,7 +377,8 @@ export default function TaskItem({ task, onOptimisticToggle, dateStr, editMode =
     );
   }
 
-  return (
+  // Main task card - wrap with swipeable when not in edit mode
+  const taskCard = (
     <div className={cn(
       "group relative rounded-2xl border transition-all duration-300 overflow-hidden",
       isCompleted 
@@ -443,27 +445,42 @@ export default function TaskItem({ task, onOptimisticToggle, dateStr, editMode =
           </div>
         </div>
 
-        {/* Skip Button - show in non-edit mode */}
-        {!editMode && !isCompleted && (
-          <button
-            onClick={handleSkip}
-            className={cn(
-              "p-2 rounded-lg transition-all active:scale-90 shrink-0",
-              isSkipped
-                ? "text-primary bg-primary/10"
-                : "text-muted-foreground/60 hover:text-foreground/80 hover:bg-secondary"
+        {/* Action Buttons */}
+        {!editMode && (
+          <>
+            {/* Skip Button - only show when not completed */}
+            {!isCompleted && (
+              <button
+                onClick={handleSkip}
+                className={cn(
+                  "p-2 rounded-lg transition-all active:scale-90 shrink-0",
+                  isSkipped
+                    ? "text-primary bg-primary/10"
+                    : "text-muted-foreground/60 hover:text-foreground/80 hover:bg-secondary"
+                )}
+                title={isSkipped ? "Undo skip" : "Skip task"}
+              >
+                <SkipForward size={16} />
+              </button>
             )}
-            title={isSkipped ? "Undo skip" : "Skip task"}
-          >
-            <SkipForward size={16} />
-          </button>
+            
+            {/* Edit Button - always visible */}
+            <button
+              onClick={() => setIsEditing(true)}
+              className="p-2 rounded-lg text-muted-foreground/60 hover:text-foreground hover:bg-secondary transition-all active:scale-90 shrink-0"
+              title="Edit task"
+            >
+              <Edit2 size={16} />
+            </button>
+          </>
         )}
 
-        {/* Edit Button - only show in edit mode */}
+        {/* Edit Button - show in edit mode with drag handle styling */}
         {editMode && (
           <button
             onClick={() => setIsEditing(true)}
             className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-all shrink-0"
+            title="Edit task"
           >
             <Edit2 size={16} />
           </button>
@@ -471,4 +488,18 @@ export default function TaskItem({ task, onOptimisticToggle, dateStr, editMode =
       </div>
     </div>
   );
+
+  // Only wrap with swipeable if not in edit mode and not completed/skipped already
+  if (!editMode && !isCompleted && !isSkipped) {
+    return (
+      <SwipeableTask
+        onSwipeLeft={() => handleToggle()}
+        onSwipeRight={() => handleSkip()}
+      >
+        {taskCard}
+      </SwipeableTask>
+    );
+  }
+
+  return taskCard;
 }

@@ -13,8 +13,7 @@ import {
   CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area 
 } from 'recharts';
 import ShareableHealthReport from './ShareableHealthReport';
-import { getHealthReport } from '../../actions/reports';
-import MuscleMap from '@/components/MuscleMap';
+import { getHealthReport, getRecentMoods } from '../../actions/reports';
 
 const PERIODS = [
   { value: 'last7Days', label: '7D' },
@@ -120,14 +119,19 @@ function LoadingSkeleton() {
 export default function HealthReportClient() {
   const [period, setPeriod] = useState('last7Days');
   const [data, setData] = useState<any>(null);
+  const [recentMoods, setRecentMoods] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchData() {
       setLoading(true);
       try {
-        const result = await getHealthReport(period);
-        setData(result);
+        const [reportData, moodsData] = await Promise.all([
+          getHealthReport(period),
+          getRecentMoods(30)
+        ]);
+        setData(reportData);
+        setRecentMoods(moodsData);
       } catch (error) {
         console.error('Failed to fetch health report:', error);
       } finally {
@@ -222,10 +226,10 @@ export default function HealthReportClient() {
       {/* Stats Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCard
-          label="Sessions"
-          value={summary.totalExerciseSessions}
+          label="Workout Sessions"
+          value={summary.totalExerciseDays}
           icon={Dumbbell}
-          change={summary.sessionChange}
+          change={summary.exerciseDaysChange}
           color="orange"
         />
         <StatCard
@@ -299,31 +303,43 @@ export default function HealthReportClient() {
           </div>
         </div>
 
-        {/* Quick Stats / Info */}
-        <div className="bg-card border border-border/40 rounded-xl p-6 flex flex-col justify-between">
+        {/* Recent Moods */}
+        <div className="bg-card border border-border/40 rounded-xl p-6 flex flex-col">
             <div>
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4">Insights</h3>
-               <div className="space-y-4">
-                 <div className="flex items-center gap-3">
-                   <div className="p-2 rounded-lg bg-orange-500/10 text-orange-500"><Trophy size={16} /></div>
-                   <div>
-                     <p className="text-xs text-muted-foreground">Most trained</p>
-                     <p className="font-medium capitalize">{topMuscles[0]?.muscle || '—'}</p>
-                   </div>
-                 </div>
-                 <div className="flex items-center gap-3">
-                   <div className="p-2 rounded-lg bg-blue-500/10 text-blue-500"><Timer size={16} /></div>
-                   <div>
-                     <p className="text-xs text-muted-foreground">Active Time</p>
-                     <p className="font-medium">~{Math.round(summary.totalExerciseSessions * 45)} mins</p>
-                   </div>
-                 </div>
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4">Recent Moods</h3>
+               <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                 {recentMoods.length > 0 ? (
+                   recentMoods.map((mood: any, index: number) => {
+                     const moodEmoji: Record<string, string> = {
+                       great: '😄',
+                       good: '🙂',
+                       okay: '😐',
+                       low: '😕',
+                       bad: '😢'
+                     };
+                     const moodColor: Record<string, string> = {
+                       great: 'text-emerald-500',
+                       good: 'text-blue-500',
+                       okay: 'text-amber-500',
+                       low: 'text-orange-500',
+                       bad: 'text-rose-500'
+                     };
+                     return (
+                       <div key={index} className="flex items-center gap-3 p-2 rounded-lg hover:bg-secondary/30 transition-colors">
+                         <span className="text-2xl">{moodEmoji[mood.mood]}</span>
+                         <div className="flex-1 min-w-0">
+                           <p className={cn("font-medium text-sm capitalize", moodColor[mood.mood])}>{mood.mood}</p>
+                           <p className="text-[10px] text-muted-foreground">
+                             {new Date(mood.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                           </p>
+                         </div>
+                       </div>
+                     );
+                   })
+                 ) : (
+                   <p className="text-xs text-muted-foreground text-center py-4">No mood data available</p>
+                 )}
                </div>
-            </div>
-            <div className="mt-4 pt-4 border-t border-border/40">
-               <p className="text-[10px] text-muted-foreground leading-relaxed">
-                 <span className="text-emerald-500 font-medium">Tip:</span> Rest days are earned after at least 1 consecutive workout day to maximize recovery.
-               </p>
             </div>
         </div>
       </div>
@@ -340,22 +356,7 @@ export default function HealthReportClient() {
            </span>
         </div>
         
-        <div className="grid lg:grid-cols-2">
-          {/* Left: Anatomical Map */}
-          <div className="bg-background/50 p-6 flex items-center justify-center border-b lg:border-b-0 lg:border-r border-border/40 min-h-[300px]">
-            {muscleWork && muscleWork.length > 0 ? (
-               <div className="scale-125 transform transition-transform hover:scale-150 duration-700">
-                  <MuscleMap muscleScores={muscleScores} />
-               </div>
-            ) : (
-               <div className="text-center text-muted-foreground text-sm">
-                 No muscle data recorded for this period
-               </div>
-            )}
-          </div>
-
-          {/* Right: Comparative Chart */}
-          <div className="p-6">
+        <div className="p-6">
              <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-6">Volume by Muscle Group</h4>
              <div className="space-y-4">
                 {topMuscles.map((item: any, i: number) => (
@@ -379,7 +380,6 @@ export default function HealthReportClient() {
                    <p className="text-sm text-muted-foreground italic">Start logging sets to see your muscle breakdown.</p>
                 )}
              </div>
-          </div>
         </div>
       </div>
 
@@ -394,15 +394,16 @@ export default function HealthReportClient() {
                 <BarChart data={workoutChartData} barSize={32}>
                   <XAxis 
                      dataKey="shortDate" 
-                     tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} 
+                     tick={{ fontSize: 10, fill: 'currentColor' }} 
+                     className="text-muted-foreground"
                      axisLine={false} 
                      tickLine={false} 
                      dy={10}
                   />
-                  <Tooltip content={<MinimalTooltip />} cursor={{ fill: 'var(--secondary)', opacity: 0.3 }} />
+                  <Tooltip content={<MinimalTooltip />} cursor={{ fill: 'hsl(var(--secondary))', opacity: 0.3 }} />
                   <Bar 
                     dataKey="sessions" 
-                    fill="hsl(var(--orange-500))" 
+                    fill="#f97316" 
                     radius={[4, 4, 0, 0]} 
                     name="Sessions"
                   />
@@ -421,13 +422,14 @@ export default function HealthReportClient() {
                 <AreaChart data={weightChartData}>
                   <defs>
                     <linearGradient id="weightGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="hsl(var(--blue-500))" stopOpacity={0.2} />
-                      <stop offset="95%" stopColor="hsl(var(--blue-500))" stopOpacity={0} />
+                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2} />
+                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <XAxis 
                      dataKey="date" 
-                     tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} 
+                     tick={{ fontSize: 10, fill: 'currentColor' }} 
+                     className="text-muted-foreground"
                      axisLine={false} 
                      tickLine={false} 
                      dy={10}
@@ -436,11 +438,11 @@ export default function HealthReportClient() {
                   <Area 
                     type="monotone" 
                     dataKey="weight" 
-                    stroke="hsl(var(--blue-500))" 
+                    stroke="#3b82f6" 
                     strokeWidth={2} 
                     fill="url(#weightGradient)" 
                     name="kg"
-                    dot={{ r: 3, fill: 'hsl(var(--blue-500))', strokeWidth: 0 }}
+                    dot={{ r: 3, fill: '#3b82f6', strokeWidth: 0 }}
                   />
                 </AreaChart>
               </ResponsiveContainer>

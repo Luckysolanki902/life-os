@@ -7,7 +7,7 @@ import {
   CheckCircle2, Circle, MoreHorizontal, ArrowRight,
   TrendingUp, Calendar, Clock, ChevronRight, BarChart3,
   RotateCcw, Trash2, Edit2, Archive, Play, SkipForward, Eye, EyeOff,
-  Scale, Pencil, Loader2, Leaf
+  Scale, Pencil, Loader2, Leaf, Heart, BookMarked, Brain
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { cn } from '@/lib/utils';
@@ -16,6 +16,8 @@ import { logWeight } from '@/app/actions/health';
 import { getDashboardStats } from '@/app/actions/reports';
 import { getBetterPercentage } from '@/lib/better';
 import { format } from 'date-fns';
+import SwipeableTask from '@/components/SwipeableTask';
+import { markTaskCompleted, markTaskSkipped, markTaskPending, setCache, CACHE_KEYS } from '@/lib/reactive-cache';
 
 // Fallback toast hook if '@/components/ui/use-toast' is unavailable
 function useToast() {
@@ -79,10 +81,26 @@ export default function NewHomeClient({
 }: Props) {
   const { toast } = useToast();
   const [showSkippedTasks, setShowSkippedTasks] = useState(false);
-  const [dashboardStats, setDashboardStats] = useState<any>(null);
+  // Initialize dashboard stats from cache for instant render
+  const [dashboardStats, setDashboardStats] = useState<any>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem('lifedash_cache_dashboard_stats');
+        if (cached) {
+          const entry = JSON.parse(cached);
+          return entry.data;
+        }
+      } catch {}
+    }
+    return null;
+  });
 
   useEffect(() => {
-    getDashboardStats().then(setDashboardStats).catch(console.error);
+    getDashboardStats().then((stats) => {
+      setDashboardStats(stats);
+      // Cache using reactive cache
+      setCache(CACHE_KEYS.DASHBOARD_STATS, stats);
+    }).catch(console.error);
   }, []);
 
   // Optimistic Tasks (robust, no reversion on re-render)
@@ -138,20 +156,38 @@ export default function NewHomeClient({
     const nextStatus: 'pending' | 'completed' | 'skipped' = task.status === 'completed' ? 'pending' : 'completed';
 
     pendingTaskIdsRef.current.add(taskId);
+    
+    // Optimistic UI update
     setTasks(prev => prev.map(t => (
       t._id === taskId
         ? { ...t, status: nextStatus, completedAt: nextStatus === 'completed' ? new Date().toISOString() : undefined }
         : t
     )));
     
+    // Sync to reactive cache immediately
+    if (nextStatus === 'completed') {
+      markTaskCompleted(taskId);
+    } else {
+      markTaskPending(taskId);
+    }
+    
     try {
       await toggleTaskStatus(taskId, originalStatus === 'completed');
     } catch (error) {
+      // Revert both local state and cache
       setTasks(prev => prev.map(t => (
         t._id === taskId
           ? { ...t, status: originalStatus, completedAt: originalCompletedAt }
           : t
       )));
+      // Revert cache
+      if (originalStatus === 'completed') {
+        markTaskCompleted(taskId);
+      } else if (originalStatus === 'skipped') {
+        markTaskSkipped(taskId);
+      } else {
+        markTaskPending(taskId);
+      }
       toast({ title: "Error", description: "Failed to update task", variant: "destructive" });
     } finally {
       pendingTaskIdsRef.current.delete(taskId);
@@ -169,11 +205,20 @@ export default function NewHomeClient({
     const nextStatus: 'pending' | 'skipped' = isUnskip ? 'pending' : 'skipped';
 
     pendingTaskIdsRef.current.add(taskId);
+    
+    // Optimistic UI update
     setTasks(prev => prev.map(t => (
       t._id === taskId
         ? { ...t, status: nextStatus, completedAt: undefined }
         : t
     )));
+    
+    // Sync to reactive cache immediately
+    if (nextStatus === 'skipped') {
+      markTaskSkipped(taskId);
+    } else {
+      markTaskPending(taskId);
+    }
     
     try {
       if (isUnskip) {
@@ -182,11 +227,20 @@ export default function NewHomeClient({
         await skipTask(taskId);
       }
     } catch (error) {
+      // Revert both local state and cache
       setTasks(prev => prev.map(t => (
         t._id === taskId
           ? { ...t, status: originalStatus, completedAt: originalCompletedAt }
           : t
       )));
+      // Revert cache
+      if (originalStatus === 'completed') {
+        markTaskCompleted(taskId);
+      } else if (originalStatus === 'skipped') {
+        markTaskSkipped(taskId);
+      } else {
+        markTaskPending(taskId);
+      }
       toast({ title: "Error", description: "Failed to skip task", variant: "destructive" });
     } finally {
       pendingTaskIdsRef.current.delete(taskId);
@@ -221,6 +275,9 @@ export default function NewHomeClient({
   }
 
   const iconMap: Record<string, any> = {
+    'Heart': Heart,
+    'BookMarked': BookMarked,
+    'Brain': Brain,
     'dumbbell': Dumbbell,
     'book-open': BookOpen,
     'brain': Target,
@@ -404,8 +461,12 @@ export default function NewHomeClient({
 
         <div className="space-y-2.5">
           {sortedTasks.filter(t => t.status !== 'completed' && t.status !== 'skipped').slice(0, 4).map((task) => (
-            <div
+            <SwipeableTask
               key={task._id}
+              onSwipeLeft={() => handleToggleTask(task._id)}
+              onSwipeRight={() => handleSkipTask(task._id, false)}
+            >
+            <div
               className="group flex items-center gap-3 p-3.5 rounded-xl bg-card border border-border/40 transition-all shadow-sm active:scale-[0.99]"
             >
               <button
@@ -443,6 +504,7 @@ export default function NewHomeClient({
                 <SkipForward size={16} />
               </button>
             </div>
+            </SwipeableTask>
           ))}
 
           {sortedTasks.filter(t => t.status !== 'completed' && t.status !== 'skipped').length === 0 && (
@@ -581,11 +643,19 @@ export default function NewHomeClient({
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {domains.map((domain) => {
              const Icon = iconMap[domain.icon] || Heart;
+             const hoverClass = domain.id === 'health' 
+               ? 'hover:border-rose-500/50' 
+               : domain.id === 'books'
+               ? 'hover:border-amber-500/50'
+               : 'hover:border-violet-500/50';
              return (
                <Link
                  key={domain.id}
                  href={`/${domain.id}`}
-                 className={`p-4 rounded-2xl bg-card border border-border/40 hover:border-${domain.color.replace('text-', '')}/50 transition-all group`}
+                 className={cn(
+                   "p-4 rounded-2xl bg-card border border-border/40 transition-all group",
+                   hoverClass
+                 )}
                >
                  <div className={`w-9 h-9 rounded-xl ${domain.bg} ${domain.color} flex items-center justify-center mb-3 group-hover:scale-110 transition-transform`}>
                    <Icon size={18} />
@@ -600,20 +670,3 @@ export default function NewHomeClient({
     </div>
   );
 }
-
-// Temporary Icon Helpers
-const Heart = ({ size, className }: { size?: number, className?: string }) => (
-  <svg 
-    width={size} 
-    height={size} 
-    viewBox="0 0 24 24" 
-    fill="none" 
-    stroke="currentColor" 
-    strokeWidth="2" 
-    strokeLinecap="round" 
-    strokeLinejoin="round" 
-    className={className}
-  >
-    <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
-  </svg>
-);

@@ -3,11 +3,11 @@
 import { useState } from 'react';
 import { 
   BookOpen, Plus, X, Search, Check, 
-  Pause, CheckCircle2, Minus, ChevronRight, BookMarked, Play, MoreHorizontal
+  Pause, CheckCircle2, Minus, ChevronRight, BookMarked, Play, MoreHorizontal, Edit2, Trash2
 } from 'lucide-react';
 import { 
-  createBookDomain,
-  createBook, updateBook,
+  createBookDomain, updateBookDomain, deleteBookDomain,
+  createBook, updateBook, deleteBook,
   checkInBook
 } from '@/app/actions/books';
 import { cn } from '@/lib/utils';
@@ -95,9 +95,14 @@ export default function SimpleBooksClient({ initialData }: SimpleBooksClientProp
   
   // Modal States
   const [isAddDomainOpen, setIsAddDomainOpen] = useState(false);
+  const [isEditDomainOpen, setIsEditDomainOpen] = useState(false);
   const [isAddBookOpen, setIsAddBookOpen] = useState(false);
+  const [isEditBookOpen, setIsEditBookOpen] = useState(false);
   const [isQuickLogOpen, setIsQuickLogOpen] = useState(false);
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
+  const [editingDomain, setEditingDomain] = useState<Domain | null>(null);
+  const [editingBook, setEditingBook] = useState<Book | null>(null);
+  const [bookMenuOpen, setBookMenuOpen] = useState<string | null>(null);
   
   // Form States
   const [newDomain, setNewDomain] = useState({ name: '', icon: '📚', color: 'blue' });
@@ -178,6 +183,49 @@ export default function SimpleBooksClient({ initialData }: SimpleBooksClientProp
 
   async function handleCompleteBook(bookId: string) {
     await updateBook(bookId, { status: 'completed' });
+    router.refresh();
+  }
+
+  async function handleUpdateDomain(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingDomain || !editingDomain.name.trim()) return;
+    await updateBookDomain(editingDomain._id, {
+      name: editingDomain.name,
+      icon: editingDomain.icon,
+      color: editingDomain.color,
+    });
+    setEditingDomain(null);
+    setIsEditDomainOpen(false);
+    router.refresh();
+  }
+
+  async function handleDeleteDomain(domainId: string) {
+    if (!confirm('Delete this domain? All books in it will be removed.')) return;
+    await deleteBookDomain(domainId);
+    router.refresh();
+  }
+
+  async function handleUpdateBook(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingBook) return;
+    await updateBook(editingBook._id, {
+      title: editingBook.title,
+      author: editingBook.author,
+      status: editingBook.status,
+      totalPages: editingBook.totalPages,
+      currentPage: editingBook.currentPage,
+      domainId: editingBook.domainId,
+    });
+    setEditingBook(null);
+    setIsEditBookOpen(false);
+    setBookMenuOpen(null);
+    router.refresh();
+  }
+
+  async function handleDeleteBook(bookId: string) {
+    if (!confirm('Delete this book?')) return;
+    await deleteBook(bookId);
+    setBookMenuOpen(null);
     router.refresh();
   }
 
@@ -313,6 +361,61 @@ export default function SimpleBooksClient({ initialData }: SimpleBooksClientProp
         </section>
       )}
 
+      {/* Domains Section */}
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-medium text-muted-foreground pl-1">Domains</h2>
+          <button
+            onClick={() => setIsAddDomainOpen(true)}
+            className="text-xs text-primary hover:underline flex items-center gap-1"
+          >
+            <Plus size={12} /> Add Domain
+          </button>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          {domains.map((domain) => {
+            const colors = getColorClasses(domain.color);
+            return (
+              <div
+                key={domain._id}
+                className="relative group p-4 rounded-2xl bg-card border border-border/40 hover:border-border/80 transition-all shadow-sm"
+              >
+                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => {
+                        setEditingDomain(domain);
+                        setIsEditDomainOpen(true);
+                      }}
+                      className="p-1.5 rounded-lg bg-secondary/50 hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      <Edit2 size={12} />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteDomain(domain._id)}
+                      className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 transition-colors"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                </div>
+                <div className="flex flex-col items-center text-center gap-2">
+                  <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center text-2xl", colors.bg, colors.text)}>
+                    {domain.icon}
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-sm">{domain.name}</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {domain.bookCount} {domain.bookCount === 1 ? 'book' : 'books'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
       {/* Library Section */}
       <section className="space-y-4">
          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -396,9 +499,35 @@ export default function SimpleBooksClient({ initialData }: SimpleBooksClientProp
                                  </button>
                               )}
                               
-                              <button className="p-1.5 rounded-lg hover:bg-secondary text-muted-foreground transition-colors">
-                                 <MoreHorizontal size={14} />
-                              </button>
+                              <div className="relative">
+                                 <button 
+                                    onClick={() => setBookMenuOpen(bookMenuOpen === book._id ? null : book._id)}
+                                    className="p-1.5 rounded-lg hover:bg-secondary text-muted-foreground transition-colors"
+                                 >
+                                    <MoreHorizontal size={14} />
+                                 </button>
+                                 
+                                 {bookMenuOpen === book._id && (
+                                    <div className="absolute right-0 top-full mt-1 bg-card border border-border rounded-xl shadow-lg z-10 min-w-[120px] overflow-hidden">
+                                       <button
+                                          onClick={() => {
+                                             setEditingBook(book);
+                                             setIsEditBookOpen(true);
+                                             setBookMenuOpen(null);
+                                          }}
+                                          className="w-full px-3 py-2 text-left text-xs hover:bg-secondary flex items-center gap-2"
+                                       >
+                                          <Edit2 size={12} /> Edit
+                                       </button>
+                                       <button
+                                          onClick={() => handleDeleteBook(book._id)}
+                                          className="w-full px-3 py-2 text-left text-xs hover:bg-rose-500/20 text-rose-500 flex items-center gap-2"
+                                       >
+                                          <Trash2 size={12} /> Delete
+                                       </button>
+                                    </div>
+                                 )}
+                              </div>
                            </div>
                         </div>
                      )
@@ -613,6 +742,149 @@ export default function SimpleBooksClient({ initialData }: SimpleBooksClientProp
                 className="w-full px-4 py-3 rounded-xl bg-primary text-primary-foreground font-medium text-sm hover:opacity-90 transition-opacity disabled:opacity-50 shadow-lg shadow-primary/20"
               >
                 Log Progress
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Book Modal */}
+      {isEditBookOpen && editingBook && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
+          <div className="bg-card rounded-3xl border border-border shadow-2xl p-6 w-full max-w-sm space-y-6">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-lg">Edit Book</h3>
+              <button onClick={() => setIsEditBookOpen(false)} className="p-1 rounded-full hover:bg-secondary text-muted-foreground transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleUpdateBook} className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-muted-foreground ml-1">Title</label>
+                <input
+                  value={editingBook.title}
+                  onChange={(e) => setEditingBook({ ...editingBook, title: e.target.value })}
+                  placeholder="Book title"
+                  className="w-full px-4 py-3 rounded-xl bg-secondary/30 border border-transparent focus:bg-background focus:border-primary/20 focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all text-sm"
+                  autoFocus
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-muted-foreground ml-1">Author</label>
+                <input
+                  value={editingBook.author || ''}
+                  onChange={(e) => setEditingBook({ ...editingBook, author: e.target.value })}
+                  placeholder="Author name"
+                  className="w-full px-4 py-3 rounded-xl bg-secondary/30 border border-transparent focus:bg-background focus:border-primary/20 focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all text-sm"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-muted-foreground ml-1">Current Page</label>
+                  <input
+                    type="number"
+                    value={editingBook.currentPage || 0}
+                    onChange={(e) => setEditingBook({ ...editingBook, currentPage: parseInt(e.target.value) || 0 })}
+                    className="w-full px-4 py-3 rounded-xl bg-secondary/30 border border-transparent focus:bg-background focus:border-primary/20 focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all text-sm"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-muted-foreground ml-1">Total Pages</label>
+                  <input
+                    type="number"
+                    value={editingBook.totalPages || 0}
+                    onChange={(e) => setEditingBook({ ...editingBook, totalPages: parseInt(e.target.value) || 0 })}
+                    className="w-full px-4 py-3 rounded-xl bg-secondary/30 border border-transparent focus:bg-background focus:border-primary/20 focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all text-sm"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-muted-foreground ml-1">Status</label>
+                <select
+                  value={editingBook.status}
+                  onChange={(e) => setEditingBook({ ...editingBook, status: e.target.value as any })}
+                  className="w-full px-4 py-3 rounded-xl bg-secondary/30 border border-transparent focus:bg-background focus:border-primary/20 focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all text-sm"
+                >
+                  <option value="to-read">To Read</option>
+                  <option value="reading">Reading</option>
+                  <option value="paused">Paused</option>
+                  <option value="completed">Completed</option>
+                  <option value="dropped">Dropped</option>
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-muted-foreground ml-1">Domain</label>
+                <select
+                  value={editingBook.domainId}
+                  onChange={(e) => setEditingBook({ ...editingBook, domainId: e.target.value })}
+                  className="w-full px-4 py-3 rounded-xl bg-secondary/30 border border-transparent focus:bg-background focus:border-primary/20 focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all text-sm"
+                >
+                  {domains.map(d => <option key={d._id} value={d._id}>{d.name}</option>)}
+                </select>
+              </div>
+              <button
+                type="submit"
+                className="w-full px-4 py-3 rounded-xl bg-primary text-primary-foreground font-medium text-sm hover:opacity-90 transition-opacity"
+              >
+                Save Changes
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Domain Modal */}
+      {isEditDomainOpen && editingDomain && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
+          <div className="bg-card rounded-3xl border border-border shadow-2xl p-6 w-full max-w-sm space-y-6">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-lg">Edit Domain</h3>
+              <button onClick={() => setIsEditDomainOpen(false)} className="p-1 rounded-full hover:bg-secondary text-muted-foreground transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleUpdateDomain} className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-muted-foreground ml-1">Name</label>
+                <input
+                  value={editingDomain.name}
+                  onChange={(e) => setEditingDomain({ ...editingDomain, name: e.target.value })}
+                  placeholder="Domain name"
+                  className="w-full px-4 py-3 rounded-xl bg-secondary/30 border border-transparent focus:bg-background focus:border-primary/20 focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all text-sm"
+                  autoFocus
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-muted-foreground ml-1">Icon</label>
+                <input
+                  value={editingDomain.icon}
+                  onChange={(e) => setEditingDomain({ ...editingDomain, icon: e.target.value })}
+                  placeholder="🎯"
+                  className="w-full px-4 py-3 rounded-xl bg-secondary/30 border border-transparent focus:bg-background focus:border-primary/20 focus:outline-none focus:ring-2 focus:ring-primary/10 transition-all text-sm"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-muted-foreground ml-1">Color</label>
+                <div className="flex flex-wrap gap-3">
+                  {COLORS.map((color) => (
+                    <button
+                      key={color.name}
+                      type="button"
+                      onClick={() => setEditingDomain({ ...editingDomain, color: color.name })}
+                      className={cn(
+                        "w-8 h-8 rounded-full transition-all",
+                        color.bg,
+                        editingDomain.color === color.name ? `ring-2 ${color.ring} ring-offset-2 ring-offset-background` : ""
+                      )}
+                    />
+                  ))}
+                </div>
+              </div>
+              <button
+                type="submit"
+                className="w-full px-4 py-3 rounded-xl bg-primary text-primary-foreground font-medium text-sm hover:opacity-90 transition-opacity"
+              >
+                Save Changes
               </button>
             </form>
           </div>

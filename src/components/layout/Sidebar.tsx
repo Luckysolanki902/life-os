@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 import {
   LayoutDashboard,
   ListTodo,
-  LayoutGrid,
+  Heart,
   BarChart3,
   LogOut,
 } from 'lucide-react';
@@ -16,7 +16,7 @@ import { RootState } from '@/lib/store';
 const navItems = [
   { name: 'Home', href: '/', icon: LayoutDashboard },
   { name: 'Routine', href: '/routine', icon: ListTodo },
-  { name: 'Domains', href: '/domains', icon: LayoutGrid },
+  { name: 'Health', href: '/health', icon: Heart },
   { name: 'Reports', href: '/reports', icon: BarChart3 },
 ];
 

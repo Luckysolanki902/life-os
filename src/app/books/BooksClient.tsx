@@ -67,12 +67,14 @@ export default function BooksClient({ initialData }: BooksClientProps) {
   
   // Modal States
   const [isDomainModalOpen, setIsDomainModalOpen] = useState(false);
+  const [isEditDomainModalOpen, setIsEditDomainModalOpen] = useState(false);
   const [isBookModalOpen, setIsBookModalOpen] = useState(false);
   const [isEditBookModalOpen, setIsEditBookModalOpen] = useState(false);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   
   // Form States
   const [newDomain, setNewDomain] = useState({ name: '', description: '', color: 'blue', icon: '📚' });
+  const [editingDomain, setEditingDomain] = useState<any>(null);
   const [newBook, setNewBook] = useState({ 
     domainId: '', 
     title: '', 
@@ -120,6 +122,15 @@ export default function BooksClient({ initialData }: BooksClientProps) {
     await createBookDomain(newDomain);
     setNewDomain({ name: '', description: '', color: 'blue', icon: '📚' });
     setIsDomainModalOpen(false);
+    router.refresh();
+  }
+
+  async function handleUpdateDomain(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingDomain) return;
+    await updateBookDomain(editingDomain._id, editingDomain);
+    setEditingDomain(null);
+    setIsEditDomainModalOpen(false);
     router.refresh();
   }
 
@@ -438,6 +449,17 @@ export default function BooksClient({ initialData }: BooksClientProps) {
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
+                                setEditingDomain({ ...domain });
+                                setIsEditDomainModalOpen(true);
+                                setContextMenu(null);
+                              }}
+                              className="w-full px-3 py-2 text-left text-sm hover:bg-secondary flex items-center gap-2"
+                            >
+                              <Edit2 size={14} /> Edit
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
                                 setNewBook({ ...newBook, domainId: domain._id });
                                 setIsBookModalOpen(true);
                                 setContextMenu(null);
@@ -526,7 +548,7 @@ export default function BooksClient({ initialData }: BooksClientProps) {
                                   </div>
                                 </div>
                               </div>
-                              <div className="flex items-center gap-0.5 sm:gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shrink-0">
+                              <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
                                 {book.status !== 'reading' && (
                                   <button
                                     onClick={() => handleCheckIn(book._id)}
@@ -679,6 +701,83 @@ export default function BooksClient({ initialData }: BooksClientProps) {
                   className="flex-1 py-2.5 rounded-xl bg-primary text-primary-foreground font-medium hover:opacity-90"
                 >
                   Create
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Domain Modal */}
+      {isEditDomainModalOpen && editingDomain && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-card w-full max-w-md p-6 rounded-3xl shadow-xl animate-in zoom-in-95">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Edit Domain</h3>
+              <button onClick={() => setIsEditDomainModalOpen(false)} className="p-1 rounded-lg hover:bg-secondary">
+                <X size={18} />
+              </button>
+            </div>
+            <form onSubmit={handleUpdateDomain} className="space-y-4">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground ml-1">Domain Name</label>
+                <input
+                  value={editingDomain.name}
+                  onChange={(e) => setEditingDomain({ ...editingDomain, name: e.target.value })}
+                  placeholder="e.g., Psychology, Self-Help, Business"
+                  autoFocus
+                  className="w-full rounded-xl border border-input bg-background px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground ml-1">Description (optional)</label>
+                <input
+                  value={editingDomain.description || ''}
+                  onChange={(e) => setEditingDomain({ ...editingDomain, description: e.target.value })}
+                  placeholder="Brief description"
+                  className="w-full rounded-xl border border-input bg-background px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground ml-1">Icon (emoji)</label>
+                <input
+                  value={editingDomain.icon || ''}
+                  onChange={(e) => setEditingDomain({ ...editingDomain, icon: e.target.value })}
+                  placeholder="📚"
+                  className="w-full rounded-xl border border-input bg-background px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground ml-1">Color</label>
+                <div className="flex gap-2 mt-1 flex-wrap">
+                  {DOMAIN_COLORS.map((color) => (
+                    <button
+                      key={color.name}
+                      type="button"
+                      onClick={() => setEditingDomain({ ...editingDomain, color: color.name })}
+                      className={cn(
+                        "w-8 h-8 rounded-full transition-all",
+                        color.accent,
+                        editingDomain.color === color.name ? "ring-2 ring-white ring-offset-2 ring-offset-background" : ""
+                      )}
+                    />
+                  ))}
+                </div>
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsEditDomainModalOpen(false)}
+                  className="flex-1 py-2.5 rounded-xl bg-secondary text-secondary-foreground font-medium hover:opacity-80"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={!editingDomain.name.trim()}
+                  className="flex-1 py-2.5 rounded-xl bg-primary text-primary-foreground font-medium hover:opacity-90 disabled:opacity-50"
+                >
+                  Save
                 </button>
               </div>
             </form>

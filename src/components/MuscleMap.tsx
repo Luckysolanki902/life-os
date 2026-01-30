@@ -6,6 +6,7 @@ import { useMemo } from 'react';
 interface MuscleMapProps {
   highlightedMuscles?: string[];
   muscleScores?: Record<string, number>; // value 0.0 to 1.0 represents intensity
+  hasLogs?: boolean; // Whether any exercises were logged
   className?: string;
 }
 
@@ -326,7 +327,10 @@ const MUSCLE_ALIASES: Record<string, string[]> = {
   hipflexors: ['hip flexors', 'hip flexor', 'psoas', 'iliopsoas'],
 };
 
-export default function MuscleMap({ highlightedMuscles = [], muscleScores = {}, className }: MuscleMapProps) {
+export default function MuscleMap({ highlightedMuscles = [], muscleScores = {}, hasLogs = false, className }: MuscleMapProps) {
+  
+  // Determine color scheme: green if no logs, red if has logs
+  const useGreenScheme = !hasLogs;
   
   // Create a unified normalized map of scores (0-1)
   const muscleIntensityMap = useMemo(() => {
@@ -399,19 +403,27 @@ export default function MuscleMap({ highlightedMuscles = [], muscleScores = {}, 
           key={`${name}-${i}`}
           d={d}
           className="transition-all duration-700 ease-out"
-          style={{ opacity: active ? 1 : 0.4 }} // Handle opacity via fill mostly
+          style={{ opacity: active ? opacity : 0.4 }}
           fill={
             active 
-              ? score > 0.7 
-                ? `url(#${gradientPrefix}-active-high)` 
-                : score > 0.3 
-                  ? `url(#${gradientPrefix}-active-med)` 
-                  : `url(#${gradientPrefix}-active-low)`
+              ? useGreenScheme
+                ? `url(#${gradientPrefix}-green-gradient)` // Green for no logs
+                : score > 0.75 
+                  ? `url(#${gradientPrefix}-active-high)` 
+                  : score > 0.5
+                    ? `url(#${gradientPrefix}-active-med)` 
+                    : `url(#${gradientPrefix}-active-low)`
               : `url(#${gradientPrefix}-inactive-gradient)`
           }
-          stroke={active ? `rgba(251, 113, 133, ${Math.min(0.5 + score * 0.5, 1)})` : "rgba(82, 82, 91, 0.4)"}
+          stroke={
+            active 
+              ? useGreenScheme
+                ? `rgba(74, 222, 128, ${Math.min(0.5 + score * 0.5, 1)})` // Green stroke
+                : `rgba(251, 113, 133, ${Math.min(0.5 + score * 0.5, 1)})` // Red stroke
+              : "rgba(82, 82, 91, 0.4)"
+          }
           strokeWidth={active ? "0.6" : "0.3"}
-          filter={active && score > 0.6 ? `url(#${gradientPrefix}-glow)` : undefined}
+          filter={active && score > 0.7 ? `url(#${gradientPrefix}-glow-${useGreenScheme ? 'green' : 'red'})` : undefined}
         />
       ));
     });
@@ -436,6 +448,12 @@ export default function MuscleMap({ highlightedMuscles = [], muscleScores = {}, 
         <stop offset="0%" stopColor="#fda4af" /> {/* Rose 300 */}
         <stop offset="100%" stopColor="#fb7185" /> {/* Rose 400 */}
       </linearGradient>
+
+      {/* Green gradient for no logs */}
+      <linearGradient id={`${prefix}-green-gradient`} x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#4ade80" /> {/* Green 400 */}
+        <stop offset="100%" stopColor="#22c55e" /> {/* Green 500 */}
+      </linearGradient>
       
       {/* Inactive muscle gradient */}
       <linearGradient id={`${prefix}-inactive-gradient`} x1="0%" y1="0%" x2="100%" y2="100%">
@@ -450,8 +468,17 @@ export default function MuscleMap({ highlightedMuscles = [], muscleScores = {}, 
         <stop offset="100%" stopColor="#0c0c0e" />
       </linearGradient>
       
-      {/* Glow effect */}
-      <filter id={`${prefix}-glow`} x="-50%" y="-50%" width="200%" height="200%">
+      {/* Red Glow effect */}
+      <filter id={`${prefix}-glow-red`} x="-50%" y="-50%" width="200%" height="200%">
+        <feGaussianBlur stdDeviation="1" result="coloredBlur"/>
+        <feMerge>
+          <feMergeNode in="coloredBlur"/>
+          <feMergeNode in="SourceGraphic"/>
+        </feMerge>
+      </filter>
+
+      {/* Green Glow effect */}
+      <filter id={`${prefix}-glow-green`} x="-50%" y="-50%" width="200%" height="200%">
         <feGaussianBlur stdDeviation="1" result="coloredBlur"/>
         <feMerge>
           <feMergeNode in="coloredBlur"/>
