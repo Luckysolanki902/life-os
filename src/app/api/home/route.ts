@@ -4,8 +4,9 @@ import { getRoutine } from "@/app/actions/routine";
 import { getTodaysWeightData } from "@/app/actions/health";
 import { getStreakData, getSpecialTasks, getTotalPointsWithBonuses } from "@/app/actions/streak";
 
-// Cache for 3 minutes - revalidatePath('/') in actions will invalidate when needed
-export const revalidate = 180; // 3 minutes
+// No caching - always fetch fresh data
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export async function GET() {
   try {
@@ -76,7 +77,7 @@ export async function GET() {
       last7DaysCompletion
     }, {
       headers: {
-        'Cache-Control': 'public, s-maxage=180, stale-while-revalidate=300',
+        'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
       }
     });
   } catch (error) {

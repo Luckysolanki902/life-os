@@ -67,7 +67,8 @@ type Props = {
   last7DaysCompletion: any[];
   user?: {
     name: string;
-  }
+  };
+  onRefresh?: () => Promise<void>;
 };
 
 export default function NewHomeClient({ 
@@ -77,7 +78,8 @@ export default function NewHomeClient({
   streakData,
   totalPoints,
   last7DaysCompletion,
-  user
+  user,
+  onRefresh
 }: Props) {
   const { toast } = useToast();
   const [showSkippedTasks, setShowSkippedTasks] = useState(false);
@@ -173,6 +175,14 @@ export default function NewHomeClient({
     
     try {
       await toggleTaskStatus(taskId, originalStatus === 'completed');
+      
+      // Trigger cache refresh to update points and better percentage
+      if (onRefresh && nextStatus === 'completed') {
+        // Small delay to allow backend to process
+        setTimeout(() => {
+          onRefresh().catch(console.error);
+        }, 500);
+      }
     } catch (error) {
       // Revert both local state and cache
       setTasks(prev => prev.map(t => (
@@ -262,6 +272,11 @@ export default function NewHomeClient({
         setWeight('');
       }, 1500);
       toast({ title: "Weight Logged", description: "Your weight has been recorded." });
+      
+      // Trigger cache refresh for instant update
+      if (onRefresh) {
+        onRefresh().catch(console.error);
+      }
     } catch (error) {
       toast({ title: "Error", description: "Failed to log weight", variant: "destructive" });
     } finally {

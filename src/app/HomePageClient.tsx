@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
-import { Loader2 } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Loader2, RotateCw } from 'lucide-react';
 import NewHomeClient from './NewHomeClient';
 import { useReactiveCache, setCache, CACHE_KEYS } from '@/lib/reactive-cache';
 
@@ -22,12 +22,23 @@ async function fetchHomeData(): Promise<HomeData> {
 
 export default function HomePageClient() {
   const hasFetched = useRef(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
   // Use reactive cache - automatically syncs when cache updates
-  const { data, isLoading } = useReactiveCache<HomeData>(
+  const { data, isLoading, refresh } = useReactiveCache<HomeData>(
     CACHE_KEYS.HOME_DATA,
     fetchHomeData
   );
+
+  // Manual refresh function
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await refresh();
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   // Also fetch fresh data on mount (background refresh)
   useEffect(() => {
@@ -79,14 +90,26 @@ export default function HomePageClient() {
 
   // Pass everything to the new client which handles the full layout
   return (
-    <NewHomeClient
-      incompleteTasks={data.incompleteTasks}
-      domains={data.domains}
-      todaysWeight={data.todaysWeight}
-      streakData={data.streakData}
-      specialTasks={data.specialTasks}
-      totalPoints={data.totalPoints}
-      last7DaysCompletion={data.last7DaysCompletion}
-    />
+    <div className="relative">
+      {/* Floating refresh button */}
+      <button
+        onClick={handleRefresh}
+        disabled={isRefreshing}
+        className="fixed bottom-20 right-4 z-50 p-3 rounded-full bg-primary text-primary-foreground shadow-lg hover:shadow-xl transition-all disabled:opacity-50 hover:scale-105"
+        title="Refresh"
+      >
+        <RotateCw size={20} className={isRefreshing ? 'animate-spin' : ''} />
+      </button>
+      <NewHomeClient
+        incompleteTasks={data.incompleteTasks}
+        domains={data.domains}
+        todaysWeight={data.todaysWeight}
+        streakData={data.streakData}
+        specialTasks={data.specialTasks}
+        totalPoints={data.totalPoints}
+        last7DaysCompletion={data.last7DaysCompletion}
+        onRefresh={handleRefresh}
+      />
+    </div>
   );
 }

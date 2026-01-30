@@ -187,7 +187,7 @@ function SkillsGrid({ skills, onSelectSkill }: { skills: any[]; onSelectSkill: (
                 />
               </div>
               <div className="flex items-center justify-between mt-2 text-[10px] text-muted-foreground">
-                <span>{skill.sessions} sess.</span>
+                <span>{skill.sessions} sessions</span>
                 <span className="opacity-0 group-hover:opacity-100 transition-opacity text-amber-600 font-medium flex items-center gap-0.5">
                   View <ArrowLeft className="rotate-180" size={8} />
                 </span>
@@ -520,7 +520,7 @@ function TopMediumsList({ mediums }: { mediums: any[] }) {
   return (
     <div className="bg-card border border-border/40 rounded-xl p-5 shadow-sm">
       <div className="flex items-center justify-between mb-4">
-         <h3 className="font-semibold text-sm">Top Mediums</h3>
+         <h3 className="font-semibold text-sm">Top Skills</h3>
          <Lightbulb size={14} className="text-muted-foreground" />
       </div>
       <div className="space-y-2">

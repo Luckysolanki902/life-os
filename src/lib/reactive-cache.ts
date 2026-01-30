@@ -158,6 +158,30 @@ export function markTaskPending(taskId: string): void {
   updateTaskInCache(taskId, 'pending', undefined);
 }
 
+// Update weight in cache
+export function updateWeightInCache(weight: number): void {
+  updateCache<HomeData>(CACHE_KEYS.HOME_DATA, (prev) => {
+    if (!prev) return prev as any;
+    
+    return {
+      ...prev,
+      todaysWeight: { weight, date: new Date() }
+    };
+  });
+}
+
+// Update total points in cache
+export function updateTotalPointsInCache(totalPoints: number): void {
+  updateCache<HomeData>(CACHE_KEYS.HOME_DATA, (prev) => {
+    if (!prev) return prev as any;
+    
+    return {
+      ...prev,
+      totalPoints
+    };
+  });
+}
+
 // ============================================
 // React Hook for reactive cache
 // ============================================
