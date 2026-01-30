@@ -21,6 +21,8 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { logWeight, createHealthPage, saveMood, updateWeight } from "@/app/actions/health";
+import { withFullRefresh } from '@/lib/action-wrapper';
+import { updateWeightInCache, subscribe, CACHE_KEYS } from '@/lib/reactive-cache';
 import TaskItem from "@/app/routine/TaskItem";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -146,6 +148,26 @@ export default function HealthClient({ initialData }: HealthClientProps) {
     setSelectedMood(mood?.mood || null);
   }, [mood]);
 
+  // Subscribe to cache updates for real-time task and weight sync
+  useEffect(() => {
+    const unsubscribeHome = subscribe<any>(CACHE_KEYS.HOME_DATA, () => {
+      console.log('[HealthClient] Home cache updated, refreshing');
+      router.refresh();
+    });
+    
+    const unsubscribeWeight = subscribe<any>(CACHE_KEYS.WEIGHT_DATA, (weightData) => {
+      if (weightData) {
+        console.log('[HealthClient] Weight updated:', weightData);
+        router.refresh();
+      }
+    });
+    
+    return () => {
+      unsubscribeHome();
+      unsubscribeWeight();
+    };
+  }, [router]);
+
   // Filter tasks into categories
   const { activeTasks, doneTasks, skippedTasks } = useMemo(() => {
     const active: Task[] = [];
@@ -174,18 +196,30 @@ export default function HealthClient({ initialData }: HealthClientProps) {
     e.preventDefault();
     if (!weightInput) return;
     
-    if (editingWeightId) {
-      // Update existing weight
-      await updateWeight(editingWeightId, Number(weightInput));
-    } else {
-      // Create new weight log with string date
-      await logWeight(Number(weightInput), weightDate);
-    }
+    const weightValue = Number(weightInput);
     
-    setIsWeightModalOpen(false);
-    setWeightInput("");
-    setEditingWeightId(null);
-    router.refresh();
+    try {
+      if (editingWeightId) {
+        // Update existing weight
+        await withFullRefresh(
+          () => updateWeight(editingWeightId, weightValue),
+          () => updateWeightInCache(weightValue)
+        );
+      } else {
+        // Create new weight log with string date
+        await withFullRefresh(
+          () => logWeight(weightValue, weightDate),
+          () => updateWeightInCache(weightValue)
+        );
+      }
+      
+      setIsWeightModalOpen(false);
+      setWeightInput("");
+      setEditingWeightId(null);
+      router.refresh();
+    } catch (error) {
+      console.error('Failed to log weight:', error);
+    }
   }
 
   function openWeightModal(existingWeight?: { _id: string; weight: number }) {
@@ -203,7 +237,7 @@ export default function HealthClient({ initialData }: HealthClientProps) {
   async function handleCreatePage(e: React.FormEvent) {
     e.preventDefault();
     if (!pageTitle) return;
-    await createHealthPage(pageTitle);
+    await withFullRefresh(() => createHealthPage(pageTitle));
     setIsPageModalOpen(false);
     setPageTitle("");
     router.refresh();
@@ -213,9 +247,11 @@ export default function HealthClient({ initialData }: HealthClientProps) {
     setSelectedMood(moodValue);
     setIsSavingMood(true);
     // Send currentDate (YYYY-MM-DD) which represents the user's local date
-    await saveMood(
-      currentDate,
-      moodValue as "great" | "good" | "okay" | "low" | "bad"
+    await withFullRefresh(() => 
+      saveMood(
+        currentDate,
+        moodValue as "great" | "good" | "okay" | "low" | "bad"
+      )
     );
     setIsSavingMood(false);
     router.refresh();

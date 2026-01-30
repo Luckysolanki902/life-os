@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Loader2, RotateCw } from 'lucide-react';
 import NewHomeClient from './NewHomeClient';
 import { useReactiveCache, setCache, CACHE_KEYS } from '@/lib/reactive-cache';
+import { startBackgroundSync, stopBackgroundSync, getDeviceId } from '@/lib/sync-manager';
 
 interface HomeData {
   incompleteTasks: any[];
@@ -29,6 +30,21 @@ export default function HomePageClient() {
     CACHE_KEYS.HOME_DATA,
     fetchHomeData
   );
+
+  // Initialize background sync
+  useEffect(() => {
+    // Get device ID
+    const deviceId = getDeviceId();
+    console.log('[HomePageClient] Device ID:', deviceId);
+    
+    // Start background sync (checks every 5 seconds)
+    startBackgroundSync(5000);
+    
+    // Cleanup on unmount
+    return () => {
+      stopBackgroundSync();
+    };
+  }, []);
 
   // Manual refresh function
   const handleRefresh = async () => {

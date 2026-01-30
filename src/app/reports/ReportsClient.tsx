@@ -334,6 +334,7 @@ export default function ReportsClient() {
   });
   const [isLoading, setIsLoading] = useState(!data); // Only loading if no cache
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isSyncingBg, setIsSyncingBg] = useState(false);
 
   // Subscribe to dashboard stats updates (synced from home page)
   useEffect(() => {
@@ -343,21 +344,44 @@ export default function ReportsClient() {
     return unsubscribe;
   }, []);
 
-  // Fetch fresh data in background
+  // Background sync check - compare local vs server data
   useEffect(() => {
-    async function fetchData() {
-      if (!data) setIsLoading(true);
+    let intervalId: NodeJS.Timeout;
+
+    async function checkForUpdates() {
       try {
         const result = await getOverallReport(period);
-        setData(result);
-        setCache(CACHE_KEYS.REPORTS_DATA, result);
+        
+        // Compare with current data
+        if (data && JSON.stringify(result) !== JSON.stringify(data)) {
+          setIsSyncingBg(true);
+          console.log('[Reports] Data difference detected, syncing...');
+          
+          // Smoothly update data in background
+          setTimeout(() => {
+            setData(result);
+            setCache(CACHE_KEYS.REPORTS_DATA, result);
+            setIsSyncingBg(false);
+          }, 300);
+        } else if (!data) {
+          // First load
+          setData(result);
+          setCache(CACHE_KEYS.REPORTS_DATA, result);
+        }
       } catch (error) {
-        console.error('Failed to fetch report data:', error);
-      } finally {
-        setIsLoading(false);
+        console.error('Background sync failed:', error);
+        setIsSyncingBg(false);
       }
     }
-    fetchData();
+
+    // Initial fetch
+    if (!data) setIsLoading(true);
+    checkForUpdates().finally(() => setIsLoading(false));
+
+    // Check every 5 seconds
+    intervalId = setInterval(checkForUpdates, 5000);
+
+    return () => clearInterval(intervalId);
   }, [period]);
 
   // Fetch stats separately
@@ -381,6 +405,11 @@ export default function ReportsClient() {
       ]);
       setData(result);
       setStats(dashboardStats);
+      
+      // Update caches
+      setCache(CACHE_KEYS.REPORTS_DATA, result);
+      setCache(CACHE_KEYS.DASHBOARD_STATS, dashboardStats);
+      
       router.refresh();
     } catch (error) {
       console.error('Failed to refresh report data:', error);
@@ -433,12 +462,12 @@ export default function ReportsClient() {
             <h1 className="text-2xl font-bold tracking-tight">Reports</h1>
             <button
               onClick={handleRefresh}
-              disabled={isRefreshing}
+              disabled={isRefreshing || isSyncingBg}
               className={cn(
                 "p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-all",
-                isRefreshing && "animate-spin"
+                (isRefreshing || isSyncingBg) && "animate-spin"
               )}
-              title="Refresh data"
+              title={isSyncingBg ? "Syncing in background..." : "Refresh data"}
             >
               <RotateCw size={16} />
             </button>
@@ -569,7 +598,7 @@ export default function ReportsClient() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCard
           label="Points"
-          value={summary.totalPoints >= 1000 ? `${(summary.totalPoints/1000).toFixed(1)}k` : summary.totalPoints}
+          value={stats?.totalPoints >= 1000 ? `${(stats.totalPoints/1000).toFixed(1)}k` : (stats?.totalPoints || 0)}
           change={summary.pointsChange}
           icon={Trophy}
           color="amber"

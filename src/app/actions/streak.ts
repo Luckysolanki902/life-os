@@ -437,7 +437,6 @@ export async function getTotalPointsWithBonuses() {
     { $count: 'total' }
   ]);
   const learningPoints = (learningDaysWithSkills[0]?.total || 0) * LEARNING_TASK_POINTS;
-  
   return {
     basePoints,
     streakBonus,

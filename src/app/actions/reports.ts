@@ -3,6 +3,7 @@
 import connectDB from '@/lib/db';
 import Task from '@/models/Task';
 import DailyLog from '@/models/DailyLog';
+import DailyStreakRecord from '@/models/DailyStreakRecord';
 import WeightLog from '@/models/WeightLog';
 import ExerciseLog from '@/models/ExerciseLog';
 import ExerciseDefinition from '@/models/ExerciseDefinition';
@@ -128,18 +129,74 @@ export async function getOverallReport(period: string = 'thisWeek') {
   const routineCompletionRate = totalPossibleTasks > 0 ? Math.round((completedLogs / totalPossibleTasks) * 100) : 0;
   const prevRoutineCompletionRate = prevTotalPossibleTasks > 0 ? Math.round((prevCompletedLogs / prevTotalPossibleTasks) * 100) : 0;
   
-  // Points earned
-  const pointsResult = await DailyLog.aggregate([
+  // Points earned - USE COMPREHENSIVE CALCULATION
+  // Get base points from routine tasks for the period
+  const routinePointsResult = await DailyLog.aggregate([
     { $match: { date: { $gte: start, $lt: end }, status: 'completed' } },
     { $group: { _id: null, total: { $sum: '$pointsEarned' } } }
   ]);
-  const totalPoints = pointsResult[0]?.total || 0;
+  const routinePoints = routinePointsResult[0]?.total || 0;
   
-  const prevPointsResult = await DailyLog.aggregate([
+  // Get streak bonuses for the period
+  const streakBonusResult = await DailyStreakRecord.aggregate([
+    { $match: { date: { $gte: start, $lt: end } } },
+    { $group: { _id: null, total: { $sum: '$bonusPointsAwarded' } } }
+  ]);
+  const periodStreakBonus = streakBonusResult[0]?.total || 0;
+  
+  // Count books read in period
+  const booksReadInPeriod = await Book.countDocuments({
+    lastReadDate: { $gte: start, $lt: end }
+  });
+  const periodBookPoints = booksReadInPeriod * 5; // BOOK_TASK_POINTS = 5
+  
+  // Count exercise days in period
+  const exerciseDaysInPeriod = await ExerciseLog.distinct('date', {
+    date: { $gte: start, $lt: end }
+  });
+  const periodExercisePoints = exerciseDaysInPeriod.length * 5; // EXERCISE_TASK_POINTS = 5
+  
+  // Count learning sessions in period
+  const learningSessionsInPeriod = await SimpleLearningLog.aggregate([
+    { $match: { date: { $gte: start, $lt: end } } },
+    { $group: { _id: { date: '$date', skill: '$skillName' } } },
+    { $count: 'total' }
+  ]);
+  const periodLearningPoints = (learningSessionsInPeriod[0]?.total || 0) * 10; // LEARNING_TASK_POINTS = 10
+  
+  const totalPoints = routinePoints + periodStreakBonus + periodBookPoints + periodExercisePoints + periodLearningPoints;
+  
+  // Previous period points (same calculation)
+  const prevRoutinePointsResult = await DailyLog.aggregate([
     { $match: { date: { $gte: prev.start, $lt: prev.end }, status: 'completed' } },
     { $group: { _id: null, total: { $sum: '$pointsEarned' } } }
   ]);
-  const prevTotalPoints = prevPointsResult[0]?.total || 0;
+  const prevRoutinePoints = prevRoutinePointsResult[0]?.total || 0;
+  
+  const prevStreakBonusResult = await DailyStreakRecord.aggregate([
+    { $match: { date: { $gte: prev.start, $lt: prev.end } } },
+    { $group: { _id: null, total: { $sum: '$bonusPointsAwarded' } } }
+  ]);
+  const prevStreakBonus = prevStreakBonusResult[0]?.total || 0;
+  
+  const prevBooksRead = await Book.countDocuments({
+    lastReadDate: { $gte: prev.start, $lt: prev.end }
+  });
+  const prevBookPoints = prevBooksRead * 5;
+  
+  const prevExerciseDaysCount = await ExerciseLog.distinct('date', {
+    date: { $gte: prev.start, $lt: prev.end }
+  });
+  const prevExercisePoints = prevExerciseDaysCount.length * 5;
+  
+  const prevLearningSessions = await SimpleLearningLog.aggregate([
+    { $match: { date: { $gte: prev.start, $lt: prev.end } } },
+    { $group: { _id: { date: '$date', skill: '$skillName' } } },
+    { $count: 'total' }
+  ]);
+  const prevLearningPoints = (prevLearningSessions[0]?.total || 0) * 10;
+  
+  const prevTotalPoints = prevRoutinePoints + prevStreakBonus + prevBookPoints + prevExercisePoints + prevLearningPoints;
   
   // HEALTH: Exercise days (unique days with exercise), weight change
   const exerciseDaysResult = await ExerciseLog.aggregate([
@@ -1079,12 +1136,11 @@ export async function getDashboardStats() {
   await connectDB();
   const today = dayjs().tz(DEFAULT_TIMEZONE).startOf('day');
   
-  // 1. Total Points (All Time)
-  const totalPointsRes = await DailyLog.aggregate([
-    { $match: { status: 'completed' } },
-    { $group: { _id: null, total: { $sum: '$pointsEarned' } } }
-  ]);
-  const totalPoints = totalPointsRes[0]?.total || 0;
+  // 1. Total Points (All Time) - INCLUDING BONUSES AND SPECIAL TASKS
+  // Import the comprehensive points calculation
+  const { getTotalPointsWithBonuses } = await import('./streak');
+  const pointsData = await getTotalPointsWithBonuses();
+  const totalPoints = pointsData.totalPoints;
 
   // 2. Improvement (Last 7 Days vs Previous 7 Days)
   const last7Start = today.subtract(6, 'day').toDate();

@@ -19,11 +19,13 @@ import {
   useSortable
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, CalendarDays, ChevronLeft, ChevronRight, XCircle } from 'lucide-react';
+import { GripVertical, CalendarDays, ChevronLeft, ChevronRight, XCircle, RotateCcw } from 'lucide-react';
 import TaskItem from './TaskItem';
 import { updateTaskOrder, getRoutine, getRoutineForDate } from '@/app/actions/routine';
 import { cn } from '@/lib/utils';
 import { getLocalDateString, addDays, formatDateForDisplay, getDayOfWeek } from '@/lib/date-utils';
+import { useReactiveCache, setCache, CACHE_KEYS, subscribe } from '@/lib/reactive-cache';
+import { withFullRefresh } from '@/lib/action-wrapper';
 
 const DAYS_OF_WEEK = [
   { value: 0, label: 'Sun' },
@@ -96,8 +98,27 @@ export default function RoutineList({ initialTasks, allTasks = [], initialSpecia
   const [tasks, setTasks] = useState(initialTasks);
   const [specialTasks, setSpecialTasks] = useState(initialSpecialTasks);
   const [viewMode, setViewMode] = useState<'today' | 'custom'>('today');
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [timeFilter, setTimeFilter] = useState('all');
   const [editMode, setEditMode] = useState(false);
+  
+  // Subscribe to cache updates for real-time sync
+  useEffect(() => {
+    const unsubscribe = subscribe<any>(CACHE_KEYS.HOME_DATA, (data) => {
+      if (data && viewMode === 'today') {
+        // Update tasks when home cache updates (from other pages)
+        console.log('[RoutineList] Cache updated, refreshing tasks');
+        const fetchToday = async () => {
+          const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+          const { routine: todaysTasks, specialTasks: todaysSpecial } = await getRoutine(timezone);
+          setTasks(todaysTasks);
+          setSpecialTasks(todaysSpecial);
+        };
+        fetchToday();
+      }
+    });
+    return unsubscribe;
+  }, [viewMode]);
   
   // Custom date picker state
   const [customDate, setCustomDate] = useState<string>('');
@@ -180,6 +201,25 @@ export default function RoutineList({ initialTasks, allTasks = [], initialSpecia
     fetchToday();
   };
 
+  // Manual refresh handler
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      if (viewMode === 'today') {
+        const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        const { routine: todaysTasks, specialTasks: todaysSpecial } = await getRoutine(timezone);
+        setTasks(todaysTasks);
+        setSpecialTasks(todaysSpecial);
+      } else if (customDate) {
+        await fetchCustomDate(customDate);
+      }
+    } catch (error) {
+      console.error('Failed to refresh routine:', error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   // Re-fetch tasks with correct timezone on mount
   useEffect(() => {
     const fetchWithTimezone = async () => {
@@ -190,6 +230,23 @@ export default function RoutineList({ initialTasks, allTasks = [], initialSpecia
     };
     fetchWithTimezone();
   }, []);
+
+  // Subscribe to cache updates for real-time sync from other pages
+  useEffect(() => {
+    const unsubscribe = subscribe<any>(CACHE_KEYS.HOME_DATA, (data) => {
+      if (data && viewMode === 'today') {
+        console.log('[RoutineList] Cache updated, refreshing tasks');
+        const fetchToday = async () => {
+          const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+          const { routine: todaysTasks, specialTasks: todaysSpecial } = await getRoutine(timezone);
+          setTasks(todaysTasks);
+          setSpecialTasks(todaysSpecial);
+        };
+        fetchToday();
+      }
+    });
+    return unsubscribe;
+  }, [viewMode]);
 
   // Sync with server data if it changes (e.g. new task added)
   useEffect(() => {
@@ -218,12 +275,12 @@ export default function RoutineList({ initialTasks, allTasks = [], initialSpecia
         
         const newItems = arrayMove(items, oldIndex, newIndex);
         
-        // Trigger server update
+        // Trigger server update with sync
         const orderUpdates = newItems.map((item, index) => ({
           id: item._id,
           order: index
         }));
-        updateTaskOrder(orderUpdates);
+        withFullRefresh(() => updateTaskOrder(orderUpdates));
 
         return newItems;
       });
@@ -253,8 +310,23 @@ export default function RoutineList({ initialTasks, allTasks = [], initialSpecia
   const skippedTasks = sortedTasks.filter(t => t.log?.status === 'skipped');
 
   return (
-    <div className="space-y-6 pb-20">
-      {/* Minimal Header with View Toggle */}
+    <div className="space-y-6 pb-20">      {/* Header with refresh button */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-bold tracking-tight">Routine</h1>
+          <button
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className={cn(
+              "p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-all",
+              isRefreshing && "animate-spin"
+            )}
+            title="Refresh data"
+          >
+            <RotateCcw size={16} />
+          </button>
+        </div>
+      </div>      {/* Minimal Header with View Toggle */}
       <div className="flex items-center justify-between gap-3">
         {/* View Mode Toggle */}
         <div className="flex gap-1 p-1 rounded-lg bg-secondary/30 flex-1 sm:flex-initial">

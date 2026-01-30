@@ -99,6 +99,7 @@ export const CACHE_KEYS = {
   REPORTS_DATA: 'reports_data',
   DASHBOARD_STATS: 'dashboard_stats',
   HEALTH_DATA: 'health_data',
+  WEIGHT_DATA: 'weight_data',
 } as const;
 
 // ============================================
@@ -158,14 +159,61 @@ export function markTaskPending(taskId: string): void {
   updateTaskInCache(taskId, 'pending', undefined);
 }
 
-// Update weight in cache
-export function updateWeightInCache(weight: number): void {
+// Update weight in cache (optimistic)
+export function updateWeightInCache(weight: number, weightData?: any): void {
+  const weightEntry = weightData || { weight, date: new Date() };
+  
+  // Update HOME_DATA cache
   updateCache<HomeData>(CACHE_KEYS.HOME_DATA, (prev) => {
     if (!prev) return prev as any;
     
     return {
       ...prev,
-      todaysWeight: { weight, date: new Date() }
+      todaysWeight: weightEntry
+    };
+  });
+  
+  // Update HEALTH_DATA cache
+  updateCache<any>(CACHE_KEYS.HEALTH_DATA, (prev) => {
+    if (!prev) return prev as any;
+    
+    return {
+      ...prev,
+      weightStats: {
+        ...prev.weightStats,
+        todaysWeight: weightEntry
+      }
+    };
+  });
+  
+  // Update standalone WEIGHT_DATA cache
+  setCache(CACHE_KEYS.WEIGHT_DATA, weightEntry);
+}
+
+// Remove task from incomplete tasks (when completed)
+export function removeTaskFromIncomplete(taskId: string): void {
+  updateCache<HomeData>(CACHE_KEYS.HOME_DATA, (prev) => {
+    if (!prev) return prev as any;
+    
+    return {
+      ...prev,
+      incompleteTasks: prev.incompleteTasks.filter(task => task._id !== taskId)
+    };
+  });
+}
+
+// Add task back to incomplete tasks (when uncompleted)
+export function addTaskToIncomplete(task: any): void {
+  updateCache<HomeData>(CACHE_KEYS.HOME_DATA, (prev) => {
+    if (!prev) return prev as any;
+    
+    // Check if task already exists
+    const exists = prev.incompleteTasks.some(t => t._id === task._id);
+    if (exists) return prev;
+    
+    return {
+      ...prev,
+      incompleteTasks: [...prev.incompleteTasks, task]
     };
   });
 }

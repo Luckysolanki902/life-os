@@ -17,7 +17,17 @@ import { getDashboardStats } from '@/app/actions/reports';
 import { getBetterPercentage } from '@/lib/better';
 import { format } from 'date-fns';
 import SwipeableTask from '@/components/SwipeableTask';
-import { markTaskCompleted, markTaskSkipped, markTaskPending, setCache, CACHE_KEYS } from '@/lib/reactive-cache';
+import { 
+  markTaskCompleted, 
+  markTaskSkipped, 
+  markTaskPending, 
+  setCache, 
+  CACHE_KEYS,
+  removeTaskFromIncomplete,
+  updateWeightInCache,
+  subscribe
+} from '@/lib/reactive-cache';
+import { withFullRefresh } from '@/lib/action-wrapper';
 
 // Fallback toast hook if '@/components/ui/use-toast' is unavailable
 function useToast() {
@@ -83,6 +93,7 @@ export default function NewHomeClient({
 }: Props) {
   const { toast } = useToast();
   const [showSkippedTasks, setShowSkippedTasks] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   // Initialize dashboard stats from cache for instant render
   const [dashboardStats, setDashboardStats] = useState<any>(() => {
     if (typeof window !== 'undefined') {
@@ -97,12 +108,22 @@ export default function NewHomeClient({
     return null;
   });
 
+  // Fetch and subscribe to dashboard stats
   useEffect(() => {
     getDashboardStats().then((stats) => {
       setDashboardStats(stats);
-      // Cache using reactive cache
       setCache(CACHE_KEYS.DASHBOARD_STATS, stats);
     }).catch(console.error);
+
+    // Subscribe to dashboard stats updates
+    const unsubscribe = subscribe<any>(CACHE_KEYS.DASHBOARD_STATS, (stats) => {
+      if (stats) {
+        console.log('[NewHomeClient] Dashboard stats updated:', stats);
+        setDashboardStats(stats);
+      }
+    });
+
+    return () => unsubscribe();
   }, []);
 
   // Optimistic Tasks (robust, no reversion on re-render)
@@ -127,6 +148,46 @@ export default function NewHomeClient({
   const [todaysWeight, setTodaysWeight] = useState(initialWeight);
   const [weightLoading, setWeightLoading] = useState(false);
   const [weightSuccess, setWeightSuccess] = useState(false);
+
+  // Subscribe to weight updates from other pages/devices
+  useEffect(() => {
+    const unsubscribeWeight = subscribe<any>(CACHE_KEYS.WEIGHT_DATA, (weightData) => {
+      if (weightData) {
+        console.log('[NewHomeClient] Weight cache updated:', weightData);
+        setTodaysWeight(weightData);
+      }
+    });
+    
+    const unsubscribeHome = subscribe<any>(CACHE_KEYS.HOME_DATA, (data) => {
+      if (data?.todaysWeight) {
+        console.log('[NewHomeClient] Home cache weight updated:', data.todaysWeight);
+        setTodaysWeight(data.todaysWeight);
+      }
+    });
+    
+    return () => {
+      unsubscribeWeight();
+      unsubscribeHome();
+    };
+  }, []);
+
+  // Manual refresh handler
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      if (onRefresh) {
+        await onRefresh();
+      }
+      // Refetch dashboard stats
+      const stats = await getDashboardStats();
+      setDashboardStats(stats);
+      setCache(CACHE_KEYS.DASHBOARD_STATS, stats);
+    } catch (error) {
+      console.error('Failed to refresh:', error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   // Sort tasks: pending first, then time of day
   const sortedTasks = [...tasks].sort((a, b) => {
@@ -169,20 +230,21 @@ export default function NewHomeClient({
     // Sync to reactive cache immediately
     if (nextStatus === 'completed') {
       markTaskCompleted(taskId);
+      removeTaskFromIncomplete(taskId);
     } else {
       markTaskPending(taskId);
     }
     
     try {
-      await toggleTaskStatus(taskId, originalStatus === 'completed');
+      // Use withFullRefresh to auto-sync and refresh
+      await withFullRefresh(
+        () => toggleTaskStatus(taskId, originalStatus === 'completed')
+      );
       
-      // Trigger cache refresh to update points and better percentage
-      if (onRefresh && nextStatus === 'completed') {
-        // Small delay to allow backend to process
-        setTimeout(() => {
-          onRefresh().catch(console.error);
-        }, 500);
-      }
+      // Refresh dashboard stats immediately
+      const stats = await getDashboardStats();
+      setDashboardStats(stats);
+      setCache(CACHE_KEYS.DASHBOARD_STATS, stats);
     } catch (error) {
       // Revert both local state and cache
       setTasks(prev => prev.map(t => (
@@ -231,11 +293,17 @@ export default function NewHomeClient({
     }
     
     try {
+      // Use withFullRefresh to auto-sync and refresh
       if (isUnskip) {
-        await unskipTask(taskId);
+        await withFullRefresh(() => unskipTask(taskId));
       } else {
-        await skipTask(taskId);
+        await withFullRefresh(() => skipTask(taskId));
       }
+      
+      // Refresh dashboard stats immediately
+      const stats = await getDashboardStats();
+      setDashboardStats(stats);
+      setCache(CACHE_KEYS.DASHBOARD_STATS, stats);
     } catch (error) {
       // Revert both local state and cache
       setTasks(prev => prev.map(t => (
@@ -262,8 +330,23 @@ export default function NewHomeClient({
     if (!weight) return;
 
     setWeightLoading(true);
+    const weightValue = parseFloat(weight);
+    
+    // Optimistic update
+    const optimisticWeight = {
+      weight: weightValue,
+      date: new Date()
+    };
+    setTodaysWeight(optimisticWeight);
+    updateWeightInCache(weightValue, optimisticWeight);
+    
     try {
-      const result = await logWeight(parseFloat(weight), new Date().toISOString());
+      // Use withFullRefresh to auto-sync and refresh
+      const result = await withFullRefresh(
+        () => logWeight(weightValue, new Date().toISOString()),
+        () => updateWeightInCache(weightValue, optimisticWeight)
+      );
+      
       setTodaysWeight(result);
       setWeightSuccess(true);
       setTimeout(() => {
@@ -272,12 +355,9 @@ export default function NewHomeClient({
         setWeight('');
       }, 1500);
       toast({ title: "Weight Logged", description: "Your weight has been recorded." });
-      
-      // Trigger cache refresh for instant update
-      if (onRefresh) {
-        onRefresh().catch(console.error);
-      }
     } catch (error) {
+      // Revert on error
+      setTodaysWeight(initialWeight);
       toast({ title: "Error", description: "Failed to log weight", variant: "destructive" });
     } finally {
       setWeightLoading(false);
@@ -342,13 +422,26 @@ export default function NewHomeClient({
       
       {/* Header */}
       <header className="flex items-center justify-between py-2">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">
-            {new Date().getHours() < 12 ? 'Good morning' : new Date().getHours() < 18 ? 'Good afternoon' : 'Good evening'}
-          </h1>
-          <p className="text-muted-foreground text-sm">
-            {format(new Date(), 'EEEE, MMMM do')}
-          </p>
+        <div className="flex items-center gap-3">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">
+              {new Date().getHours() < 12 ? 'Good morning' : new Date().getHours() < 18 ? 'Good afternoon' : 'Good evening'}
+            </h1>
+            <p className="text-muted-foreground text-sm">
+              {format(new Date(), 'EEEE, MMMM do')}
+            </p>
+          </div>
+          <button
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className={cn(
+              "p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-all",
+              isRefreshing && "animate-spin"
+            )}
+            title="Refresh data"
+          >
+            <RotateCcw size={16} />
+          </button>
         </div>
         <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-secondary/50 border border-border/50">
           <Flame size={16} className={streakData.todayValid ? "text-orange-500 fill-orange-500" : "text-muted-foreground"} />

@@ -7,6 +7,13 @@ import { completeTask, uncompleteTask, updateTask, deleteTask, skipTask, unskipT
 import { getLocalDateString } from '@/lib/date-utils';
 import { hapticTaskComplete, hapticTaskSkip, hapticTaskUnskip, hapticTaskUncomplete } from '@/lib/haptics';
 import SwipeableTask from '@/components/SwipeableTask';
+import { withFullRefresh } from '@/lib/action-wrapper';
+import { 
+  markTaskCompleted, 
+  markTaskSkipped, 
+  markTaskPending,
+  removeTaskFromIncomplete
+} from '@/lib/reactive-cache';
 
 const DAYS_OF_WEEK = [
   { value: 0, label: 'S', fullLabel: 'Sunday' },
@@ -91,14 +98,23 @@ export default function TaskItem({ task, onOptimisticToggle, dateStr, editMode =
     setOptimisticCompleted(newStatus);
     setOptimisticSkipped(false); // Clear skipped state when completing
     
+    // Update reactive cache immediately
+    if (newStatus) {
+      markTaskCompleted(task._id);
+      removeTaskFromIncomplete(task._id);
+    } else {
+      markTaskPending(task._id);
+    }
+    
     // Notify parent for list-level optimistic update
     onOptimisticToggle?.(task._id, newStatus);
     
     try {
+      // Use withFullRefresh to auto-sync
       if (!newStatus) {
-        await uncompleteTask(task._id, targetDate);
+        await withFullRefresh(() => uncompleteTask(task._id, targetDate));
       } else {
-        await completeTask(task._id, targetDate);
+        await withFullRefresh(() => completeTask(task._id, targetDate));
       }
     } catch (error) {
       // Revert on error
@@ -129,11 +145,19 @@ export default function TaskItem({ task, onOptimisticToggle, dateStr, editMode =
     setOptimisticSkipped(newSkipStatus);
     setOptimisticCompleted(false); // Clear completed state when skipping
     
+    // Update reactive cache immediately
+    if (newSkipStatus) {
+      markTaskSkipped(task._id);
+    } else {
+      markTaskPending(task._id);
+    }
+    
     try {
+      // Use withFullRefresh to auto-sync
       if (newSkipStatus) {
-        await skipTask(task._id, targetDate);
+        await withFullRefresh(() => skipTask(task._id, targetDate));
       } else {
-        await unskipTask(task._id, targetDate);
+        await withFullRefresh(() => unskipTask(task._id, targetDate));
       }
     } catch (error) {
       // Revert on error
