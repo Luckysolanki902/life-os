@@ -1,11 +1,26 @@
 /**
  * Static MCP Authentication
  * Uses a simple client_id + client_secret pair for authentication
+ * Also supports OAuth bearer tokens from the token endpoint
  */
 
 // Static credentials - in production, use environment variables
-const STATIC_CLIENT_ID = process.env.MCP_CLIENT_ID || 'lifedashboard-mcp-client';
-const STATIC_CLIENT_SECRET = process.env.MCP_CLIENT_SECRET || 'lifedashboard-mcp-secret-2024';
+const STATIC_CLIENT_ID = process.env.STATIC_CLIENT_ID || process.env.MCP_CLIENT_ID || 'lifedashboard-mcp-client';
+const STATIC_CLIENT_SECRET = process.env.STATIC_CLIENT_SECRET || process.env.MCP_CLIENT_SECRET || 'lifedashboard-mcp-secret-2024';
+
+// In-memory token store (shared with token endpoint)
+// Maps token -> { clientId, expiresAt, scope }
+const tokenStore = new Map<string, { clientId: string; expiresAt: number; scope: string }>();
+
+// Export for token endpoint to store tokens
+export function storeToken(token: string, data: { clientId: string; expiresAt: number; scope: string }): void {
+  tokenStore.set(token, data);
+}
+
+// Export for token cleanup
+export function removeToken(token: string): void {
+  tokenStore.delete(token);
+}
 
 export interface AuthResult {
   valid: boolean;
@@ -15,7 +30,7 @@ export interface AuthResult {
 
 /**
  * Validates the Authorization header for MCP requests
- * Expects: Basic base64(client_id:client_secret)
+ * Supports: Basic auth, Bearer token (OAuth), or Bearer client_id:client_secret
  */
 export function validateAuth(request: Request): AuthResult {
   const authHeader = request.headers.get('Authorization');
@@ -51,9 +66,20 @@ function validateBasicAuth(authHeader: string): AuthResult {
 }
 
 function validateBearerAuth(authHeader: string): AuthResult {
-  // For Bearer, we expect the token to be: client_id:client_secret
+  const token = authHeader.slice(7); // Remove 'Bearer '
+  
+  // First, check if it's an OAuth token from the token store
+  const tokenData = tokenStore.get(token);
+  if (tokenData) {
+    if (tokenData.expiresAt < Date.now()) {
+      tokenStore.delete(token);
+      return { valid: false, error: 'Token expired' };
+    }
+    return { valid: true, clientId: tokenData.clientId };
+  }
+  
+  // Fall back to checking if it's client_id:client_secret format
   try {
-    const token = authHeader.slice(7); // Remove 'Bearer '
     const [clientId, clientSecret] = token.split(':');
     
     if (clientId === STATIC_CLIENT_ID && clientSecret === STATIC_CLIENT_SECRET) {
