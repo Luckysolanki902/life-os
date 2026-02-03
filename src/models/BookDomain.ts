@@ -5,8 +5,7 @@ const BookDomainSchema = new mongoose.Schema({
   description: { type: String },
   color: { 
     type: String, 
-    enum: ['blue', 'purple', 'emerald', 'orange', 'rose', 'cyan', 'amber', 'indigo'],
-    default: 'blue' 
+    default: '#4A90D9' 
   },
   icon: { type: String, default: '📚' }, // Emoji icon
   order: { type: Number, default: 0 },

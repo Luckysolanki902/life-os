@@ -11,7 +11,7 @@ const PROTOCOL_VERSION = '2024-11-05';
 
 interface JsonRpcRequest {
   jsonrpc: '2.0';
-  id?: string | number;
+  id?: string | number
   method: string;
   params?: Record<string, unknown>;
 }
@@ -174,7 +174,7 @@ function handleToolsList(): unknown {
       {
         name: 'list_domains',
         title: 'List Domains',
-        description: 'List all book domains/categories. Use this to get domain IDs for adding books.',
+        description: 'List all book domains/categories with their stats. Useful for seeing existing categories.',
         inputSchema: {
           type: 'object',
           properties: {},
@@ -191,23 +191,31 @@ function handleToolsList(): unknown {
       {
         name: 'add_book',
         title: 'Add Book',
-        description: 'Add a new book to the reading list. Requires a domain ID (use list_domains to get available domains).',
+        description: 'Add a new book to the reading list. Specify a domain/category name - it will be created automatically if it does not exist. Choose an appropriate category like "Fiction", "Technology", "Self-Help", "Business", "Science", etc.',
         inputSchema: {
           type: 'object',
           properties: {
-            domainId: { type: 'string', description: 'The ID of the domain this book belongs to' },
+            domain: { type: 'string', description: 'The category/domain name for this book (e.g., "Fiction", "Technology", "Self-Help"). Will be created if it does not exist.' },
+            domainColor: { 
+              type: 'string', 
+              description: 'Hex color for new domain (e.g., "#4A90D9" for blue, "#50C878" for green, "#FF6B6B" for red). Only used when creating a new domain.'
+            },
+            domainIcon: { 
+              type: 'string', 
+              description: 'Emoji icon for new domain (e.g., "📚", "💡", "🎯", "💻"). Only used when creating a new domain.'
+            },
             title: { type: 'string', description: 'The title of the book' },
             author: { type: 'string', description: 'The author of the book' },
             subcategory: { type: 'string', description: 'Subcategory within the domain' },
-            totalPages: { type: 'number', description: 'Total number of pages' },
+            totalPages: { type: ['number', 'null'], description: 'Total number of pages (optional)' },
             status: {
               type: 'string',
               enum: ['to-read', 'reading', 'paused', 'completed', 'dropped'],
-              description: 'Reading status'
+              description: 'Reading status (default: to-read)'
             },
             notes: { type: 'string', description: 'Personal notes about the book' }
           },
-          required: ['domainId', 'title']
+          required: ['domain', 'title']
         },
         annotations: {
           title: 'Add Book',
@@ -220,7 +228,7 @@ function handleToolsList(): unknown {
       {
         name: 'add_books',
         title: 'Add Multiple Books',
-        description: 'Add multiple books at once. Each book requires a domain ID.',
+        description: 'Add multiple books at once. Each book needs a domain/category name which will be auto-created if needed.',
         inputSchema: {
           type: 'object',
           properties: {
@@ -229,15 +237,17 @@ function handleToolsList(): unknown {
               items: {
                 type: 'object',
                 properties: {
-                  domainId: { type: 'string' },
+                  domain: { type: 'string', description: 'Category name (e.g., "Fiction", "Technology")' },
+                  domainColor: { type: 'string', description: 'Hex color for new domain (e.g., "#4A90D9")' },
+                  domainIcon: { type: 'string', description: 'Emoji icon for new domain (e.g., "📚")' },
                   title: { type: 'string' },
                   author: { type: 'string' },
                   subcategory: { type: 'string' },
-                  totalPages: { type: 'number' },
+                  totalPages: { type: ['number', 'null'] },
                   status: { type: 'string' },
                   notes: { type: 'string' }
                 },
-                required: ['domainId', 'title']
+                required: ['domain', 'title']
               },
               description: 'Array of books to add'
             }
@@ -255,14 +265,14 @@ function handleToolsList(): unknown {
       {
         name: 'update_book',
         title: 'Update Book',
-        description: 'Update a single book by ID. Only provided fields will be updated.',
+        description: 'Update a single book by ID. Only provided fields will be updated. Can change domain by providing a new domain name.',
         inputSchema: {
           type: 'object',
           properties: {
             id: { type: 'string', description: 'The book ID to update' },
             title: { type: 'string', description: 'New title' },
             author: { type: 'string', description: 'New author' },
-            domainId: { type: 'string', description: 'New domain ID' },
+            domain: { type: 'string', description: 'New domain/category name (will be created if needed)' },
             subcategory: { type: 'string', description: 'New subcategory' },
             totalPages: { type: 'number', description: 'New total pages' },
             currentPage: { type: 'number', description: 'Current page number' },
@@ -299,7 +309,7 @@ function handleToolsList(): unknown {
                   id: { type: 'string' },
                   title: { type: 'string' },
                   author: { type: 'string' },
-                  domainId: { type: 'string' },
+                  domain: { type: 'string', description: 'New domain/category name' },
                   subcategory: { type: 'string' },
                   totalPages: { type: 'number' },
                   currentPage: { type: 'number' },

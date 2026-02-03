@@ -109,24 +109,38 @@ export async function listDomains(): Promise<ToolResult> {
 export async function addBook(args: Record<string, unknown>): Promise<ToolResult> {
   await connectDB();
   
-  const { domainId, title, author, subcategory, totalPages, status, notes } = args;
+  const { domain: domainName, domainColor, domainIcon, title, author, subcategory, totalPages, status, notes } = args;
   
-  if (!domainId || !title) {
-    return textResult({ error: 'domainId and title are required' }, true);
+  if (!domainName || !title) {
+    return textResult({ error: 'domain (name/category) and title are required' }, true);
   }
   
-  // Validate domain exists
-  const domain = await BookDomain.findById(domainId);
+  // Find or create domain by name (case-insensitive)
+  let domain = await BookDomain.findOne({ 
+    name: { $regex: new RegExp(`^${domainName}$`, 'i') } 
+  });
+  
   if (!domain) {
-    return textResult({ error: 'Domain not found', domainId }, true);
+    // Create new domain with provided or default styling
+    const defaultColors = ['#4A90D9', '#50C878', '#FF6B6B', '#FFB347', '#9B59B6', '#3498DB', '#E74C3C', '#2ECC71'];
+    const defaultIcons = ['📚', '💡', '🎯', '🔬', '💻', '📖', '🧠', '🌟'];
+    const existingDomains = await BookDomain.countDocuments();
+    
+    domain = await BookDomain.create({
+      name: domainName,
+      description: `Books about ${domainName}`,
+      color: (domainColor as string) || defaultColors[existingDomains % defaultColors.length],
+      icon: (domainIcon as string) || defaultIcons[existingDomains % defaultIcons.length],
+      order: existingDomains + 1,
+    });
   }
   
   // Get max order for this domain
-  const maxOrderBook = await Book.findOne({ domainId }).sort({ order: -1 }).lean();
+  const maxOrderBook = await Book.findOne({ domainId: domain._id }).sort({ order: -1 }).lean();
   const order = ((maxOrderBook as Record<string, unknown> | null)?.order as number || 0) + 1;
   
   const book = await Book.create({
-    domainId,
+    domainId: domain._id,
     title,
     author: author || '',
     subcategory: subcategory || 'General',
@@ -139,7 +153,7 @@ export async function addBook(args: Record<string, unknown>): Promise<ToolResult
   
   return textResult({
     success: true,
-    message: `Book "${title}" added successfully`,
+    message: `Book "${title}" added successfully to "${domain.name}" domain`,
     book: {
       id: book._id.toString(),
       title: book.title,
@@ -162,30 +176,55 @@ export async function addBooks(books: Array<Record<string, unknown>>): Promise<T
   }
   
   const results = {
-    success: [] as Array<{ id: string; title: string }>,
+    success: [] as Array<{ id: string; title: string; domain: string }>,
     failed: [] as Array<{ title: string; error: string }>,
   };
   
+  // Cache domains to avoid repeated lookups
+  const domainCache = new Map<string, { _id: { toString(): string }; name: string }>();
+  
+  // Default domain styling options
+  const defaultColors = ['#4A90D9', '#50C878', '#FF6B6B', '#FFB347', '#9B59B6', '#3498DB', '#E74C3C', '#2ECC71'];
+  const defaultIcons = ['📚', '💡', '🎯', '🔬', '💻', '📖', '🧠', '🌟'];
+  
   for (const bookData of books) {
     try {
-      const { domainId, title, author, subcategory, totalPages, status, notes } = bookData;
+      const { domain: domainName, domainColor, domainIcon, title, author, subcategory, totalPages, status, notes } = bookData;
       
-      if (!domainId || !title) {
-        results.failed.push({ title: (title as string) || 'Unknown', error: 'Missing domainId or title' });
+      if (!domainName || !title) {
+        results.failed.push({ title: (title as string) || 'Unknown', error: 'Missing domain or title' });
         continue;
       }
       
-      const domain = await BookDomain.findById(domainId);
+      const domainKey = (domainName as string).toLowerCase();
+      let domain = domainCache.get(domainKey);
+      
       if (!domain) {
-        results.failed.push({ title: title as string, error: 'Domain not found' });
-        continue;
+        // Find or create domain
+        let existingDomain = await BookDomain.findOne({ 
+          name: { $regex: new RegExp(`^${domainName}$`, 'i') } 
+        });
+        
+        if (!existingDomain) {
+          const existingDomains = await BookDomain.countDocuments();
+          existingDomain = await BookDomain.create({
+            name: domainName,
+            description: `Books about ${domainName}`,
+            color: (domainColor as string) || defaultColors[existingDomains % defaultColors.length],
+            icon: (domainIcon as string) || defaultIcons[existingDomains % defaultIcons.length],
+            order: existingDomains + 1,
+          });
+        }
+        
+        domain = { _id: existingDomain._id, name: existingDomain.name };
+        domainCache.set(domainKey, domain);
       }
       
-      const maxOrderBook = await Book.findOne({ domainId }).sort({ order: -1 }).lean();
+      const maxOrderBook = await Book.findOne({ domainId: domain._id }).sort({ order: -1 }).lean();
       const order = ((maxOrderBook as Record<string, unknown> | null)?.order as number || 0) + 1;
       
       const book = await Book.create({
-        domainId,
+        domainId: domain._id,
         title,
         author: author || '',
         subcategory: subcategory || 'General',
@@ -196,7 +235,7 @@ export async function addBooks(books: Array<Record<string, unknown>>): Promise<T
         currentPage: 0,
       });
       
-      results.success.push({ id: book._id.toString(), title: book.title });
+      results.success.push({ id: book._id.toString(), title: book.title, domain: domain.name });
     } catch (error) {
       results.failed.push({
         title: (bookData.title as string) || 'Unknown',
@@ -215,7 +254,7 @@ export async function addBooks(books: Array<Record<string, unknown>>): Promise<T
 export async function updateBook(args: Record<string, unknown>): Promise<ToolResult> {
   await connectDB();
   
-  const { id, ...updateData } = args;
+  const { id, domain: domainName, ...updateData } = args;
   
   if (!id) {
     return textResult({ error: 'id is required' }, true);
@@ -234,12 +273,27 @@ export async function updateBook(args: Record<string, unknown>): Promise<ToolRes
     cleanData.completedDate = new Date();
   }
   
-  // If updating domainId, validate it exists
-  if (cleanData.domainId) {
-    const domain = await BookDomain.findById(cleanData.domainId);
+  // If updating domain by name, find or create it
+  if (domainName) {
+    let domain = await BookDomain.findOne({ 
+      name: { $regex: new RegExp(`^${domainName}$`, 'i') } 
+    });
+    
     if (!domain) {
-      return textResult({ error: 'Domain not found' }, true);
+      const domainColors = ['#4A90D9', '#50C878', '#FF6B6B', '#FFB347', '#9B59B6', '#3498DB', '#E74C3C', '#2ECC71'];
+      const domainIcons = ['📚', '💡', '🎯', '🔬', '💻', '📖', '🧠', '🌟'];
+      const existingDomains = await BookDomain.countDocuments();
+      
+      domain = await BookDomain.create({
+        name: domainName,
+        description: `Books about ${domainName}`,
+        color: domainColors[existingDomains % domainColors.length],
+        icon: domainIcons[existingDomains % domainIcons.length],
+        order: existingDomains + 1,
+      });
     }
+    
+    cleanData.domainId = domain._id;
   }
   
   const book = await Book.findByIdAndUpdate(id, cleanData, { new: true }).lean();

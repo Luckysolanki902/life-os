@@ -51,8 +51,78 @@ function formatRelativeDate(dateStr: string): string {
   return date.format('D MMM');
 }
 
-function getColorClasses(colorName: string) {
-  return DOMAIN_COLORS.find(c => c.name === colorName) || DOMAIN_COLORS[0];
+// Helper to check if a color is a hex code
+function isHexColor(color: string): boolean {
+  return /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(color);
+}
+
+// Helper to convert hex to rgba with opacity
+function hexToRgba(hex: string, alpha: number): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+interface ColorResult {
+  bg: string;
+  border: string;
+  text: string;
+  accent: string;
+  isHex: boolean;
+  hexColor?: string;
+  style?: {
+    bg: React.CSSProperties;
+    border: React.CSSProperties;
+    text: React.CSSProperties;
+    accent: React.CSSProperties;
+  };
+}
+
+function getColorClasses(colorName: string): ColorResult {
+  // Check if it's a hex color
+  if (isHexColor(colorName)) {
+    return {
+      bg: '',
+      border: '',
+      text: '',
+      accent: '',
+      isHex: true,
+      hexColor: colorName,
+      style: {
+        bg: { backgroundColor: hexToRgba(colorName, 0.1) },
+        border: { borderColor: hexToRgba(colorName, 0.3) },
+        text: { color: colorName },
+        accent: { backgroundColor: colorName },
+      }
+    };
+  }
+  
+  // Find named color or default to blue
+  const found = DOMAIN_COLORS.find(c => c.name === colorName) || DOMAIN_COLORS[0];
+  return { ...found, isHex: false };
+}
+
+// Helper component for color bar that supports both hex and named colors
+function ColorBar({ colorClasses, className }: { colorClasses: ColorResult; className?: string }) {
+  return (
+    <div 
+      className={cn("w-1 h-8 rounded-full", !colorClasses.isHex && colorClasses.accent, className)}
+      style={colorClasses.isHex ? colorClasses.style?.accent : undefined}
+    />
+  );
+}
+
+// Helper component for icon background that supports both hex and named colors
+function IconBg({ colorClasses, children, className }: { colorClasses: ColorResult; children: React.ReactNode; className?: string }) {
+  return (
+    <div 
+      className={cn("p-2 rounded-xl text-xl", !colorClasses.isHex && colorClasses.accent, className)}
+      style={colorClasses.isHex ? colorClasses.style?.accent : undefined}
+    >
+      {children}
+    </div>
+  );
 }
 
 export default function BooksClient({ initialData }: BooksClientProps) {
@@ -268,7 +338,7 @@ export default function BooksClient({ initialData }: BooksClientProps) {
           </h2>
           <div className="space-y-2">
             {scheduledBooks.map((book: any) => {
-              const colorClasses = book.domain ? getColorClasses(book.domain.color) : DOMAIN_COLORS[0];
+              const colorClasses = book.domain ? getColorClasses(book.domain.color) : getColorClasses("blue");
               const statusInfo = STATUS_OPTIONS.find(s => s.value === book.status);
               
               return (
@@ -283,7 +353,7 @@ export default function BooksClient({ initialData }: BooksClientProps) {
                     >
                       <Check size={14} className="text-emerald-400" />
                     </button>
-                    <div className={cn("w-1 h-8 rounded-full", colorClasses.accent)} />
+                    <ColorBar colorClasses={colorClasses} />
                     <div>
                       <div className="flex items-center gap-2">
                         <span className="font-medium text-sm">{book.title}</span>
@@ -331,7 +401,7 @@ export default function BooksClient({ initialData }: BooksClientProps) {
                 </div>
               ) : (
                 searchResults.map((book: any) => {
-                  const colorClasses = book.domain ? getColorClasses(book.domain.color) : DOMAIN_COLORS[0];
+                  const colorClasses = book.domain ? getColorClasses(book.domain.color) : getColorClasses("blue");
                   
                   return (
                     <div 
@@ -339,7 +409,7 @@ export default function BooksClient({ initialData }: BooksClientProps) {
                       className="flex items-center justify-between p-3 hover:bg-secondary/50 transition-colors border-b border-border/30 last:border-0"
                     >
                       <div className="flex items-center gap-3">
-                        <div className={cn("w-1 h-8 rounded-full", colorClasses.accent)} />
+                        <ColorBar colorClasses={colorClasses} />
                         <div>
                           <div className="flex items-center gap-2">
                             <span className="font-medium text-sm">{book.title}</span>
@@ -408,20 +478,29 @@ export default function BooksClient({ initialData }: BooksClientProps) {
               const domainBooks = booksByDomain[domain._id] || [];
               
               return (
-                <div key={domain._id} className={cn(
-                  "rounded-2xl border overflow-hidden transition-all",
-                  colorClasses.border,
-                  colorClasses.bg
-                )}>
+                <div 
+                  key={domain._id} 
+                  className={cn(
+                    "rounded-2xl border overflow-hidden transition-all",
+                    !colorClasses.isHex && colorClasses.border,
+                    !colorClasses.isHex && colorClasses.bg
+                  )}
+                  style={colorClasses.isHex ? {
+                    ...colorClasses.style?.bg,
+                    ...colorClasses.style?.border,
+                    borderWidth: '1px',
+                    borderStyle: 'solid'
+                  } : undefined}
+                >
                   {/* Domain Header */}
                   <div 
                     className="flex items-center justify-between p-4 cursor-pointer hover:bg-white/5 transition-colors"
                     onClick={() => toggleDomain(domain._id)}
                   >
                     <div className="flex items-center gap-3">
-                      <div className={cn("p-2 rounded-xl text-xl", colorClasses.accent, "bg-opacity-20")}>
+                      <IconBg colorClasses={colorClasses}>
                         {domain.icon || '📚'}
-                      </div>
+                      </IconBg>
                       <div>
                         <h3 className="font-semibold text-base sm:text-lg">{domain.name}</h3>
                         <div className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs text-muted-foreground flex-wrap">
@@ -596,7 +675,7 @@ export default function BooksClient({ initialData }: BooksClientProps) {
           </h2>
           <div className="space-y-2">
             {recentBooks.map((book: any) => {
-              const colorClasses = book.domain ? getColorClasses(book.domain.color) : DOMAIN_COLORS[0];
+              const colorClasses = book.domain ? getColorClasses(book.domain.color) : getColorClasses("blue");
               
               return (
                 <div 
@@ -604,7 +683,7 @@ export default function BooksClient({ initialData }: BooksClientProps) {
                   className="flex items-center justify-between p-2.5 sm:p-3 rounded-xl bg-card border border-border/50 gap-2"
                 >
                   <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                    <div className={cn("w-1 h-8 rounded-full shrink-0", colorClasses.accent)} />
+                    <ColorBar colorClasses={colorClasses} className="shrink-0" />
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                         <span className="font-medium text-xs sm:text-sm truncate">{book.title}</span>
@@ -1040,7 +1119,7 @@ export default function BooksClient({ initialData }: BooksClientProps) {
             
             <div className="space-y-2 max-h-[50vh] overflow-y-auto">
               {books.filter((b: any) => b.status === 'reading' || b.status === 'paused').map((book: any) => {
-                const colorClasses = book.domain ? getColorClasses(book.domain.color) : DOMAIN_COLORS[0];
+                const colorClasses = book.domain ? getColorClasses(book.domain.color) : getColorClasses("blue");
                 
                 return (
                   <button
@@ -1054,7 +1133,7 @@ export default function BooksClient({ initialData }: BooksClientProps) {
                     )}
                   >
                     <div className="flex items-center gap-3">
-                      <div className={cn("w-1 h-8 rounded-full", colorClasses.accent)} />
+                      <ColorBar colorClasses={colorClasses} />
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="font-medium text-sm">{book.title}</span>
