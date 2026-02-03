@@ -4,22 +4,65 @@
  * Also supports OAuth bearer tokens from the token endpoint
  */
 
+import fs from 'fs';
+import path from 'path';
+
 // Static credentials - in production, use environment variables
 const STATIC_CLIENT_ID = process.env.STATIC_CLIENT_ID || process.env.MCP_CLIENT_ID || 'lifedashboard-mcp-client';
 const STATIC_CLIENT_SECRET = process.env.STATIC_CLIENT_SECRET || process.env.MCP_CLIENT_SECRET || 'lifedashboard-mcp-secret-2024';
 
-// In-memory token store (shared with token endpoint)
-// Maps token -> { clientId, expiresAt, scope }
-const tokenStore = new Map<string, { clientId: string; expiresAt: number; scope: string }>();
+// File-based token store for cross-process sharing
+const TOKEN_STORE_FILE = path.join('/tmp', 'oauth-tokens.json');
+
+interface TokenData {
+  clientId: string;
+  expiresAt: number;
+  scope: string;
+}
+
+interface TokenStoreData {
+  [token: string]: TokenData;
+}
+
+function readTokenStore(): TokenStoreData {
+  try {
+    if (fs.existsSync(TOKEN_STORE_FILE)) {
+      const data = fs.readFileSync(TOKEN_STORE_FILE, 'utf-8');
+      return JSON.parse(data);
+    }
+  } catch (e) {
+    console.log('[Token Store] Error reading store:', e);
+  }
+  return {};
+}
+
+function writeTokenStore(data: TokenStoreData): void {
+  try {
+    fs.writeFileSync(TOKEN_STORE_FILE, JSON.stringify(data, null, 2));
+  } catch (e) {
+    console.log('[Token Store] Error writing store:', e);
+  }
+}
 
 // Export for token endpoint to store tokens
-export function storeToken(token: string, data: { clientId: string; expiresAt: number; scope: string }): void {
-  tokenStore.set(token, data);
+export function storeToken(token: string, data: TokenData): void {
+  console.log('[Token Store] Storing token:', token.substring(0, 20) + '...');
+  const store = readTokenStore();
+  store[token] = data;
+  writeTokenStore(store);
+  console.log('[Token Store] Token stored to file');
 }
 
 // Export for token cleanup
 export function removeToken(token: string): void {
-  tokenStore.delete(token);
+  const store = readTokenStore();
+  delete store[token];
+  writeTokenStore(store);
+}
+
+function getToken(token: string): TokenData | undefined {
+  const store = readTokenStore();
+  return store[token];
 }
 
 export interface AuthResult {
@@ -68,13 +111,19 @@ function validateBasicAuth(authHeader: string): AuthResult {
 function validateBearerAuth(authHeader: string): AuthResult {
   const token = authHeader.slice(7); // Remove 'Bearer '
   
+  console.log('[Auth] Validating bearer token:', token.substring(0, 20) + '...');
+  
   // First, check if it's an OAuth token from the token store
-  const tokenData = tokenStore.get(token);
+  const tokenData = getToken(token);
+  console.log('[Auth] Token found in store:', !!tokenData);
+  
   if (tokenData) {
     if (tokenData.expiresAt < Date.now()) {
-      tokenStore.delete(token);
+      console.log('[Auth] Token expired');
+      removeToken(token);
       return { valid: false, error: 'Token expired' };
     }
+    console.log('[Auth] Token valid for client:', tokenData.clientId);
     return { valid: true, clientId: tokenData.clientId };
   }
   
@@ -86,6 +135,7 @@ function validateBearerAuth(authHeader: string): AuthResult {
       return { valid: true, clientId };
     }
     
+    console.log('[Auth] Token not found and not client_id:secret format');
     return { valid: false, error: 'Invalid bearer token' };
   } catch {
     return { valid: false, error: 'Invalid Bearer token format' };

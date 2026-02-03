@@ -135,6 +135,7 @@ function handleToolsList(): unknown {
     tools: [
       {
         name: 'list_books',
+        title: 'List Books',
         description: 'List all books with optional filtering by status or domain. Returns book details including title, author, status, progress, and domain info.',
         inputSchema: {
           type: 'object',
@@ -161,18 +162,35 @@ function handleToolsList(): unknown {
               description: 'Page number for pagination'
             }
           }
+        },
+        annotations: {
+          title: 'List Books',
+          readOnlyHint: true,
+          destructiveHint: false,
+          idempotentHint: true,
+          openWorldHint: false
         }
       },
       {
         name: 'list_domains',
+        title: 'List Domains',
         description: 'List all book domains/categories. Use this to get domain IDs for adding books.',
         inputSchema: {
           type: 'object',
-          properties: {}
+          properties: {},
+          additionalProperties: false
+        },
+        annotations: {
+          title: 'List Domains',
+          readOnlyHint: true,
+          destructiveHint: false,
+          idempotentHint: true,
+          openWorldHint: false
         }
       },
       {
         name: 'add_book',
+        title: 'Add Book',
         description: 'Add a new book to the reading list. Requires a domain ID (use list_domains to get available domains).',
         inputSchema: {
           type: 'object',
@@ -190,10 +208,18 @@ function handleToolsList(): unknown {
             notes: { type: 'string', description: 'Personal notes about the book' }
           },
           required: ['domainId', 'title']
+        },
+        annotations: {
+          title: 'Add Book',
+          readOnlyHint: false,
+          destructiveHint: false,
+          idempotentHint: false,
+          openWorldHint: false
         }
       },
       {
         name: 'add_books',
+        title: 'Add Multiple Books',
         description: 'Add multiple books at once. Each book requires a domain ID.',
         inputSchema: {
           type: 'object',
@@ -217,10 +243,18 @@ function handleToolsList(): unknown {
             }
           },
           required: ['books']
+        },
+        annotations: {
+          title: 'Add Multiple Books',
+          readOnlyHint: false,
+          destructiveHint: false,
+          idempotentHint: false,
+          openWorldHint: false
         }
       },
       {
         name: 'update_book',
+        title: 'Update Book',
         description: 'Update a single book by ID. Only provided fields will be updated.',
         inputSchema: {
           type: 'object',
@@ -241,10 +275,18 @@ function handleToolsList(): unknown {
             rating: { type: 'number', minimum: 1, maximum: 5, description: 'Rating from 1-5' }
           },
           required: ['id']
+        },
+        annotations: {
+          title: 'Update Book',
+          readOnlyHint: false,
+          destructiveHint: false,
+          idempotentHint: true,
+          openWorldHint: false
         }
       },
       {
         name: 'update_books',
+        title: 'Update Multiple Books',
         description: 'Update multiple books at once. Each update object must include the book ID.',
         inputSchema: {
           type: 'object',
@@ -271,10 +313,18 @@ function handleToolsList(): unknown {
             }
           },
           required: ['updates']
+        },
+        annotations: {
+          title: 'Update Multiple Books',
+          readOnlyHint: false,
+          destructiveHint: false,
+          idempotentHint: true,
+          openWorldHint: false
         }
       },
       {
         name: 'delete_book',
+        title: 'Delete Book',
         description: 'Delete a single book by ID.',
         inputSchema: {
           type: 'object',
@@ -282,10 +332,18 @@ function handleToolsList(): unknown {
             id: { type: 'string', description: 'The book ID to delete' }
           },
           required: ['id']
+        },
+        annotations: {
+          title: 'Delete Book',
+          readOnlyHint: false,
+          destructiveHint: true,
+          idempotentHint: true,
+          openWorldHint: false
         }
       },
       {
         name: 'delete_books',
+        title: 'Delete Multiple Books',
         description: 'Delete multiple books by their IDs.',
         inputSchema: {
           type: 'object',
@@ -297,14 +355,30 @@ function handleToolsList(): unknown {
             }
           },
           required: ['ids']
+        },
+        annotations: {
+          title: 'Delete Multiple Books',
+          readOnlyHint: false,
+          destructiveHint: true,
+          idempotentHint: true,
+          openWorldHint: false
         }
       },
       {
         name: 'get_book_stats',
+        title: 'Get Book Statistics',
         description: 'Get overall book statistics including counts by status and reading progress.',
         inputSchema: {
           type: 'object',
-          properties: {}
+          properties: {},
+          additionalProperties: false
+        },
+        annotations: {
+          title: 'Get Book Statistics',
+          readOnlyHint: true,
+          destructiveHint: false,
+          idempotentHint: true,
+          openWorldHint: false
         }
       }
     ]

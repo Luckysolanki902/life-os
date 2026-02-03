@@ -2,18 +2,16 @@
  * OAuth 2.0 Authorization Endpoint
  * Handles authorization_code flow for ChatGPT and other OAuth clients
  * 
- * For static credentials, this provides a simple form-based auth
+ * For static credentials, this auto-approves known clients
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
+import { storeAuthCode } from '@/app/api/mcp/lib/oauth-store';
 
 // Static credentials from environment
 const STATIC_CLIENT_ID = process.env.STATIC_CLIENT_ID || process.env.MCP_CLIENT_ID || 'lifedashboard-mcp-client';
 const STATIC_CLIENT_SECRET = process.env.STATIC_CLIENT_SECRET || process.env.MCP_CLIENT_SECRET || 'lifedashboard-mcp-secret-2024';
-
-// Authorization code store
-const authCodeStore = new Map<string, { clientId: string; redirectUri: string; scope: string; expiresAt: number }>();
 
 function generateCode(): string {
   return crypto.randomBytes(32).toString('hex');
@@ -194,6 +192,10 @@ export async function GET(request: NextRequest): Promise<Response> {
   const redirectUri = searchParams.get('redirect_uri');
   const scope = searchParams.get('scope') || 'mcp:read mcp:write';
   const state = searchParams.get('state');
+  
+  // PKCE parameters
+  const codeChallenge = searchParams.get('code_challenge');
+  const codeChallengeMethod = searchParams.get('code_challenge_method') || 'S256';
 
   // Validate required parameters
   if (!responseType || !clientId || !redirectUri) {
@@ -220,7 +222,39 @@ export async function GET(request: NextRequest): Promise<Response> {
     );
   }
 
-  // Show authorization page
+  // For known/trusted clients (like ChatGPT which already provided credentials),
+  // auto-authorize and redirect with code immediately
+  if (clientId === STATIC_CLIENT_ID) {
+    // Generate authorization code
+    const code = generateCode();
+    
+    console.log('[OAuth Authorize] Auto-approving known client');
+    console.log('[OAuth Authorize] Generated code:', code.substring(0, 20) + '...');
+    console.log('[OAuth Authorize] PKCE code_challenge:', codeChallenge?.substring(0, 20) + '...');
+    console.log('[OAuth Authorize] PKCE code_challenge_method:', codeChallengeMethod);
+    
+    // Store the code with PKCE challenge
+    storeAuthCode(code, {
+      clientId,
+      redirectUri,
+      scope,
+      codeChallenge: codeChallenge || undefined,
+      codeChallengeMethod: codeChallenge ? codeChallengeMethod : undefined,
+    });
+    
+    console.log('[OAuth Authorize] Code stored successfully');
+
+    // Redirect back to client with code
+    const redirectUrl = new URL(redirectUri);
+    redirectUrl.searchParams.set('code', code);
+    if (state) {
+      redirectUrl.searchParams.set('state', state);
+    }
+
+    return NextResponse.redirect(redirectUrl.toString(), 302);
+  }
+
+  // For unknown clients, show authorization page
   return new Response(
     generateAuthPage({ clientId, redirectUri, scope, state: state || undefined }),
     { status: 200, headers: { 'Content-Type': 'text/html' } }
@@ -272,12 +306,11 @@ export async function POST(request: NextRequest): Promise<Response> {
   // Generate authorization code
   const code = generateCode();
   
-  // Store the code
-  authCodeStore.set(code, {
+  // Store the code using shared store
+  storeAuthCode(code, {
     clientId,
     redirectUri,
     scope,
-    expiresAt: Date.now() + 600000, // 10 minutes
   });
 
   // Redirect back to client with code
@@ -288,13 +321,4 @@ export async function POST(request: NextRequest): Promise<Response> {
   }
 
   return NextResponse.redirect(redirectUrl.toString(), 302);
-}
-
-// Export for token endpoint
-export function getAuthCode(code: string) {
-  const data = authCodeStore.get(code);
-  if (data) {
-    authCodeStore.delete(code);
-  }
-  return data;
 }

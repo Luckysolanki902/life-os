@@ -8,8 +8,18 @@ export async function proxy(request: NextRequest) {
   const token = request.cookies.get('auth_token')?.value;
   const { pathname } = request.nextUrl;
 
-  // Allow public paths
-  if (pathname === '/login' || pathname.startsWith('/_next') || pathname === '/favicon.ico') {
+  // Allow public paths - including MCP routes, static files, and public assets
+  if (
+    pathname === '/login' || 
+    pathname.startsWith('/_next') || 
+    pathname === '/favicon.ico' ||
+    pathname.startsWith('/api/mcp') ||
+    pathname.endsWith('.png') ||
+    pathname.endsWith('.ico') ||
+    pathname.endsWith('.svg') ||
+    pathname.endsWith('.jpg') ||
+    pathname.endsWith('.jpeg')
+  ) {
     return NextResponse.next();
   }
 

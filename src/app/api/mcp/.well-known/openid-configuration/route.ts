@@ -5,10 +5,22 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 
-export async function GET(request: NextRequest): Promise<Response> {
-  // Get the base URL from the request
+function getBaseUrl(request: NextRequest): string {
+  // Check for forwarded headers from proxy/tunnel
+  const forwardedHost = request.headers.get('x-forwarded-host');
+  const forwardedProto = request.headers.get('x-forwarded-proto') || 'https';
+  
+  if (forwardedHost) {
+    return `${forwardedProto}://${forwardedHost}`;
+  }
+  
+  // Fallback to request URL
   const url = new URL(request.url);
-  const baseUrl = `${url.protocol}//${url.host}`;
+  return `${url.protocol}//${url.host}`;
+}
+
+export async function GET(request: NextRequest): Promise<Response> {
+  const baseUrl = getBaseUrl(request);
   
   const configuration = {
     issuer: baseUrl,
