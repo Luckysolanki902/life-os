@@ -16,7 +16,7 @@ import { logWeight } from '@/app/actions/health';
 import { getDashboardStats } from '@/app/actions/reports';
 import { getBetterPercentage } from '@/lib/better';
 import { format } from 'date-fns';
-import SwipeableTask from '@/components/SwipeableTask';
+
 import { 
   markTaskCompleted, 
   markTaskSkipped, 
@@ -571,12 +571,8 @@ export default function NewHomeClient({
             {sortedTasks
               .filter(t => t.mustDo && t.status !== 'completed' && t.status !== 'skipped')
               .map((task) => (
-              <SwipeableTask
+              <div
                 key={task._id}
-                onSwipeLeft={() => handleToggleTask(task._id)}
-                onSwipeRight={() => handleSkipTask(task._id, false)}
-              >
-                <div
                   className="group flex items-center gap-3 p-3.5 rounded-xl bg-gradient-to-br from-primary/5 to-transparent border-2 border-primary/30 transition-all shadow-sm active:scale-[0.99] hover:border-primary/50"
                 >
                   <button
@@ -615,7 +611,6 @@ export default function NewHomeClient({
                     <SkipForward size={16} />
                   </button>
                 </div>
-              </SwipeableTask>
             ))}
           </div>
         </section>
@@ -632,12 +627,8 @@ export default function NewHomeClient({
 
         <div className="space-y-2.5">
           {sortedTasks.filter(t => !t.mustDo && t.status !== 'completed' && t.status !== 'skipped').slice(0, 4).map((task) => (
-            <SwipeableTask
-              key={task._id}
-              onSwipeLeft={() => handleToggleTask(task._id)}
-              onSwipeRight={() => handleSkipTask(task._id, false)}
-            >
             <div
+              key={task._id}
               className="group flex items-center gap-3 p-3.5 rounded-xl bg-card border border-border/40 transition-all shadow-sm active:scale-[0.99]"
             >
               <button
@@ -675,7 +666,6 @@ export default function NewHomeClient({
                 <SkipForward size={16} />
               </button>
             </div>
-            </SwipeableTask>
           ))}
 
           {sortedTasks.filter(t => !t.mustDo && t.status !== 'completed' && t.status !== 'skipped').length === 0 && (

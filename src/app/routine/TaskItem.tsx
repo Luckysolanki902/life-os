@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 import { completeTask, uncompleteTask, updateTask, deleteTask, skipTask, unskipTask } from '@/app/actions/routine';
 import { getLocalDateString } from '@/lib/date-utils';
 import { hapticTaskComplete, hapticTaskSkip, hapticTaskUnskip, hapticTaskUncomplete } from '@/lib/haptics';
-import SwipeableTask from '@/components/SwipeableTask';
+
 import { withFullRefresh } from '@/lib/action-wrapper';
 import { 
   markTaskCompleted, 
@@ -481,18 +481,6 @@ export default function TaskItem({ task, onOptimisticToggle, dateStr, editMode =
       </div>
     </div>
   );
-
-  // Only wrap with swipeable if not in edit mode and not completed/skipped already
-  if (!editMode && !isCompleted && !isSkipped) {
-    return (
-      <SwipeableTask
-        onSwipeLeft={() => handleToggle()}
-        onSwipeRight={() => handleSkip()}
-      >
-        {taskCard}
-      </SwipeableTask>
-    );
-  }
 
   return taskCard;
 }
