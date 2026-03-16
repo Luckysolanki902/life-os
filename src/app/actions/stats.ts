@@ -56,12 +56,25 @@ export async function getIdentityMetric() {
   };
 }
 
-// Get last 7 days completion rate for mini chart
+// Get last 7 days completion rate for mini chart — optimized: 2 queries total
 export async function getLast7DaysCompletion(): Promise<{ date: string; day: string; completed: number; total: number; rate: number }[]> {
   await dbConnect();
-  
-  const allTasks = await Task.find({ isActive: true }).lean();
-  
+
+  const now = dayjs().tz('Asia/Kolkata');
+  const rangeStart = now.subtract(6, 'day').startOf('day').toDate();
+  const rangeEnd = now.endOf('day').toDate();
+
+  // Fetch tasks and completed counts in parallel
+  const [allTasks, completedAgg] = await Promise.all([
+    Task.find({ isActive: true }).lean(),
+    DailyLog.aggregate([
+      { $match: { date: { $gte: rangeStart, $lte: rangeEnd }, status: 'completed' } },
+      { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$date', timezone: 'Asia/Kolkata' } }, count: { $sum: 1 } } },
+    ]),
+  ]);
+
+  const completedMap = new Map(completedAgg.map((r: any) => [r._id, r.count]));
+
   // Helper to check if task shows on a given day
   const shouldShowTaskOnDay = (task: any, dayOfWeek: number): boolean => {
     const recurrenceType = task.recurrenceType || 'daily';
@@ -73,34 +86,24 @@ export async function getLast7DaysCompletion(): Promise<{ date: string; day: str
       default: return true;
     }
   };
-  
+
   const result: { date: string; day: string; completed: number; total: number; rate: number }[] = [];
-  
+
   for (let i = 6; i >= 0; i--) {
-    const date = dayjs().tz('Asia/Kolkata').subtract(i, 'day');
+    const date = now.subtract(i, 'day');
     const dateStr = date.format('YYYY-MM-DD');
     const dayOfWeek = date.day();
-    
-    const dayStart = date.startOf('day').toDate();
-    const dayEnd = date.endOf('day').toDate();
-    
-    // Expected tasks for this day
     const expectedTasks = allTasks.filter((task: any) => shouldShowTaskOnDay(task, dayOfWeek)).length;
-    
-    // Completed tasks
-    const completed = await DailyLog.countDocuments({
-      date: { $gte: dayStart, $lte: dayEnd },
-      status: 'completed'
-    });
-    
+    const completed = completedMap.get(dateStr) || 0;
+
     result.push({
       date: dateStr,
       day: date.format('dd').slice(0, 1),
       completed,
       total: expectedTasks,
-      rate: expectedTasks > 0 ? Math.round((completed / expectedTasks) * 100) : 0
+      rate: expectedTasks > 0 ? Math.round((completed / expectedTasks) * 100) : 0,
     });
   }
-  
+
   return result;
 }

@@ -8,7 +8,6 @@ import BookLog from '@/models/BookLog';
 import Book from '@/models/Book';
 import { revalidatePath } from 'next/cache';
 import {
-  getTodayISTMidnight,
   getTodayDateString,
   getDateRange,
   dayjs
@@ -19,58 +18,93 @@ const MIN_BOOK_READING_MINUTES = 5;
 const BOOK_TASK_POINTS = 20;
 const EXERCISE_TASK_POINTS = 25;
 
-// Helper: Check if a day can be considered a rest day (after 2+ consecutive workout days)
-async function canBeRestDay(dateStr: string): Promise<boolean> {
-  const checkDate = dayjs(dateStr).tz('Asia/Kolkata');
-  
-  // Count consecutive workout days before this date
-  let consecutiveWorkouts = 0;
-  let dayToCheck = checkDate.subtract(1, 'day');
-  
-  while (consecutiveWorkouts < 10) { // Check up to 10 days back (safety limit)
-    const { startOfDay, endOfDay } = getDateRange(dayToCheck.format('YYYY-MM-DD'));
-    const exerciseCount = await ExerciseLog.countDocuments({ date: { $gte: startOfDay, $lt: endOfDay } });
-    
-    if (exerciseCount > 0) {
-      consecutiveWorkouts++;
-      dayToCheck = dayToCheck.subtract(1, 'day');
-    } else {
-      break;
-    }
-  }
-  
-  // Rest day allowed if there was 1+ consecutive workout day (alternate day pattern)
-  return consecutiveWorkouts >= 1;
+// ===== Batch helpers: fetch all data for a date range in 2 queries =====
+
+interface DayCounts {
+  routineTasks: number;
+  exerciseCount: number;
 }
 
-// Helper: Check if a day is valid for streak (either has exercise OR is a valid rest day)
-async function isDayValidForStreak(dateStr: string): Promise<{ valid: boolean; isRestDay: boolean; routineTasks: number; hasExercise: boolean }> {
-  const { startOfDay, endOfDay } = getDateRange(dateStr);
-  
-  const routineTasks = await DailyLog.countDocuments({
-    date: { $gte: startOfDay, $lt: endOfDay },
-    status: 'completed'
-  });
-  
-  const exerciseCount = await ExerciseLog.countDocuments({
-    date: { $gte: startOfDay, $lt: endOfDay }
-  });
-  
-  const hasExercise = exerciseCount > 0;
-  const hasEnoughTasks = routineTasks >= MIN_ROUTINE_TASKS;
-  
-  // If has exercise and tasks, it's a normal valid day
+/**
+ * Batch-fetch routine task counts and exercise counts for a date range.
+ * Returns a Map<YYYY-MM-DD, DayCounts> — 2 aggregate queries total.
+ */
+async function batchFetchDayCounts(startDate: Date, endDate: Date): Promise<Map<string, DayCounts>> {
+  const map = new Map<string, DayCounts>();
+
+  const [routineAgg, exerciseAgg] = await Promise.all([
+    DailyLog.aggregate([
+      { $match: { date: { $gte: startDate, $lt: endDate }, status: 'completed' } },
+      { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$date', timezone: 'Asia/Kolkata' } }, count: { $sum: 1 } } },
+    ]),
+    ExerciseLog.aggregate([
+      { $match: { date: { $gte: startDate, $lt: endDate } } },
+      { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$date', timezone: 'Asia/Kolkata' } }, count: { $sum: 1 } } },
+    ]),
+  ]);
+
+  for (const r of routineAgg) {
+    const existing = map.get(r._id) || { routineTasks: 0, exerciseCount: 0 };
+    existing.routineTasks = r.count;
+    map.set(r._id, existing);
+  }
+  for (const e of exerciseAgg) {
+    const existing = map.get(e._id) || { routineTasks: 0, exerciseCount: 0 };
+    existing.exerciseCount = e.count;
+    map.set(e._id, existing);
+  }
+
+  return map;
+}
+
+/** Check if a day is valid for streak using pre-fetched data */
+function isDayValidFromCounts(
+  dateStr: string,
+  counts: Map<string, DayCounts>,
+): { valid: boolean; isRestDay: boolean; routineTasks: number; hasExercise: boolean } {
+  const dc = counts.get(dateStr) || { routineTasks: 0, exerciseCount: 0 };
+  const hasExercise = dc.exerciseCount > 0;
+  const hasEnoughTasks = dc.routineTasks >= MIN_ROUTINE_TASKS;
+
   if (hasExercise && hasEnoughTasks) {
-    return { valid: true, isRestDay: false, routineTasks, hasExercise };
+    return { valid: true, isRestDay: false, routineTasks: dc.routineTasks, hasExercise };
   }
-  
-  // If has tasks but no exercise, check if it can be a rest day
+
   if (hasEnoughTasks && !hasExercise) {
-    const isRestDay = await canBeRestDay(dateStr);
-    return { valid: isRestDay, isRestDay, routineTasks, hasExercise };
+    // Check rest day: at least 1 consecutive workout day before this date
+    const isRestDay = canBeRestDayFromCounts(dateStr, counts);
+    return { valid: isRestDay, isRestDay, routineTasks: dc.routineTasks, hasExercise };
   }
-  
-  return { valid: false, isRestDay: false, routineTasks, hasExercise };
+
+  return { valid: false, isRestDay: false, routineTasks: dc.routineTasks, hasExercise };
+}
+
+/** Check rest-day eligibility from pre-fetched counts (no DB queries) */
+function canBeRestDayFromCounts(dateStr: string, counts: Map<string, DayCounts>): boolean {
+  const checkDate = dayjs(dateStr).tz('Asia/Kolkata').subtract(1, 'day');
+  for (let i = 0; i < 10; i++) {
+    const ds = checkDate.format('YYYY-MM-DD');
+    const dc = counts.get(ds);
+    if (dc && dc.exerciseCount > 0) {
+      return true; // Found at least 1 consecutive workout day
+    }
+    // No exercise this day — stop looking
+    break;
+  }
+  return false;
+}
+
+// Legacy per-query helpers kept for updateStreakForDate (called rarely)
+async function canBeRestDay(dateStr: string): Promise<boolean> {
+  const checkDate = dayjs(dateStr).tz('Asia/Kolkata');
+  const dayToCheck = checkDate.subtract(1, 'day');
+  for (let i = 0; i < 10; i++) {
+    const { startOfDay, endOfDay } = getDateRange(dayToCheck.format('YYYY-MM-DD'));
+    const exerciseCount = await ExerciseLog.countDocuments({ date: { $gte: startOfDay, $lt: endOfDay } });
+    if (exerciseCount > 0) return true;
+    break;
+  }
+  return false;
 }
 
 interface StreakData {
@@ -175,84 +209,73 @@ export async function updateStreakForDate(dateStr: string) {
   return { streakValid, currentStreak, bonusPoints };
 }
 
-// Get streak data for homepage
+// Get streak data for homepage — optimized: 4 queries total instead of 80-150+
 export async function getStreakData(): Promise<StreakData> {
   await connectDB();
-  
-  const today = getTodayDateString();
-  
-  // Get today's validation using helper
-  const todayResult = await isDayValidForStreak(today);
+
+  const now = dayjs().tz('Asia/Kolkata');
+  const today = now.format('YYYY-MM-DD');
+
+  // Fetch 400 days of data in 2 aggregate queries (covers up to 365-day streak + 7-day window)
+  const rangeStart = now.subtract(400, 'day').startOf('day').toDate();
+  const rangeEnd = now.endOf('day').toDate();
+
+  const [counts, allRecords, totalStreakPointsResult] = await Promise.all([
+    batchFetchDayCounts(rangeStart, rangeEnd),
+    DailyStreakRecord.find({ streakValid: true }).sort({ date: 1 }).lean(),
+    DailyStreakRecord.aggregate([
+      { $group: { _id: null, total: { $sum: '$bonusPointsAwarded' } } },
+    ]),
+  ]);
+
+  // Today's validation from pre-fetched counts
+  const todayResult = isDayValidFromCounts(today, counts);
   const todayValid = todayResult.valid;
   const todayRoutineTasks = todayResult.routineTasks;
   const todayHasExercise = todayResult.hasExercise;
   const todayIsRestDay = todayResult.isRestDay;
-  // Check if today could be a rest day (even if not yet valid)
-  const todayCanBeRestDay = await canBeRestDay(today);
-  
-  // Calculate current streak - start from yesterday and count backwards
+  const todayCanBeRestDay = canBeRestDayFromCounts(today, counts);
+
+  // Current streak: count backwards from yesterday using pre-fetched data
   let currentStreak = 0;
-  let checkDate = dayjs().tz('Asia/Kolkata').subtract(1, 'day');
-  
-  // Count backwards from yesterday
-  while (true) {
+  let checkDate = now.subtract(1, 'day');
+  while (currentStreak <= 365) {
     const dateStr = checkDate.format('YYYY-MM-DD');
-    const dayResult = await isDayValidForStreak(dateStr);
-    
-    if (dayResult.valid) {
-      currentStreak++;
-      checkDate = checkDate.subtract(1, 'day');
-    } else {
-      break;
-    }
-    
-    // Safety limit
-    if (currentStreak > 365) break;
-  }
-  
-  // If today is already valid, add it to the streak
-  if (todayValid) {
+    const dayResult = isDayValidFromCounts(dateStr, counts);
+    if (!dayResult.valid) break;
     currentStreak++;
+    checkDate = checkDate.subtract(1, 'day');
   }
-  
-  // Calculate longest streak
-  const allRecords = await DailyStreakRecord.find({ streakValid: true }).sort({ date: 1 });
+  if (todayValid) currentStreak++;
+
+  // Longest streak from DailyStreakRecord (already fetched)
   let longestStreak = currentStreak;
   let tempStreak = 0;
   let prevDate: dayjs.Dayjs | null = null;
-  
   for (const record of allRecords) {
     const recordDate = dayjs(record.date).tz('Asia/Kolkata');
-    
     if (prevDate && recordDate.diff(prevDate, 'day') === 1) {
       tempStreak++;
     } else {
       tempStreak = 1;
     }
-    
-    if (tempStreak > longestStreak) {
-      longestStreak = tempStreak;
-    }
-    
+    if (tempStreak > longestStreak) longestStreak = tempStreak;
     prevDate = recordDate;
   }
-  
-  // Get last 7 days data
+
+  // Last 7 days from pre-fetched data
   const last7Days: { date: string; valid: boolean; isRestDay?: boolean }[] = [];
   for (let i = 6; i >= 0; i--) {
-    const date = dayjs().tz('Asia/Kolkata').subtract(i, 'day');
-    const dateStr = date.format('YYYY-MM-DD');
-    
+    const dateStr = now.subtract(i, 'day').format('YYYY-MM-DD');
     if (i === 0) {
-      // Today
       last7Days.push({ date: dateStr, valid: todayValid, isRestDay: todayIsRestDay });
     } else {
-      const dayResult = await isDayValidForStreak(dateStr);
-      last7Days.push({ date: dateStr, valid: dayResult.valid, isRestDay: dayResult.isRestDay });
+      const r = isDayValidFromCounts(dateStr, counts);
+      last7Days.push({ date: dateStr, valid: r.valid, isRestDay: r.isRestDay });
     }
   }
-  
-  // Find next target
+
+  // Next target
   let nextTarget: { days: number; points: number; label: string } | null = null;
   for (const target of STREAK_TARGETS) {
     if (currentStreak < target.days) {
@@ -260,15 +283,10 @@ export async function getStreakData(): Promise<StreakData> {
       break;
     }
   }
-  
-  // Calculate total streak bonus points
-  const totalStreakPoints = await DailyStreakRecord.aggregate([
-    { $group: { _id: null, total: { $sum: '$bonusPointsAwarded' } } }
-  ]).then(result => result[0]?.total || 0);
-  
-  // Get reached milestones
+
+  const totalStreakPoints = totalStreakPointsResult[0]?.total || 0;
   const reachedMilestones = STREAK_TARGETS.filter(t => currentStreak >= t.days);
-  
+
   return {
     currentStreak,
     longestStreak,
@@ -280,7 +298,7 @@ export async function getStreakData(): Promise<StreakData> {
     last7Days,
     nextTarget,
     totalStreakPoints,
-    reachedMilestones
+    reachedMilestones,
   };
 }
 
@@ -333,8 +351,13 @@ export async function getSpecialTasks(dateStr?: string) {
     ...booksReadToday.map((b: { _id: { toString: () => string } }) => b._id.toString())
   ]);
   
+  // Batch fetch all books at once instead of N+1 queries
+  const books = await Book.find({ _id: { $in: [...readBookIds] } }).lean();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const bookMap = new Map(books.map((b: Record<string, any>) => [b._id.toString(), b]));
+  
   for (const bookId of readBookIds) {
-    const book = await Book.findById(bookId);
+    const book = bookMap.get(bookId);
     if (book) {
       specialTasks.push({
         _id: `special-book-${bookId}-${today}`,
@@ -357,37 +380,37 @@ export async function getSpecialTasks(dateStr?: string) {
 export async function getTotalPointsWithBonuses() {
   await connectDB();
   
-  // Base points from completed tasks
-  const basePointsResult = await DailyLog.aggregate([
-    { $match: { status: 'completed' } },
-    { $group: { _id: null, total: { $sum: '$pointsEarned' } } }
-  ]);
-  const basePoints = basePointsResult[0]?.total || 0;
-  
-  // Streak bonus points
-  const streakBonusResult = await DailyStreakRecord.aggregate([
-    { $group: { _id: null, total: { $sum: '$bonusPointsAwarded' } } }
-  ]);
-  const streakBonus = streakBonusResult[0]?.total || 0;
-  
-  // Special task points - count all logged activities
   const today = getTodayDateString();
   const { startOfDay, endOfDay } = getDateRange(today);
-  
-  // Count all books read today
-  const booksReadToday = await Book.countDocuments({
-    lastReadDate: { $gte: startOfDay, $lt: endOfDay }
-  });
+
+  // Run all independent queries in parallel
+  const [basePointsResult, streakBonusResult, booksReadToday, exerciseDayCount] = await Promise.all([
+    DailyLog.aggregate([
+      { $match: { status: 'completed' } },
+      { $group: { _id: null, total: { $sum: '$pointsEarned' } } },
+    ]),
+    DailyStreakRecord.aggregate([
+      { $group: { _id: null, total: { $sum: '$bonusPointsAwarded' } } },
+    ]),
+    Book.countDocuments({
+      lastReadDate: { $gte: startOfDay, $lt: endOfDay },
+    }),
+    // Count unique exercise days with aggregation instead of loading all dates into memory
+    ExerciseLog.aggregate([
+      { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$date', timezone: 'Asia/Kolkata' } } } },
+      { $count: 'total' },
+    ]),
+  ]);
+
+  const basePoints = basePointsResult[0]?.total || 0;
+  const streakBonus = streakBonusResult[0]?.total || 0;
   const bookPoints = booksReadToday * BOOK_TASK_POINTS;
-  
-  // Count exercise days (unique days with exercise)
-  const exerciseDays = await ExerciseLog.distinct('date');
-  const exercisePoints = exerciseDays.length * EXERCISE_TASK_POINTS;
-  
+  const exercisePoints = (exerciseDayCount[0]?.total || 0) * EXERCISE_TASK_POINTS;
+
   return {
     basePoints,
     streakBonus,
     specialTaskPoints: bookPoints + exercisePoints,
-    totalPoints: basePoints + streakBonus + bookPoints + exercisePoints
+    totalPoints: basePoints + streakBonus + bookPoints + exercisePoints,
   };
 }
