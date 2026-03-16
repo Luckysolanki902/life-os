@@ -218,21 +218,24 @@ export function useHomeData() {
     const tasksSub = tasksCollection
       .find({ selector: { isActive: true } })
       .$.subscribe(async () => {
-        // When tasks or any dependent data changes, recompute home data
-        await computeHomeData(db, setData);
+        try {
+          await computeHomeData(db, setData);
+        } catch (err) {
+          console.error('[RxDB] computeHomeData error:', err);
+        }
         setIsLoading(false);
       });
 
     const logsSub = logsCollection.find().$.subscribe(async () => {
-      await computeHomeData(db, setData);
+      try { await computeHomeData(db, setData); } catch (err) { console.error('[RxDB] computeHomeData error:', err); }
     });
 
     const weightSub = weightCollection?.find().$.subscribe(async () => {
-      await computeHomeData(db, setData);
+      try { await computeHomeData(db, setData); } catch (err) { console.error('[RxDB] computeHomeData error:', err); }
     });
 
     const streakSub = streakCollection?.find().$.subscribe(async () => {
-      await computeHomeData(db, setData);
+      try { await computeHomeData(db, setData); } catch (err) { console.error('[RxDB] computeHomeData error:', err); }
     });
 
     return () => {

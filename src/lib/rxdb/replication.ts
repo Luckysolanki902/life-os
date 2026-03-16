@@ -140,13 +140,17 @@ function startCollectionReplication(
           rxDoc.id = String(rxDoc._id);
           delete rxDoc._id;
           delete rxDoc.__v;
-          if (!('_deleted' in rxDoc)) rxDoc._deleted = false;
-          // Ensure date fields are strings
+          // Ensure _deleted is always a boolean
+          rxDoc._deleted = rxDoc._deleted === true;
+          // Ensure date-like objects become strings
           for (const [key, value] of Object.entries(rxDoc)) {
             if (value && typeof value === 'object' && 'toISOString' in (value as any)) {
               rxDoc[key] = (value as any).toISOString();
             }
           }
+          // Ensure createdAt/updatedAt exist (required by many schemas)
+          if (!rxDoc.createdAt) rxDoc.createdAt = new Date().toISOString();
+          if (!rxDoc.updatedAt) rxDoc.updatedAt = rxDoc.createdAt;
           return rxDoc;
         });
 

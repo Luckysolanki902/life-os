@@ -1,30 +1,46 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Loader2, RotateCw } from 'lucide-react';
 import NewHomeClient from './NewHomeClient';
-import { useHomeData, useRxDBContext } from '@/lib/rxdb';
 
 export default function HomePageClient() {
+  const [data, setData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const { isReady, forceSync } = useRxDBContext();
-  
-  // Use RxDB reactive home data - auto-updates when local DB changes
-  const { data, isLoading } = useHomeData();
+  const fetchedRef = useRef(false);
 
-  // Manual refresh - triggers a sync cycle
+  const fetchData = async () => {
+    try {
+      const res = await fetch('/api/home');
+      if (!res.ok) throw new Error('Failed to fetch');
+      const json = await res.json();
+      setData(json);
+    } catch (error) {
+      console.error('[Home] Fetch error:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (fetchedRef.current) return;
+    fetchedRef.current = true;
+    fetchData();
+  }, []);
+
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      await forceSync();
+      // Trigger RxDB sync in background (fire and forget)
+      import('@/lib/rxdb/replication').then(m => m.forceSync()).catch(() => {});
+      await fetchData();
     } finally {
-      // Small delay to let subscriptions propagate
       setTimeout(() => setIsRefreshing(false), 300);
     }
   };
 
-  // Show minimal loading only on truly first load (no local data yet)
-  if ((isLoading || !isReady) && !data) {
+  if (isLoading && !data) {
     return (
       <div className="space-y-4 pt-4 px-1">
         <div className="flex justify-between items-center mb-6">

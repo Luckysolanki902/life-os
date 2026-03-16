@@ -45,10 +45,10 @@ async function createDatabase(): Promise<LifeOsDatabase> {
     ignoreDuplicate: true,
   });
 
-  // Create all collections
+  // Create all collections - add additionalProperties to all schemas
   const collectionConfigs: Record<string, { schema: any }> = {};
   for (const [name, schema] of Object.entries(collectionSchemas)) {
-    collectionConfigs[name] = { schema };
+    collectionConfigs[name] = { schema: { ...schema, additionalProperties: true } };
   }
 
   await db.addCollections(collectionConfigs);

@@ -44,28 +44,22 @@ export function RxDBProvider({ children }: RxDBProviderProps) {
 
     async function init() {
       try {
-        // Dynamic imports to avoid SSR issues
         const { getDatabase } = await import('./database');
-        const { startReplication, awaitInitialSync } = await import('./replication');
+        const { startReplication } = await import('./replication');
 
         const database = await getDatabase();
         if (cancelled) return;
 
         setDb(database);
+        // Mark ready immediately - don't block on replication
+        setIsReady(true);
 
-        // Start replication with 10s polling
-        await startReplication(10000);
-
-        // Wait for initial data pull (with timeout)
-        const timeout = new Promise<void>((resolve) => setTimeout(resolve, 5000));
-        await Promise.race([awaitInitialSync(), timeout]);
-
-        if (!cancelled) {
-          setIsReady(true);
-        }
+        // Start replication in background (fire and forget)
+        startReplication(10000).catch((err) =>
+          console.error('[RxDB] Replication start error:', err)
+        );
       } catch (error) {
         console.error('[RxDB] Initialization error:', error);
-        // Still mark as ready so app isn't blocked
         if (!cancelled) {
           setIsReady(true);
         }

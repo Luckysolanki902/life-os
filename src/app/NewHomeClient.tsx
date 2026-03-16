@@ -18,7 +18,7 @@ import { getBetterPercentage } from '@/lib/better';
 import { format } from 'date-fns';
 
 import { withRxDB, localUpsert } from '@/lib/rxdb/actions';
-import { COLLECTION_NAMES, forceSync } from '@/lib/rxdb';
+import { COLLECTION_NAMES } from '@/lib/rxdb';
 
 // Fallback toast hook if '@/components/ui/use-toast' is unavailable
 function useToast() {
