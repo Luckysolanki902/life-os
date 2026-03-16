@@ -86,24 +86,13 @@ export default function NewHomeClient({
   const { toast } = useToast();
   const [showSkippedTasks, setShowSkippedTasks] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  // Initialize dashboard stats from cache for instant render
-  const [dashboardStats, setDashboardStats] = useState<any>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const cached = localStorage.getItem('lifedash_cache_dashboard_stats');
-        if (cached) {
-          const entry = JSON.parse(cached);
-          return entry.data;
-        }
-      } catch {}
-    }
-    return null;
-  });
+  // Weight chart data loaded lazily (not part of SSR payload)
+  const [weightHistory, setWeightHistory] = useState<any[] | null>(null);
 
-  // Fetch dashboard stats
+  // Fetch weight history for chart (the only thing not in SSR data)
   useEffect(() => {
     getDashboardStats().then((stats) => {
-      setDashboardStats(stats);
+      setWeightHistory(stats.weightHistory || null);
     }).catch(console.error);
   }, []);
 
@@ -139,9 +128,9 @@ export default function NewHomeClient({
       if (onRefresh) {
         await onRefresh();
       }
-      // Refetch dashboard stats
+      // Refetch weight history
       const stats = await getDashboardStats();
-      setDashboardStats(stats);
+      setWeightHistory(stats.weightHistory || null);
     } catch (error) {
       console.error('Failed to refresh:', error);
     } finally {
@@ -193,10 +182,6 @@ export default function NewHomeClient({
         () => toggleTaskStatus(taskId, originalStatus === 'completed'),
         { syncCollections: [COLLECTION_NAMES.DAILY_LOGS] }
       );
-      
-      // Refresh dashboard stats
-      const stats = await getDashboardStats();
-      setDashboardStats(stats);
     } catch (error) {
       // Revert both local state and cache
       setTasks(prev => prev.map(t => (
@@ -236,10 +221,6 @@ export default function NewHomeClient({
       } else {
         await withRxDB(() => skipTask(taskId), { syncCollections: [COLLECTION_NAMES.DAILY_LOGS] });
       }
-      
-      // Refresh dashboard stats
-      const stats = await getDashboardStats();
-      setDashboardStats(stats);
     } catch (error) {
       // Revert both local state and cache
       setTasks(prev => prev.map(t => (
@@ -377,12 +358,12 @@ export default function NewHomeClient({
       </header>
 
       {/* Better Percentage Card - Elegant Minimal Design */}
-      {dashboardStats && dashboardStats.totalPoints > 0 && (
+      {totalPoints > 0 && (
         <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-neutral-50 to-neutral-100 dark:from-neutral-900 dark:to-neutral-950 p-6 animate-in fade-in slide-in-from-bottom-2 duration-700 delay-50">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-neutral-200/40 via-transparent to-transparent dark:from-neutral-800/40" />
           <div className="relative text-center">
             <p className="text-5xl sm:text-6xl font-light tracking-tight text-foreground">
-              You are <span className="font-semibold">{getBetterPercentage(dashboardStats.totalPoints)}%</span> better
+              You are <span className="font-semibold">{getBetterPercentage(totalPoints)}%</span> better
             </p>
             <p className="text-sm text-muted-foreground mt-2 font-light tracking-wide">than when you started</p>
           </div>
@@ -390,15 +371,14 @@ export default function NewHomeClient({
       )}
 
       {/* Stats Overview */}
-      {dashboardStats && (
-        <section className="grid grid-cols-2 gap-3 animate-in fade-in slide-in-from-bottom-2 duration-700 delay-100">
+      <section className="grid grid-cols-2 gap-3 animate-in fade-in slide-in-from-bottom-2 duration-700 delay-100">
           <div className="bg-card rounded-2xl border border-border/40 p-4 flex flex-col justify-between shadow-sm">
              <div className="flex items-center gap-2 mb-2">
                 <Trophy size={14} className="text-amber-500" />
                 <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Total Points</span>
              </div>
              <div className="flex items-baseline gap-2">
-                 <span className="text-2xl font-bold tracking-tight">{dashboardStats.totalPoints >= 30 ? `${(dashboardStats.totalPoints).toLocaleString()}` : dashboardStats.totalPoints}</span>
+                 <span className="text-2xl font-bold tracking-tight">{totalPoints >= 30 ? `${(totalPoints).toLocaleString()}` : totalPoints}</span>
                  {/* {dashboardStats.improvement !== 0 && (
                      <div className="flex items-center text-[10px] font-medium">
                         <span className={dashboardStats.improvement > 0 ? "text-emerald-500" : "text-rose-500"}>
@@ -417,10 +397,10 @@ export default function NewHomeClient({
                 </div>
                 <span className="text-xs font-bold text-foreground">{initialWeight?.weight || '--'} kg</span>
              </div>
-             {dashboardStats.weightHistory?.length > 1 ? (
+             {weightHistory && weightHistory.length > 1 ? (
                  <div className="h-10 w-full mt-1 -ml-1 relative z-10">
                     <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={dashboardStats.weightHistory}>
+                        <AreaChart data={weightHistory}>
                             <defs>
                                 <linearGradient id="miniWeight" x1="0" y1="0" x2="0" y2="1">
                                     <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.2}/>
@@ -447,7 +427,6 @@ export default function NewHomeClient({
              )}
           </div>
         </section>
-      )}
 
       {/* Week Glance */}
       <section className="bg-card rounded-2xl border border-border/40 p-5">
