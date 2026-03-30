@@ -8,7 +8,11 @@ import { Capacitor } from '@capacitor/core';
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [isChecking, setIsChecking] = useState(true);
+  // Start as false for web — only native needs the auth gate.
+  // This prevents an extra mount cycle that discards SSR HTML.
+  const [isChecking, setIsChecking] = useState(() => {
+    try { return Capacitor.isNativePlatform(); } catch { return false; }
+  });
 
   useEffect(() => {
     const checkAuth = async () => {

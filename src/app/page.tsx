@@ -1,3 +1,4 @@
+import { connection } from 'next/server';
 import { getRoutine } from '@/app/actions/routine';
 import { getTodaysWeightData } from '@/app/actions/health';
 import { getStreakData, getSpecialTasks, getTotalPointsWithBonuses } from '@/app/actions/streak';
@@ -7,6 +8,7 @@ import HomePageClient from './HomePageClient';
 export const dynamic = 'force-dynamic';
 
 export default async function Dashboard() {
+  await connection();
   const [
     routineData,
     todaysWeight,

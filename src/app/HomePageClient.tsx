@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { RotateCw } from 'lucide-react';
 import NewHomeClient from './NewHomeClient';
 
@@ -17,11 +17,23 @@ interface HomeData {
 export default function HomePageClient({ initialData }: { initialData: HomeData }) {
   const [data, setData] = useState<HomeData>(initialData);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const hasFetchedRef = useRef(false);
+
+  // Auto-fetch fresh data on mount to ensure correct values.
+  // SSR data may be stale due to route cache or hydration issues.
+  useEffect(() => {
+    if (hasFetchedRef.current) return;
+    hasFetchedRef.current = true;
+
+    fetch('/api/home')
+      .then(res => res.ok ? res.json() : null)
+      .then(json => { if (json) setData(json); })
+      .catch(() => {});
+  }, []);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      // Trigger RxDB sync in background
       import('@/lib/rxdb/replication').then(m => m.forceSync()).catch(() => {});
       const res = await fetch('/api/home');
       if (res.ok) {
